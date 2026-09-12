@@ -22,7 +22,12 @@ namespace Service.API.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                bool isExpected = ex is AppException or UnauthorizedAccessException;
+
+                if (isExpected)
+                    _logger.LogWarning("{Message}", ex.Message);
+                else
+                    _logger.LogError(ex, ex.Message);
 
                 int statusCode = ex switch
                 {

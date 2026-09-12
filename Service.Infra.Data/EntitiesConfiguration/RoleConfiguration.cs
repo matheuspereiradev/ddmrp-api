@@ -9,6 +9,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
         public void Configure(EntityTypeBuilder<Role> builder)
         {
             builder.ToTable("Roles");
+            builder.ConfigureAuditFields();
             builder.HasKey(r => r.Id);
             builder.Property(r => r.Name).IsRequired().HasMaxLength(100);
         }
