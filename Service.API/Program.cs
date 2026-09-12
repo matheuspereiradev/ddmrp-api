@@ -1,7 +1,9 @@
 using Service.API.Filters;
+using Service.API.HealthChecks;
 using Service.API.Middleware;
 using Service.Infra.Ioc;
 using DotNetEnv;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 
 Env.Load();
@@ -14,6 +16,9 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<ApiResponseWrapperFilter>();
 });
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
@@ -60,6 +65,16 @@ app.UseCors("Default");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 app.MapControllers();
 

@@ -58,6 +58,8 @@ namespace Service.Infra.Ioc
             services.AddScoped<IHistoryRepository, HistoryRepository>();
             services.AddScoped<IPartnerRepository, PartnerRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
+            services.AddScoped<IReasonRepository, ReasonRepository>();
+            services.AddScoped<IAllocationGroupRepository, AllocationGroupRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -67,6 +69,8 @@ namespace Service.Infra.Ioc
             services.AddScoped<IHistoryService, HistoryService>();
             services.AddScoped<IPartnerService, PartnerService>();
             services.AddScoped<ITagService, TagService>();
+            services.AddScoped<IReasonService, ReasonService>();
+            services.AddScoped<IAllocationGroupService, AllocationGroupService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();

@@ -25,7 +25,7 @@ Lista de achados do diagnóstico técnico do repositório, ordenados por severid
 
 ## Módulos pendentes
 
-- [ ] **`CenterProduct` bloqueado por FKs ausentes.** A tabela `CenterProducts` referencia `Partner` (`IdProvider`), `Tags` (`IdTag`) e `Reasons` (`IdReason`). `Partner` e `Tag` já foram criados; ainda falta `Reasons`. Depois de criar os três, criar `CenterProduct` com as FKs reais.
+- [ ] **`CenterProduct` pronto para ser criado.** As três FKs que faltavam (`Partner`, `Tag`, `Reason`) já existem. Próximo passo: criar `CenterProduct` com as FKs reais, depois `Notes` (que depende de `CenterProduct`).
 - [ ] **`Notes` bloqueado, depende de `CenterProduct`.** `Notes.CenterProductId` é FK obrigatória para `CenterProducts.Id`, que ainda não existe (ver item acima). Ordem de criação: `Tags` → `Reasons` → `CenterProduct` → `Notes`.
 
 ## Warnings do build (`dotnet build`)
