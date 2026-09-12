@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Service.Infra.Data.Context;
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912005846_AddProduct")]
+    partial class AddProduct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,13 +34,14 @@ namespace Service.Infra.Data.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("City")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -45,6 +49,7 @@ namespace Service.Infra.Data.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("Zone")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -73,106 +78,6 @@ namespace Service.Infra.Data.Migrations
                     b.ToTable("Centers", (string)null);
                 });
 
-            modelBuilder.Entity("Service.Domain.Entities.Forecast", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("IdCenter")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("IdProduct")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTime?>("createdAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int?>("createdBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("deletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("deletedBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("updatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("updatedBy")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdCenter");
-
-                    b.HasIndex("IdProduct");
-
-                    b.ToTable("Forecasts", (string)null);
-                });
-
-            modelBuilder.Entity("Service.Domain.Entities.History", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("IdCenter")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("IdProduct")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTime?>("createdAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int?>("createdBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("deletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("deletedBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("updatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("updatedBy")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdCenter");
-
-                    b.HasIndex("IdProduct");
-
-                    b.ToTable("Histories", (string)null);
-                });
-
             modelBuilder.Entity("Service.Domain.Entities.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -182,22 +87,27 @@ namespace Service.Infra.Data.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ABC")
+                        .IsRequired()
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)");
 
                     b.Property<string>("AuxiliarMaterialCode")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("Barcode")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("Brand")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("Category")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -207,12 +117,13 @@ namespace Service.Infra.Data.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("Line")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<decimal?>("Pallet")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                    b.Property<decimal>("Pallet")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("Reference")
                         .IsRequired()
@@ -220,10 +131,12 @@ namespace Service.Infra.Data.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("Segment")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("Subline")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -232,19 +145,20 @@ namespace Service.Infra.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<decimal?>("Value")
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Volume")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
-                    b.Property<decimal?>("Volume")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<decimal?>("Weight")
+                    b.Property<decimal>("Weight")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("WorkCenter")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
@@ -362,44 +276,6 @@ namespace Service.Infra.Data.Migrations
                     b.HasIndex("IdRole");
 
                     b.ToTable("Users", (string)null);
-                });
-
-            modelBuilder.Entity("Service.Domain.Entities.Forecast", b =>
-                {
-                    b.HasOne("Service.Domain.Entities.Center", "Center")
-                        .WithMany()
-                        .HasForeignKey("IdCenter")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Service.Domain.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("IdProduct")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Center");
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("Service.Domain.Entities.History", b =>
-                {
-                    b.HasOne("Service.Domain.Entities.Center", "Center")
-                        .WithMany()
-                        .HasForeignKey("IdCenter")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Service.Domain.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("IdProduct")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Center");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.User", b =>

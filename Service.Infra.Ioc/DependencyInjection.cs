@@ -53,10 +53,16 @@ namespace Service.Infra.Ioc
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<ICenterRepository, CenterRepository>();
+            services.AddScoped<IProductRepository, ProductRepository>();
+            services.AddScoped<IForecastRepository, ForecastRepository>();
+            services.AddScoped<IHistoryRepository, HistoryRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ICenterService, CenterService>();
+            services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IForecastService, ForecastService>();
+            services.AddScoped<IHistoryService, HistoryService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();

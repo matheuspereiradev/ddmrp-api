@@ -15,6 +15,9 @@ namespace Service.Infra.Data.Context
         public DbSet<User> User { get; set; }
         public DbSet<Role> Role { get; set; }
         public DbSet<Center> Center { get; set; }
+        public DbSet<Product> Product { get; set; }
+        public DbSet<Forecast> Forecast { get; set; }
+        public DbSet<History> History { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

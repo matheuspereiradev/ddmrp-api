@@ -11,10 +11,10 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.ToTable("Centers");
             builder.ConfigureAuditFields();
             builder.HasKey(c => c.Id);
-            builder.Property(c => c.Code).IsRequired().HasMaxLength(20);
+            builder.Property(c => c.Code).IsRequired().HasMaxLength(50);
             builder.Property(c => c.Description).IsRequired().HasMaxLength(200);
-            builder.Property(c => c.City).IsRequired().HasMaxLength(100);
-            builder.Property(c => c.Zone).IsRequired().HasMaxLength(100);
+            builder.Property(c => c.City).HasMaxLength(100);
+            builder.Property(c => c.Zone).HasMaxLength(100);
         }
     }
 }

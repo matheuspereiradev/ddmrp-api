@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Service.Infra.Data.Context;
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912013602_AddForecast")]
+    partial class AddForecast
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -121,56 +124,6 @@ namespace Service.Infra.Data.Migrations
                     b.HasIndex("IdProduct");
 
                     b.ToTable("Forecasts", (string)null);
-                });
-
-            modelBuilder.Entity("Service.Domain.Entities.History", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("IdCenter")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("IdProduct")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTime?>("createdAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int?>("createdBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("deletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("deletedBy")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("updatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("updatedBy")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdCenter");
-
-                    b.HasIndex("IdProduct");
-
-                    b.ToTable("Histories", (string)null);
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.Product", b =>
@@ -365,25 +318,6 @@ namespace Service.Infra.Data.Migrations
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.Forecast", b =>
-                {
-                    b.HasOne("Service.Domain.Entities.Center", "Center")
-                        .WithMany()
-                        .HasForeignKey("IdCenter")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Service.Domain.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("IdProduct")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Center");
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("Service.Domain.Entities.History", b =>
                 {
                     b.HasOne("Service.Domain.Entities.Center", "Center")
                         .WithMany()
