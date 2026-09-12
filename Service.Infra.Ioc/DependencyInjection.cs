@@ -4,6 +4,8 @@ using Service.Domain.Account;
 using Service.Domain.Interfaces;
 using Service.Infra.Data.Context;
 using Service.Infra.Data.Identity;
+using Service.Infra.Data.Ingestion;
+using Service.Infra.Data.Ingestion.Writers;
 using Service.Infra.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -89,6 +91,17 @@ namespace Service.Infra.Ioc
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();
+
+            services.AddScoped<IIngestionConfigProvider>(_ =>
+                new JsonIngestionConfigProvider(configuration["Ingestion:ConfigPath"] ?? "ingestion.config.json"));
+            services.AddScoped<IIngestionSourceReader, CsvIngestionSourceReader>();
+            services.AddScoped<ILookupValueProvider, LookupValueProvider>();
+            services.AddScoped<IIngestionWriter, CenterIngestionWriter>();
+            services.AddScoped<IIngestionWriter, ProductIngestionWriter>();
+            services.AddScoped<IIngestionWriter, CenterProductIngestionWriter>();
+            services.AddScoped<IIngestionWriter, ForecastIngestionWriter>();
+            services.AddScoped<IIngestionWriter, HistoryIngestionWriter>();
+            services.AddScoped<IIngestionService, IngestionService>();
 
             return services;
         }

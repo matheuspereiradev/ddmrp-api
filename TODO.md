@@ -26,12 +26,17 @@ Lista de achados do diagnóstico técnico do repositório, ordenados por severid
 ## Infraestrutura
 
 - [x] **Troca de banco: PostgreSQL → SQL Server.** ~~O projeto usava Npgsql.~~ Trocado `Npgsql.EntityFrameworkCore.PostgreSQL` por `Microsoft.EntityFrameworkCore.SqlServer`, `UseNpgsql` → `UseSqlServer` em `DependencyInjection.cs`, e o default de `createdAt` de `now()` para `GETUTCDATE()`. Todas as migrations antigas (geradas contra Postgres) foram removidas por não serem compatíveis com SQL Server. (`Service.Infra.Data/Service.Infra.Data.csproj`, `Service.Infra.Ioc/DependencyInjection.cs`, `Service.Infra.Data/EntitiesConfiguration/AuditableEntityConfigurationExtensions.cs`)
-- [ ] **Gerar a migration inicial para SQL Server.** Rodar (você, não eu — regra de nunca rodar migration diretamente):
-  ```bash
-  dotnet ef migrations add InitialCreate --project Service.Infra.Data --startup-project Service.API
-  dotnet ef database update --project Service.Infra.Data --startup-project Service.API
-  ```
-  contra uma instância real de SQL Server, com a connection string em `Service.API/.env` já no formato novo (veja `.env.example`).
+- [x] **Gerar a migration inicial para SQL Server.** ~~Migrations antigas removidas, faltava recriar.~~ Você já gerou `InitialCreate` na branch `sqlserver`/`robot`.
+
+## Robot (orquestrador DDMRP)
+
+Design completo em memória (não neste repo) — ver decisões confirmadas: um deploy por cliente, T-SQL (não PL/pgSQL) para os cálculos, disparo por HTTP + cron, config em arquivo, full recalc diário sem incremental.
+
+- [x] **Pipeline de carga de dados (ingestão) — fase 1: só CSV.** `POST /api/ingestion/run` (`?view=` opcional). Config em `Service.API/ingestion.config.json`, mapeamento de campos com `source`/`target`/`default` e resolução de FK por chave de negócio (`lookup: { entity, by }` — ex.: cliente manda `Reference`/`Code`, o robô resolve pro `Id` interno via `Product`/`Center`). Upsert por chave natural/composta em `Centers` (Code), `Products` (Reference), `CenterProducts` (IdProduct+IdCenter), `Forecast`/`History` (IdProduct+IdCenter+Date). Usa CsvHelper (biblioteca nova, aprovada por você). (`Service.Domain/Ingestion/*`, `Service.Domain/Interfaces/IIngestion*.cs`, `Service.Application/Ingestion/FieldMappingEngine.cs`, `Service.Application/Services/IngestionService.cs`, `Service.Infra.Data/Ingestion/*`, `Service.API/Controllers/IngestionController.cs`)
+- [ ] **Ingestão via API do cliente.** Adiada explicitamente — só CSV por enquanto. Quando entrar, é só implementar mais um `IIngestionSourceReader` (`CanHandle("Api")`), o motor de mapeamento de campos já é agnóstico à fonte.
+- [ ] **Disparo por cron do Robot.** Adiado explicitamente ("não precisa criar o cron agora"). Quando entrar: scheduler simples de horário fixo diário (`BackgroundService` nativo, sem lib de cron), a não ser que você peça expressões cron completas (aí precisa aprovar lib tipo Cronos/Quartz.NET).
+- [ ] **Pipeline de cálculo DDMRP (pré-cálculo de campos, ex.: `Adu`).** Ainda não iniciado — é a segunda metade do Robot, com procedures/functions T-SQL chamadas em sequência configurável, recálculo completo diário (sem incremental).
+- [ ] **CenterProductIngestionWriter não mapeia os FKs "internos"** (`Provider`, `Tag`, `Reason`, `AllocationGroup`, `BufferProfile`, `OriginCenter`) — só o par `IdProduct`/`IdCenter` + campos numéricos (`PackQuantity`/`Moq`/`LeadTime`/`Frequency`/`Stock`). Se o cliente precisar mandar algum desses via CSV, o writer precisa ser estendido.
 
 ## Módulos pendentes
 

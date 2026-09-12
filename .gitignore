@@ -50,6 +50,13 @@ secrets.json
 .env.*
 !.env.example
 
+# Ingestion pipeline config (per-deployment) — keep .example versioned
+Service.API/ingestion.config.json
+!Service.API/ingestion.config.json.example
+
+# Ingestion pipeline local CSV drop folder
+Service.API/Imports/
+
 # Test results
 [Tt]est[Rr]esult*/
 *.trx

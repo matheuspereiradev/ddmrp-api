@@ -1,0 +1,72 @@
+{
+  "sources": [
+    {
+      "view": "Centers",
+      "type": "Csv",
+      "path": "Imports/centers.csv",
+      "deleteNonSent": false,
+      "key": ["Code"],
+      "fieldMappings": [
+        { "source": "Code", "target": "Code" },
+        { "source": "Description", "target": "Description" },
+        { "source": "City", "target": "City" },
+        { "source": "Zone", "target": "Zone" }
+      ]
+    },
+    {
+      "view": "Products",
+      "type": "Csv",
+      "path": "Imports/products.csv",
+      "deleteNonSent": false,
+      "key": ["Reference"],
+      "fieldMappings": [
+        { "source": "SKU", "target": "Reference" },
+        { "source": "Description", "target": "Description" },
+        { "source": "UnitOfMeasure", "target": "UnitOfMeasure", "default": "UN" },
+        { "target": "Segment", "default": "BR" }
+      ]
+    },
+    {
+      "view": "CenterProducts",
+      "type": "Csv",
+      "path": "Imports/center_products.csv",
+      "deleteNonSent": false,
+      "key": ["IdProduct", "IdCenter"],
+      "fieldMappings": [
+        { "source": "ProductReference", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
+        { "source": "CenterCode", "target": "IdCenter", "lookup": { "entity": "Center", "by": "Code" } },
+        { "source": "PackQuantity", "target": "PackQuantity", "default": "1" },
+        { "source": "Moq", "target": "Moq", "default": "0" },
+        { "source": "LeadTime", "target": "LeadTime", "default": "0" },
+        { "source": "Frequency", "target": "Frequency", "default": "0" },
+        { "source": "Stock", "target": "Stock", "default": "0" }
+      ]
+    },
+    {
+      "view": "Forecast",
+      "type": "Csv",
+      "path": "Imports/forecast.csv",
+      "deleteNonSent": false,
+      "key": ["IdProduct", "IdCenter", "Date"],
+      "fieldMappings": [
+        { "source": "ProductReference", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
+        { "source": "CenterCode", "target": "IdCenter", "lookup": { "entity": "Center", "by": "Code" } },
+        { "source": "Quantity", "target": "Quantity" },
+        { "source": "Date", "target": "Date" }
+      ]
+    },
+    {
+      "view": "History",
+      "type": "Csv",
+      "path": "Imports/history.csv",
+      "deleteNonSent": false,
+      "key": ["IdProduct", "IdCenter", "Date"],
+      "fieldMappings": [
+        { "source": "ProductReference", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
+        { "source": "CenterCode", "target": "IdCenter", "lookup": { "entity": "Center", "by": "Code" } },
+        { "source": "Quantity", "target": "Quantity" },
+        { "source": "Date", "target": "Date" }
+      ]
+    }
+  ]
+}
