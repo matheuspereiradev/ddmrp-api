@@ -26,6 +26,7 @@ namespace Service.Infra.Data.Context
         public DbSet<MasterBuffer> MasterBuffer { get; set; }
         public DbSet<ZoneAdjustmentFactor> ZoneAdjustmentFactor { get; set; }
         public DbSet<BufferAdjustmentFactor> BufferAdjustmentFactor { get; set; }
+        public DbSet<DemandAdjustmentFactor> DemandAdjustmentFactor { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
