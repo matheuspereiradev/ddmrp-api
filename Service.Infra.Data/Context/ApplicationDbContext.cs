@@ -23,6 +23,7 @@ namespace Service.Infra.Data.Context
         public DbSet<Reason> Reason { get; set; }
         public DbSet<AllocationGroup> AllocationGroup { get; set; }
         public DbSet<CenterProduct> CenterProduct { get; set; }
+        public DbSet<MasterBuffer> MasterBuffer { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -61,6 +61,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IReasonRepository, ReasonRepository>();
             services.AddScoped<IAllocationGroupRepository, AllocationGroupRepository>();
             services.AddScoped<ICenterProductRepository, CenterProductRepository>();
+            services.AddScoped<IMasterBufferRepository, MasterBufferRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -73,6 +74,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IReasonService, ReasonService>();
             services.AddScoped<IAllocationGroupService, AllocationGroupService>();
             services.AddScoped<ICenterProductService, CenterProductService>();
+            services.AddScoped<IMasterBufferService, MasterBufferService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();
