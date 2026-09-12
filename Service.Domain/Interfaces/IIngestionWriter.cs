@@ -4,7 +4,7 @@ namespace Service.Domain.Interfaces
 {
     public interface IIngestionWriter
     {
-        bool CanHandle(string view);
-        Task<IngestionWriteResult> WriteAsync(List<Dictionary<string, string?>> mappedRows, bool deleteNonSent, CancellationToken cancellationToken = default);
+        bool CanHandle(IngestionSourceConfig source);
+        Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default);
     }
 }

@@ -19,9 +19,9 @@ namespace Service.Infra.Data.Ingestion.Writers
             _currentUser = currentUser;
         }
 
-        public bool CanHandle(string view) => string.Equals(view, "CenterProducts", StringComparison.OrdinalIgnoreCase);
+        public bool CanHandle(IngestionSourceConfig source) => string.Equals(source.View, "CenterProducts", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<IngestionWriteResult> WriteAsync(List<Dictionary<string, string?>> mappedRows, bool deleteNonSent, CancellationToken cancellationToken = default)
+        public async Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default)
         {
             var result = new IngestionWriteResult();
             var parsedRows = new List<(Dictionary<string, string?> Row, int IdProduct, int IdCenter)>();
@@ -56,19 +56,19 @@ namespace Service.Infra.Data.Ingestion.Writers
                 var moq = TryParseDecimal(row.GetValueOrDefault("Moq")) ?? 0;
                 var leadTime = TryParseInt(row.GetValueOrDefault("LeadTime")) ?? 0;
                 var frequency = TryParseInt(row.GetValueOrDefault("Frequency")) ?? 0;
-                var stock = TryParseDecimal(row.GetValueOrDefault("Stock")) ?? 0;
 
                 if (existingMap.TryGetValue((idProduct, idCenter), out var centerProduct))
                 {
                     // HistoryAduDays/FutureAduDays are intentionally NOT updated here: they're a
                     // create-time default, and re-syncing from CSV shouldn't clobber a value the
                     // user later tuned via PUT (same reasoning as History.DiscardStatus).
+                    // Stock is also NOT touched here: it's owned by the dedicated "Stock" ingestion
+                    // view/writer, which always updates it independently.
                     centerProduct.IdOriginCenter = idOriginCenter;
                     centerProduct.PackQuantity = packQuantity;
                     centerProduct.Moq = moq;
                     centerProduct.LeadTime = leadTime;
                     centerProduct.Frequency = frequency;
-                    centerProduct.Stock = stock;
                     centerProduct.updatedAt = now;
                     centerProduct.updatedBy = userId;
                     result.Updated++;
@@ -84,7 +84,6 @@ namespace Service.Infra.Data.Ingestion.Writers
                         Moq = moq,
                         LeadTime = leadTime,
                         Frequency = frequency,
-                        Stock = stock,
                         HistoryAduDays = TryParseInt(row.GetValueOrDefault("HistoryAduDays")),
                         FutureAduDays = TryParseInt(row.GetValueOrDefault("FutureAduDays")),
                         createdAt = now,
@@ -96,7 +95,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                 }
             }
 
-            if (deleteNonSent)
+            if (source.DeleteNonSent)
             {
                 var sentKeys = parsedRows.Select(r => (r.IdProduct, r.IdCenter)).ToHashSet();
                 var toDelete = existing.Where(cp => !sentKeys.Contains((cp.IdProduct, cp.IdCenter))).ToList();

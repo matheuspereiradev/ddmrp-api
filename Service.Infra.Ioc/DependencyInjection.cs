@@ -103,6 +103,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IIngestionWriter, CenterProductIngestionWriter>();
             services.AddScoped<IIngestionWriter, ForecastIngestionWriter>();
             services.AddScoped<IIngestionWriter, HistoryIngestionWriter>();
+            services.AddScoped<IIngestionWriter, CenterProductFieldUpdateIngestionWriter>();
             services.AddScoped<IIngestionService, IngestionService>();
 
             services.AddScoped<ICalculationConfigProvider>(_ =>

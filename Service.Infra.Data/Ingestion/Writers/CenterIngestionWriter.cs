@@ -18,9 +18,9 @@ namespace Service.Infra.Data.Ingestion.Writers
             _currentUser = currentUser;
         }
 
-        public bool CanHandle(string view) => string.Equals(view, "Centers", StringComparison.OrdinalIgnoreCase);
+        public bool CanHandle(IngestionSourceConfig source) => string.Equals(source.View, "Centers", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<IngestionWriteResult> WriteAsync(List<Dictionary<string, string?>> mappedRows, bool deleteNonSent, CancellationToken cancellationToken = default)
+        public async Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default)
         {
             var result = new IngestionWriteResult();
 
@@ -80,7 +80,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                 }
             }
 
-            if (deleteNonSent)
+            if (source.DeleteNonSent)
             {
                 var toDelete = await _context.Center
                     .Where(c => c.deletedAt == null && !codes.Contains(c.Code))

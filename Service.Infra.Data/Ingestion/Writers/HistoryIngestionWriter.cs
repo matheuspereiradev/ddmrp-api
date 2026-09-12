@@ -19,9 +19,9 @@ namespace Service.Infra.Data.Ingestion.Writers
             _currentUser = currentUser;
         }
 
-        public bool CanHandle(string view) => string.Equals(view, "History", StringComparison.OrdinalIgnoreCase);
+        public bool CanHandle(IngestionSourceConfig source) => string.Equals(source.View, "History", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<IngestionWriteResult> WriteAsync(List<Dictionary<string, string?>> mappedRows, bool deleteNonSent, CancellationToken cancellationToken = default)
+        public async Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default)
         {
             var result = new IngestionWriteResult();
             var parsedRows = new List<(int IdProduct, int IdCenter, DateTime Date, decimal Quantity)>();
@@ -77,7 +77,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                 }
             }
 
-            if (deleteNonSent)
+            if (source.DeleteNonSent)
             {
                 var sentKeys = parsedRows.Select(r => (r.IdProduct, r.IdCenter, r.Date)).ToHashSet();
                 var toDelete = existing.Where(h => !sentKeys.Contains((h.IdProduct, h.IdCenter, h.Date))).ToList();

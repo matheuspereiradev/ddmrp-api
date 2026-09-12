@@ -50,7 +50,7 @@ public class IngestionServiceTests
     {
         var source = BuildSource("Centers", new FieldMappingConfig { Source = "Code", Target = "Code" });
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("Centers").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         var rows = new List<IReadOnlyDictionary<string, string?>>
         {
@@ -58,7 +58,7 @@ public class IngestionServiceTests
             new Dictionary<string, string?> { ["Code"] = "C2" }
         };
         _reader.ReadAsync(source, Arg.Any<CancellationToken>()).Returns(ToAsyncEnumerable(rows));
-        _writer.WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _writer.WriteAsync(source, Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<CancellationToken>())
             .Returns(new IngestionWriteResult { Inserted = 2 });
 
         var results = await _sut.RunAsync("Centers");
@@ -68,8 +68,8 @@ public class IngestionServiceTests
         Assert.Equal(2, results[0].RowsInserted);
         Assert.Equal(0, results[0].RowsFailed);
         await _writer.Received(1).WriteAsync(
+            source,
             Arg.Is<List<Dictionary<string, string?>>>(rows => rows.Count == 2),
-            false,
             Arg.Any<CancellationToken>());
     }
 
@@ -79,17 +79,17 @@ public class IngestionServiceTests
         var source = BuildSource("Centers", new FieldMappingConfig { Source = "Code", Target = "Code" });
         source.DeleteNonSent = true;
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("Centers").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         var rows = new List<IReadOnlyDictionary<string, string?>> { new Dictionary<string, string?> { ["Code"] = "C1" } };
         _reader.ReadAsync(source, Arg.Any<CancellationToken>()).Returns(ToAsyncEnumerable(rows));
-        _writer.WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _writer.WriteAsync(source, Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<CancellationToken>())
             .Returns(new IngestionWriteResult { Inserted = 1, Deleted = 3 });
 
         var result = (await _sut.RunAsync("Centers")).Single();
 
         Assert.Equal(3, result.RowsDeleted);
-        await _writer.Received(1).WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), true, Arg.Any<CancellationToken>());
+        await _writer.Received(1).WriteAsync(source, Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class IngestionServiceTests
         var source = BuildSource("Forecast",
             new FieldMappingConfig { Source = "ProductReference", Target = "IdProduct", Lookup = new LookupConfig { Entity = "Product", By = "Reference" } });
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("Forecast").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         var rows = new List<IReadOnlyDictionary<string, string?>>
         {
@@ -108,7 +108,7 @@ public class IngestionServiceTests
         _reader.ReadAsync(source, Arg.Any<CancellationToken>()).Returns(ToAsyncEnumerable(rows));
         _lookupProvider.ResolveAsync("Product", "Reference", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, string> { ["KNOWN"] = "1" });
-        _writer.WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _writer.WriteAsync(source, Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<CancellationToken>())
             .Returns(new IngestionWriteResult { Inserted = 1 });
 
         var result = (await _sut.RunAsync("Forecast")).Single();
@@ -126,7 +126,7 @@ public class IngestionServiceTests
             new FieldMappingConfig { Source = "CenterCode", Target = "IdCenter", Lookup = new LookupConfig { Entity = "Center", By = "Code" } },
             new FieldMappingConfig { Source = "OriginCenterCode", Target = "IdOriginCenter", Lookup = new LookupConfig { Entity = "Center", By = "Code" }, Required = false });
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("CenterProducts").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         var rows = new List<IReadOnlyDictionary<string, string?>>
         {
@@ -135,7 +135,7 @@ public class IngestionServiceTests
         _reader.ReadAsync(source, Arg.Any<CancellationToken>()).Returns(ToAsyncEnumerable(rows));
         _lookupProvider.ResolveAsync("Center", "Code", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
             .Returns(new Dictionary<string, string> { ["C1"] = "1", ["C2"] = "2" });
-        _writer.WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+        _writer.WriteAsync(source, Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<CancellationToken>())
             .Returns(new IngestionWriteResult { Inserted = 1 });
 
         var result = (await _sut.RunAsync("CenterProducts")).Single();
@@ -146,8 +146,8 @@ public class IngestionServiceTests
             Arg.Is<IEnumerable<string>>(values => values.Contains("C1") && values.Contains("C2")),
             Arg.Any<CancellationToken>());
         await _writer.Received(1).WriteAsync(
+            source,
             Arg.Is<List<Dictionary<string, string?>>>(rows => rows[0]["IdCenter"] == "1" && rows[0]["IdOriginCenter"] == "2"),
-            false,
             Arg.Any<CancellationToken>());
     }
 
@@ -167,7 +167,7 @@ public class IngestionServiceTests
         var source = BuildSource("Centers", new FieldMappingConfig { Source = "Description", Target = "Description" });
         source.Key = ["Code"];
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("Centers").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.RunAsync("Centers"));
     }
@@ -178,7 +178,7 @@ public class IngestionServiceTests
         var source = BuildSource("Centers", new FieldMappingConfig { Source = null, Target = "Code", Default = "C1" });
         source.Key = ["Code"];
         _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
-        _writer.CanHandle("Centers").Returns(true);
+        _writer.CanHandle(source).Returns(true);
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.RunAsync("Centers"));
     }
