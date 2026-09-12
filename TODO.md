@@ -23,6 +23,16 @@ Lista de achados do diagnóstico técnico do repositório, ordenados por severid
   - **Como o controller declara a permissão exigida**: usar policy-based authorization do ASP.NET Core (`[Authorize(Policy = "users.create")]` ou um atributo customizado tipo `[RequirePermission("users.create")]`), nunca `Roles =`.
   - **Onde a checagem acontece — decisão em aberto**: (a) permissões resolvidas no login e embutidas como claims no JWT (rápido, sem consulta ao banco por request, mas fica desatualizado até o access token expirar/renovar se um admin mudar as permissões do perfil dele — agora que o refresh token existe, isso significa "até o próximo refresh", que pode ser configurado para um intervalo curto); ou (b) checagem no banco a cada requisição via `IAuthorizationHandler` customizado, com cache (efeito imediato quando a config muda, custa uma consulta a mais, mitigável com cache). Como a ideia é o usuário reconfigurar isso em runtime, opção (b) com cache tende a fazer mais sentido.
 
+## Infraestrutura
+
+- [x] **Troca de banco: PostgreSQL → SQL Server.** ~~O projeto usava Npgsql.~~ Trocado `Npgsql.EntityFrameworkCore.PostgreSQL` por `Microsoft.EntityFrameworkCore.SqlServer`, `UseNpgsql` → `UseSqlServer` em `DependencyInjection.cs`, e o default de `createdAt` de `now()` para `GETUTCDATE()`. Todas as migrations antigas (geradas contra Postgres) foram removidas por não serem compatíveis com SQL Server. (`Service.Infra.Data/Service.Infra.Data.csproj`, `Service.Infra.Ioc/DependencyInjection.cs`, `Service.Infra.Data/EntitiesConfiguration/AuditableEntityConfigurationExtensions.cs`)
+- [ ] **Gerar a migration inicial para SQL Server.** Rodar (você, não eu — regra de nunca rodar migration diretamente):
+  ```bash
+  dotnet ef migrations add InitialCreate --project Service.Infra.Data --startup-project Service.API
+  dotnet ef database update --project Service.Infra.Data --startup-project Service.API
+  ```
+  contra uma instância real de SQL Server, com a connection string em `Service.API/.env` já no formato novo (veja `.env.example`).
+
 ## Módulos pendentes
 
 - [x] **`CenterProduct` criado.** ~~Faltavam `Partner`, `Tag`, `Reason`.~~ Módulo criado com as 7 FKs (`Product`, `Center`, `OriginCenter`, `Provider`/`Partner`, `Tag`, `Reason`, `AllocationGroup`), validação de todas (obrigatórias e opcionais) antes de tocar no banco. Próximo passo: `Notes` (depende de `CenterProduct.Id`).
