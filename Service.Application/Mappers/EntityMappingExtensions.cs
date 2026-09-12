@@ -1,6 +1,10 @@
+using Service.Application.DTOs.AllocationGroup;
 using Service.Application.DTOs.Center;
+using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
+using Service.Application.DTOs.Reason;
 using Service.Application.DTOs.Role;
+using Service.Application.DTOs.Tag;
 using Service.Domain.Entities;
 
 namespace Service.Application.Mappers
@@ -41,6 +45,34 @@ namespace Service.Application.Mappers
             ABC = product.ABC,
             Brand = product.Brand,
             WorkCenter = product.WorkCenter
+        };
+
+        public static PartnerGetDto ToGetDto(this Partner partner) => new()
+        {
+            Id = partner.Id,
+            Code = partner.Code,
+            Description = partner.Description
+        };
+
+        public static TagGetDto ToGetDto(this Tag tag) => new()
+        {
+            Id = tag.Id,
+            Name = tag.Name,
+            Description = tag.Description
+        };
+
+        public static ReasonGetDto ToGetDto(this Reason reason) => new()
+        {
+            Id = reason.Id,
+            Name = reason.Name,
+            Description = reason.Description,
+            IsFromSystem = reason.IsFromSystem
+        };
+
+        public static AllocationGroupGetDto ToGetDto(this AllocationGroup allocationGroup) => new()
+        {
+            Id = allocationGroup.Id,
+            Name = allocationGroup.Name
         };
     }
 }

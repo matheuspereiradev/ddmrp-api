@@ -1,5 +1,6 @@
 using Service.Application.DTOs.AllocationGroup;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,14 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override AllocationGroupGetDto ToGetDTO(AllocationGroup entity)
-        {
-            return new AllocationGroupGetDto
-            {
-                Id = entity.Id,
-                Name = entity.Name
-            };
-        }
+        protected override AllocationGroupGetDto ToGetDTO(AllocationGroup entity) => entity.ToGetDto();
 
         protected override AllocationGroup ToEntity(AllocationGroupPostDto postDTO)
         {

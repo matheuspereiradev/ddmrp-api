@@ -1,5 +1,6 @@
 using Service.Application.DTOs.Tag;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,15 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override TagGetDto ToGetDTO(Tag entity)
-        {
-            return new TagGetDto
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Description = entity.Description
-            };
-        }
+        protected override TagGetDto ToGetDTO(Tag entity) => entity.ToGetDto();
 
         protected override Tag ToEntity(TagPostDto postDTO)
         {

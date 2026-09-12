@@ -1,5 +1,6 @@
 using Service.Application.DTOs.Partner;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,15 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override PartnerGetDto ToGetDTO(Partner entity)
-        {
-            return new PartnerGetDto
-            {
-                Id = entity.Id,
-                Code = entity.Code,
-                Description = entity.Description
-            };
-        }
+        protected override PartnerGetDto ToGetDTO(Partner entity) => entity.ToGetDto();
 
         protected override Partner ToEntity(PartnerPostDto postDTO)
         {
