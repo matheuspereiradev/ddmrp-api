@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 
 namespace Service.Infra.Data.EntitiesConfiguration
 {
@@ -16,6 +17,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(h => h.IdCenter).IsRequired();
             builder.Property(h => h.Quantity).IsRequired().HasPrecision(18, 4);
             builder.Property(h => h.Date).IsRequired();
+            builder.Property(h => h.DiscardStatus).IsRequired().HasDefaultValue(DiscardStatus.NotReviewed);
 
             builder.HasOne(h => h.Product)
                 .WithMany()

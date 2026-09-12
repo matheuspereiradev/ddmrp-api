@@ -44,5 +44,7 @@ namespace Service.Application.DTOs.CenterProduct
         public int? IdReason { get; set; }
         public int? IdAllocationGroup { get; set; }
         public int? IdBufferProfile { get; set; }
+        public int? FutureAduDays { get; set; }
+        public int? HistoryAduDays { get; set; }
     }
 }

@@ -20,10 +20,22 @@
       "deleteNonSent": false,
       "key": ["Reference"],
       "fieldMappings": [
-        { "source": "SKU", "target": "Reference" },
+        { "source": "MaterialCode", "target": "Reference" },
         { "source": "Description", "target": "Description" },
-        { "source": "UnitOfMeasure", "target": "UnitOfMeasure", "default": "UN" },
-        { "target": "Segment", "default": "BR" }
+        { "source": "AuxiliarMaterialCode", "target": "AuxiliarMaterialCode" },
+        { "source": "BarCode", "target": "Barcode" },
+        { "source": "MeasurementUnit", "target": "UnitOfMeasure" },
+        { "source": "Category", "target": "Category" },
+        { "source": "Segment", "target": "Segment" },
+        { "source": "GrossWeight", "target": "Weight" },
+        { "source": "Volume", "target": "Volume" },
+        { "source": "Value", "target": "Value" },
+        { "source": "Pallet", "target": "Pallet" },
+        { "source": "Line", "target": "Line" },
+        { "source": "SubLine", "target": "Subline" },
+        { "source": "ABC Class", "target": "ABC" },
+        { "source": "Brand", "target": "Brand" },
+        { "source": "WorkCenter", "target": "WorkCenter" }
       ]
     },
     {
@@ -33,13 +45,15 @@
       "deleteNonSent": false,
       "key": ["IdProduct", "IdCenter"],
       "fieldMappings": [
-        { "source": "ProductReference", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
+        { "source": "MaterialCode", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
         { "source": "CenterCode", "target": "IdCenter", "lookup": { "entity": "Center", "by": "Code" } },
+        { "source": "OriginCenterCode", "target": "IdOriginCenter", "lookup": { "entity": "Center", "by": "Code" }, "required": false },
         { "source": "PackQuantity", "target": "PackQuantity", "default": "1" },
-        { "source": "Moq", "target": "Moq", "default": "0" },
+        { "source": "MOQ", "target": "Moq", "default": "0" },
         { "source": "LeadTime", "target": "LeadTime", "default": "0" },
         { "source": "Frequency", "target": "Frequency", "default": "0" },
-        { "source": "Stock", "target": "Stock", "default": "0" }
+        { "target": "HistoryAduDays", "default": "90" },
+        { "target": "FutureAduDays", "default": "0" }
       ]
     },
     {

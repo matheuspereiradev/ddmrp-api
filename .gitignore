@@ -57,6 +57,10 @@ Service.API/ingestion.config.json
 # Ingestion pipeline local CSV drop folder
 Service.API/Imports/
 
+# Calculation pipeline config (per-deployment) — keep .example versioned
+Service.API/calculation.config.json
+!Service.API/calculation.config.json.example
+
 # Test results
 [Tt]est[Rr]esult*/
 *.trx

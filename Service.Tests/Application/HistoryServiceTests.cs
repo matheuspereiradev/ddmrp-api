@@ -3,6 +3,7 @@ using Service.Application.DTOs.History;
 using Service.Application.Exceptions;
 using Service.Application.Services;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
 
 namespace Service.Tests.Application;
@@ -84,8 +85,9 @@ public class HistoryServiceTests
 
         Assert.Equal(postDto.IdProduct, result.IdProduct);
         Assert.Equal(postDto.Quantity, result.Quantity);
+        Assert.Equal(DiscardStatus.NotReviewed, result.DiscardStatus);
         await _historyRepository.Received(1).AddAsync(
-            Arg.Is<History>(h => h.IdProduct == postDto.IdProduct && h.IdCenter == postDto.IdCenter),
+            Arg.Is<History>(h => h.IdProduct == postDto.IdProduct && h.IdCenter == postDto.IdCenter && h.DiscardStatus == DiscardStatus.NotReviewed),
             Arg.Any<CancellationToken>());
     }
 
@@ -112,10 +114,10 @@ public class HistoryServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_UpdatesOnlyQuantity_WhenHistoryExists()
+    public async Task UpdateAsync_UpdatesQuantityAndDiscardStatus_ButKeepsIdProductIdCenterAndDate()
     {
-        var existing = new History { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = new DateTime(2026, 9, 11) };
-        var putDto = new HistoryPutDto { Quantity = 200m };
+        var existing = new History { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = new DateTime(2026, 9, 11), DiscardStatus = DiscardStatus.NotReviewed };
+        var putDto = new HistoryPutDto { Quantity = 200m, DiscardStatus = DiscardStatus.Discarded };
         _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
         _historyRepository.UpdateAsync(Arg.Any<History>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<History>());
@@ -123,6 +125,7 @@ public class HistoryServiceTests
         var result = await _sut.UpdateAsync(1, putDto);
 
         Assert.Equal(200m, result.Quantity);
+        Assert.Equal(DiscardStatus.Discarded, result.DiscardStatus);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);
         Assert.Equal(new DateTime(2026, 9, 11), result.Date);

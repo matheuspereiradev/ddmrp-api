@@ -107,4 +107,44 @@ public class FieldMappingEngineTests
 
         Assert.NotNull(result[0].Error);
     }
+
+    [Fact]
+    public void MapRows_LeavesTargetAbsent_WhenOptionalLookupSourceValueIsMissing()
+    {
+        var source = BuildSource(new FieldMappingConfig
+        {
+            Source = "OriginCenterCode",
+            Target = "IdOriginCenter",
+            Lookup = new LookupConfig { Entity = "Center", By = "Code" },
+            Required = false
+        });
+        var rows = new List<IReadOnlyDictionary<string, string?>> { new Dictionary<string, string?> { ["OriginCenterCode"] = "" } };
+
+        var result = FieldMappingEngine.MapRows(rows, source, new Dictionary<(string, string), Dictionary<string, string>>());
+
+        Assert.Null(result[0].Error);
+        Assert.False(result[0].Values.ContainsKey("IdOriginCenter"));
+    }
+
+    [Fact]
+    public void MapRows_StillResolvesOptionalLookup_WhenValueIsPresent()
+    {
+        var source = BuildSource(new FieldMappingConfig
+        {
+            Source = "OriginCenterCode",
+            Target = "IdOriginCenter",
+            Lookup = new LookupConfig { Entity = "Center", By = "Code" },
+            Required = false
+        });
+        var rows = new List<IReadOnlyDictionary<string, string?>> { new Dictionary<string, string?> { ["OriginCenterCode"] = "C1" } };
+        var lookups = new Dictionary<(string, string), Dictionary<string, string>>
+        {
+            [("Center", "Code")] = new() { ["C1"] = "7" }
+        };
+
+        var result = FieldMappingEngine.MapRows(rows, source, lookups);
+
+        Assert.Null(result[0].Error);
+        Assert.Equal("7", result[0].Values["IdOriginCenter"]);
+    }
 }

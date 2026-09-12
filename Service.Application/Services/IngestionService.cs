@@ -125,21 +125,20 @@ namespace Service.Application.Services
         {
             var resolved = new Dictionary<(string, string), Dictionary<string, string>>();
 
-            var lookupMappings = source.FieldMappings.Where(f => f.Lookup != null).ToList();
-            foreach (var mapping in lookupMappings)
-            {
-                var key = (mapping.Lookup!.Entity, mapping.Lookup.By);
-                if (resolved.ContainsKey(key))
-                    continue;
+            var lookupGroups = source.FieldMappings
+                .Where(f => f.Lookup != null)
+                .GroupBy(f => (f.Lookup!.Entity, f.Lookup.By));
 
+            foreach (var group in lookupGroups)
+            {
                 var distinctValues = rawRows
-                    .Select(r => mapping.Source != null && r.TryGetValue(mapping.Source, out var v) ? v : null)
+                    .SelectMany(r => group.Select(mapping => mapping.Source != null && r.TryGetValue(mapping.Source, out var v) ? v : null))
                     .Where(v => !string.IsNullOrWhiteSpace(v))
                     .Select(v => v!)
                     .Distinct()
                     .ToList();
 
-                resolved[key] = await _lookupProvider.ResolveAsync(mapping.Lookup.Entity, mapping.Lookup.By, distinctValues, cancellationToken);
+                resolved[group.Key] = await _lookupProvider.ResolveAsync(group.Key.Entity, group.Key.By, distinctValues, cancellationToken);
             }
 
             return resolved;

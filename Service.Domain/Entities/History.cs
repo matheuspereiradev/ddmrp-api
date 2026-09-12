@@ -1,4 +1,5 @@
 using System;
+using Service.Domain.Enums;
 
 namespace Service.Domain.Entities
 {
@@ -10,5 +11,6 @@ namespace Service.Domain.Entities
         public Center Center { get; set; }
         public decimal Quantity { get; set; }
         public DateTime Date { get; set; }
+        public DiscardStatus DiscardStatus { get; set; } = DiscardStatus.NotReviewed;
     }
 }

@@ -58,7 +58,9 @@ namespace Service.Application.Services
                 IdTag = postDTO.IdTag,
                 IdReason = postDTO.IdReason,
                 IdAllocationGroup = postDTO.IdAllocationGroup,
-                IdBufferProfile = postDTO.IdBufferProfile
+                IdBufferProfile = postDTO.IdBufferProfile,
+                FutureAduDays = postDTO.FutureAduDays,
+                HistoryAduDays = postDTO.HistoryAduDays
             };
         }
 
@@ -78,6 +80,8 @@ namespace Service.Application.Services
             entity.IdReason = putDTO.IdReason;
             entity.IdAllocationGroup = putDTO.IdAllocationGroup;
             entity.IdBufferProfile = putDTO.IdBufferProfile;
+            entity.FutureAduDays = putDTO.FutureAduDays;
+            entity.HistoryAduDays = putDTO.HistoryAduDays;
         }
 
         private async Task ValidateOptionalForeignKeysAsync(

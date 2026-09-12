@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Service.Domain.Enums;
 
 namespace Service.Application.DTOs.History
 {
@@ -7,5 +8,9 @@ namespace Service.Application.DTOs.History
         [Required(ErrorMessage = "Field {0} required.")]
         [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
         public decimal Quantity { get; set; }
+
+        [Required(ErrorMessage = "Field {0} required.")]
+        [EnumDataType(typeof(DiscardStatus), ErrorMessage = "Field {0} has an invalid value.")]
+        public DiscardStatus DiscardStatus { get; set; }
     }
 }

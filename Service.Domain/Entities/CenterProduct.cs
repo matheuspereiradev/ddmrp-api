@@ -26,5 +26,8 @@ namespace Service.Domain.Entities
         public AllocationGroup? AllocationGroup { get; set; }
         public int? IdBufferProfile { get; set; }
         public BufferProfile? BufferProfile { get; set; }
+        public decimal? Adu { get; set; }
+        public int? FutureAduDays { get; set; }
+        public int? HistoryAduDays { get; set; }
     }
 }

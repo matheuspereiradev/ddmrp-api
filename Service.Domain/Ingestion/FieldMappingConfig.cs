@@ -6,5 +6,6 @@ namespace Service.Domain.Ingestion
         public string Target { get; set; } = string.Empty;
         public string? Default { get; set; }
         public LookupConfig? Lookup { get; set; }
+        public bool Required { get; set; } = true;
     }
 }

@@ -24,6 +24,9 @@ namespace Service.Application.Ingestion
                     {
                         if (string.IsNullOrWhiteSpace(raw))
                         {
+                            if (!mapping.Required)
+                                continue;
+
                             error ??= $"Missing value for lookup field '{mapping.Source}' (target '{mapping.Target}').";
                             continue;
                         }

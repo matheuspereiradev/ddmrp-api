@@ -1,6 +1,7 @@
 using System;
 using Service.Application.DTOs.Center;
 using Service.Application.DTOs.Product;
+using Service.Domain.Enums;
 
 namespace Service.Application.DTOs.History
 {
@@ -11,6 +12,7 @@ namespace Service.Application.DTOs.History
         public int IdCenter { get; set; }
         public decimal Quantity { get; set; }
         public DateTime Date { get; set; }
+        public DiscardStatus DiscardStatus { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
     }

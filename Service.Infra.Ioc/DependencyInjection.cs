@@ -2,6 +2,8 @@
 using Service.Application.Services;
 using Service.Domain.Account;
 using Service.Domain.Interfaces;
+using Service.Infra.Data.Calculation;
+using Service.Infra.Data.Calculation.Steps;
 using Service.Infra.Data.Context;
 using Service.Infra.Data.Identity;
 using Service.Infra.Data.Ingestion;
@@ -102,6 +104,13 @@ namespace Service.Infra.Ioc
             services.AddScoped<IIngestionWriter, ForecastIngestionWriter>();
             services.AddScoped<IIngestionWriter, HistoryIngestionWriter>();
             services.AddScoped<IIngestionService, IngestionService>();
+
+            services.AddScoped<ICalculationConfigProvider>(_ =>
+                new JsonCalculationConfigProvider(configuration["Calculation:ConfigPath"] ?? "calculation.config.json"));
+            services.AddScoped<ICalculationStep, CalculateAduStep>();
+            services.AddScoped<ICalculationService, CalculationService>();
+
+            services.AddScoped<IRobotService, RobotService>();
 
             return services;
         }

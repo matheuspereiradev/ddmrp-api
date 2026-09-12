@@ -51,6 +51,7 @@ namespace Service.Infra.Data.Ingestion.Writers
 
             foreach (var (row, idProduct, idCenter) in parsedRows)
             {
+                var idOriginCenter = TryParseInt(row.GetValueOrDefault("IdOriginCenter"));
                 var packQuantity = TryParseDecimal(row.GetValueOrDefault("PackQuantity")) ?? 0;
                 var moq = TryParseDecimal(row.GetValueOrDefault("Moq")) ?? 0;
                 var leadTime = TryParseInt(row.GetValueOrDefault("LeadTime")) ?? 0;
@@ -59,6 +60,10 @@ namespace Service.Infra.Data.Ingestion.Writers
 
                 if (existingMap.TryGetValue((idProduct, idCenter), out var centerProduct))
                 {
+                    // HistoryAduDays/FutureAduDays are intentionally NOT updated here: they're a
+                    // create-time default, and re-syncing from CSV shouldn't clobber a value the
+                    // user later tuned via PUT (same reasoning as History.DiscardStatus).
+                    centerProduct.IdOriginCenter = idOriginCenter;
                     centerProduct.PackQuantity = packQuantity;
                     centerProduct.Moq = moq;
                     centerProduct.LeadTime = leadTime;
@@ -74,11 +79,14 @@ namespace Service.Infra.Data.Ingestion.Writers
                     {
                         IdProduct = idProduct,
                         IdCenter = idCenter,
+                        IdOriginCenter = idOriginCenter,
                         PackQuantity = packQuantity,
                         Moq = moq,
                         LeadTime = leadTime,
                         Frequency = frequency,
                         Stock = stock,
+                        HistoryAduDays = TryParseInt(row.GetValueOrDefault("HistoryAduDays")),
+                        FutureAduDays = TryParseInt(row.GetValueOrDefault("FutureAduDays")),
                         createdAt = now,
                         createdBy = userId
                     };

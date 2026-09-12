@@ -120,6 +120,38 @@ public class IngestionServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_AggregatesValuesAcrossFieldsSharingTheSameLookup()
+    {
+        var source = BuildSource("CenterProducts",
+            new FieldMappingConfig { Source = "CenterCode", Target = "IdCenter", Lookup = new LookupConfig { Entity = "Center", By = "Code" } },
+            new FieldMappingConfig { Source = "OriginCenterCode", Target = "IdOriginCenter", Lookup = new LookupConfig { Entity = "Center", By = "Code" }, Required = false });
+        _configProvider.GetSourcesAsync(Arg.Any<CancellationToken>()).Returns([source]);
+        _writer.CanHandle("CenterProducts").Returns(true);
+
+        var rows = new List<IReadOnlyDictionary<string, string?>>
+        {
+            new Dictionary<string, string?> { ["CenterCode"] = "C1", ["OriginCenterCode"] = "C2" }
+        };
+        _reader.ReadAsync(source, Arg.Any<CancellationToken>()).Returns(ToAsyncEnumerable(rows));
+        _lookupProvider.ResolveAsync("Center", "Code", Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, string> { ["C1"] = "1", ["C2"] = "2" });
+        _writer.WriteAsync(Arg.Any<List<Dictionary<string, string?>>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new IngestionWriteResult { Inserted = 1 });
+
+        var result = (await _sut.RunAsync("CenterProducts")).Single();
+
+        Assert.Equal(0, result.RowsFailed);
+        await _lookupProvider.Received(1).ResolveAsync(
+            "Center", "Code",
+            Arg.Is<IEnumerable<string>>(values => values.Contains("C1") && values.Contains("C2")),
+            Arg.Any<CancellationToken>());
+        await _writer.Received(1).WriteAsync(
+            Arg.Is<List<Dictionary<string, string?>>>(rows => rows[0]["IdCenter"] == "1" && rows[0]["IdOriginCenter"] == "2"),
+            false,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task RunAsync_ThrowsBadRequestException_WhenNoWriterHandlesView()
     {
         var source = BuildSource("Unknown", new FieldMappingConfig { Source = "X", Target = "Y" });

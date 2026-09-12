@@ -3,6 +3,7 @@ using Service.Application.Exceptions;
 using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
 
 namespace Service.Application.Services
@@ -28,6 +29,7 @@ namespace Service.Application.Services
                 IdCenter = entity.IdCenter,
                 Quantity = entity.Quantity,
                 Date = entity.Date,
+                DiscardStatus = entity.DiscardStatus,
                 Product = entity.Product?.ToGetDto(),
                 Center = entity.Center?.ToGetDto()
             };
@@ -40,13 +42,15 @@ namespace Service.Application.Services
                 IdProduct = postDTO.IdProduct,
                 IdCenter = postDTO.IdCenter,
                 Quantity = postDTO.Quantity,
-                Date = postDTO.Date
+                Date = postDTO.Date,
+                DiscardStatus = DiscardStatus.NotReviewed
             };
         }
 
         protected override void ApplyUpdate(History entity, HistoryPutDto putDTO)
         {
             entity.Quantity = putDTO.Quantity;
+            entity.DiscardStatus = putDTO.DiscardStatus;
         }
 
         public override async Task<HistoryGetDto> AddAsync(HistoryPostDto postDTO, CancellationToken cancellationToken = default)

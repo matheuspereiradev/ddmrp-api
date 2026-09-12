@@ -269,6 +269,47 @@ public class CenterProductServiceTests
     }
 
     [Fact]
+    public async Task AddAsync_PersistsFutureAduDaysAndHistoryAduDays_ButLeavesAduNull()
+    {
+        var postDto = BuildPostDto();
+        postDto.FutureAduDays = 30;
+        postDto.HistoryAduDays = 90;
+        _centerProductRepository.AddAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.AddAsync(postDto);
+
+        Assert.Equal(30, result.FutureAduDays);
+        Assert.Equal(90, result.HistoryAduDays);
+        Assert.Null(result.Adu);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesFutureAduDaysAndHistoryAduDays_ButNeverTouchesAdu()
+    {
+        var existing = new CenterProduct { Id = 1, IdProduct = 1, IdCenter = 1, PackQuantity = 5m, Moq = 2m, Stock = 50m, Adu = 12.5m };
+        var putDto = new CenterProductPutDto
+        {
+            PackQuantity = 20m,
+            Moq = 10m,
+            LeadTime = 5,
+            Frequency = 15,
+            Stock = 200m,
+            FutureAduDays = 15,
+            HistoryAduDays = 60
+        };
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _centerProductRepository.UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.UpdateAsync(1, putDto);
+
+        Assert.Equal(15, result.FutureAduDays);
+        Assert.Equal(60, result.HistoryAduDays);
+        Assert.Equal(12.5m, result.Adu);
+    }
+
+    [Fact]
     public async Task DeleteAsync_ThrowsNotFoundException_WhenCenterProductDoesNotExist()
     {
         _centerProductRepository.DeleteAsync(1, Arg.Any<CancellationToken>()).Returns((CenterProduct)null!);
