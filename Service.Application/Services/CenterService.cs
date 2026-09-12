@@ -1,5 +1,6 @@
 using Service.Application.DTOs.Center;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,17 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override CenterGetDto ToGetDTO(Center entity)
-        {
-            return new CenterGetDto
-            {
-                Id = entity.Id,
-                Code = entity.Code,
-                Description = entity.Description,
-                City = entity.City,
-                Zone = entity.Zone
-            };
-        }
+        protected override CenterGetDto ToGetDTO(Center entity) => entity.ToGetDto();
 
         protected override Center ToEntity(CenterPostDto postDTO)
         {

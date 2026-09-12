@@ -1,4 +1,6 @@
 using System;
+using Service.Application.DTOs.Center;
+using Service.Application.DTOs.Product;
 
 namespace Service.Application.DTOs.Forecast
 {
@@ -9,5 +11,7 @@ namespace Service.Application.DTOs.Forecast
         public int IdCenter { get; set; }
         public decimal Quantity { get; set; }
         public DateTime Date { get; set; }
+        public ProductGetDto? Product { get; set; }
+        public CenterGetDto? Center { get; set; }
     }
 }

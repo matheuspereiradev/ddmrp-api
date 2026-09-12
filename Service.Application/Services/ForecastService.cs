@@ -1,6 +1,7 @@
 using Service.Application.DTOs.Forecast;
 using Service.Application.Exceptions;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -26,7 +27,9 @@ namespace Service.Application.Services
                 IdProduct = entity.IdProduct,
                 IdCenter = entity.IdCenter,
                 Quantity = entity.Quantity,
-                Date = entity.Date
+                Date = entity.Date,
+                Product = entity.Product?.ToGetDto(),
+                Center = entity.Center?.ToGetDto()
             };
         }
 

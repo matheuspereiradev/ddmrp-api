@@ -27,7 +27,10 @@ public class UserRepositoryTests
     public async Task GetByEmail_ReturnsUser_WhenFound()
     {
         var (repository, context) = CreateSut();
-        var user = new User { Name = "Matheus", Email = "matheus@test.com", Password = "hash" };
+        var role = new Role { Name = "Admin" };
+        context.Role.Add(role);
+        await context.SaveChangesAsync();
+        var user = new User { Name = "Matheus", Email = "matheus@test.com", Password = "hash", IdRole = role.Id };
         context.User.Add(user);
         await context.SaveChangesAsync();
 
@@ -35,13 +38,18 @@ public class UserRepositoryTests
 
         Assert.NotNull(result);
         Assert.Equal(user.Id, result!.Id);
+        Assert.NotNull(result.Role);
+        Assert.Equal("Admin", result.Role.Name);
     }
 
     [Fact]
     public async Task GetByEmail_ReturnsNull_WhenSoftDeleted()
     {
         var (repository, context) = CreateSut();
-        var user = new User { Name = "Matheus", Email = "matheus@test.com", Password = "hash", deletedAt = DateTime.UtcNow };
+        var role = new Role { Name = "Admin" };
+        context.Role.Add(role);
+        await context.SaveChangesAsync();
+        var user = new User { Name = "Matheus", Email = "matheus@test.com", Password = "hash", IdRole = role.Id, deletedAt = DateTime.UtcNow };
         context.User.Add(user);
         await context.SaveChangesAsync();
 

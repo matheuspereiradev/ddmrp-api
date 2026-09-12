@@ -34,6 +34,18 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task GetByIdAsync_IncludesRole_WhenLoaded()
+    {
+        var user = new User { Id = 1, Name = "Matheus", Email = "matheus@test.com", Role = new Role { Id = 1, Name = "Admin" } };
+        _userRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(user);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.NotNull(result.Role);
+        Assert.Equal("Admin", result.Role!.Name);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ThrowsNotFoundException_WhenUserDoesNotExist()
     {
         _userRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((User)null!);

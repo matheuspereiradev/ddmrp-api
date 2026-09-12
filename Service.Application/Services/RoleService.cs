@@ -1,5 +1,6 @@
 using Service.Application.DTOs.Role;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,14 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override RoleGetDto ToGetDTO(Role entity)
-        {
-            return new RoleGetDto
-            {
-                Id = entity.Id,
-                Name = entity.Name
-            };
-        }
+        protected override RoleGetDto ToGetDTO(Role entity) => entity.ToGetDto();
 
         protected override Role ToEntity(RolePostDto postDTO)
         {

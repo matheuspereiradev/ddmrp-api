@@ -1,6 +1,7 @@
 ﻿using Service.Application.DTOs.User;
 using Service.Application.Exceptions;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 using System;
@@ -28,7 +29,8 @@ namespace Service.Application.Services
                 Id = entity.Id,
                 Name = entity.Name,
                 Email = entity.Email,
-                IdRole = entity.IdRole
+                IdRole = entity.IdRole,
+                Role = entity.Role?.ToGetDto()
             };
         }
 

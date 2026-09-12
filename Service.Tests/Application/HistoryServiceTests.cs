@@ -43,6 +43,29 @@ public class HistoryServiceTests
     }
 
     [Fact]
+    public async Task GetByIdAsync_IncludesProductAndCenter_WhenLoaded()
+    {
+        var history = new History
+        {
+            Id = 1,
+            IdProduct = 1,
+            IdCenter = 2,
+            Quantity = 10m,
+            Date = DateTime.UtcNow,
+            Product = new Product { Id = 1, Reference = "REF001", Description = "Produto Teste", UnitOfMeasure = "UN" },
+            Center = new Center { Id = 2, Code = "C001", Description = "Centro Teste" }
+        };
+        _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(history);
+
+        var result = await _sut.GetByIdAsync(1);
+
+        Assert.NotNull(result.Product);
+        Assert.Equal("REF001", result.Product!.Reference);
+        Assert.NotNull(result.Center);
+        Assert.Equal("C001", result.Center!.Code);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ThrowsNotFoundException_WhenHistoryDoesNotExist()
     {
         _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((History)null!);

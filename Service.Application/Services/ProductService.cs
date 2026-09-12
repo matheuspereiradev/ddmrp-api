@@ -1,5 +1,6 @@
 using Service.Application.DTOs.Product;
 using Service.Application.Interfaces;
+using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
 
@@ -11,29 +12,7 @@ namespace Service.Application.Services
         {
         }
 
-        protected override ProductGetDto ToGetDTO(Product entity)
-        {
-            return new ProductGetDto
-            {
-                Id = entity.Id,
-                Reference = entity.Reference,
-                Description = entity.Description,
-                AuxiliarMaterialCode = entity.AuxiliarMaterialCode,
-                UnitOfMeasure = entity.UnitOfMeasure,
-                Weight = entity.Weight,
-                Volume = entity.Volume,
-                Barcode = entity.Barcode,
-                Category = entity.Category,
-                Segment = entity.Segment,
-                Value = entity.Value,
-                Pallet = entity.Pallet,
-                Line = entity.Line,
-                Subline = entity.Subline,
-                ABC = entity.ABC,
-                Brand = entity.Brand,
-                WorkCenter = entity.WorkCenter
-            };
-        }
+        protected override ProductGetDto ToGetDTO(Product entity) => entity.ToGetDto();
 
         protected override Product ToEntity(ProductPostDto postDTO)
         {

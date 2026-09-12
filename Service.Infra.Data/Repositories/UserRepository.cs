@@ -18,9 +18,11 @@ namespace Service.Infra.Data.Repositories
 
         public async Task<User> GetByEmail(string email, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FirstOrDefaultAsync(u => u.Email == email && u.deletedAt == null, cancellationToken);
+            return await _dbSet.Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email == email && u.deletedAt == null, cancellationToken);
         }
 
+        protected override IQueryable<User> ApplyIncludes(IQueryable<User> query) => query.Include(u => u.Role);
     }
 
 }

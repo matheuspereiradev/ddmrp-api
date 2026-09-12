@@ -18,6 +18,8 @@ namespace Service.Infra.Data.Context
         public DbSet<Product> Product { get; set; }
         public DbSet<Forecast> Forecast { get; set; }
         public DbSet<History> History { get; set; }
+        public DbSet<Partner> Partner { get; set; }
+        public DbSet<Tag> Tag { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

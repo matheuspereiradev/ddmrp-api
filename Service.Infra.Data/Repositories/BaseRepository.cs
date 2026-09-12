@@ -21,14 +21,17 @@ namespace Service.Infra.Data.Repositories
             _currentUser = currentUser;
         }
 
+        protected virtual IQueryable<T> ApplyIncludes(IQueryable<T> query) => query;
+
         public async Task<T> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FirstOrDefaultAsync(e => e.Id == id && e.deletedAt == null, cancellationToken);
+            return await ApplyIncludes(_dbSet.AsQueryable())
+                .FirstOrDefaultAsync(e => e.Id == id && e.deletedAt == null, cancellationToken);
         }
 
         public async Task<PagedList<T>> GetAllAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
-            var query = _dbSet.Where(e => e.deletedAt == null).AsQueryable();
+            var query = ApplyIncludes(_dbSet.AsQueryable()).Where(e => e.deletedAt == null);
             return await PaginationHelper.CreateAsync(query, pageNumber, pageSize, cancellationToken);
         }
 
