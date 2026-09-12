@@ -26,7 +26,7 @@ Lista de achados do diagnóstico técnico do repositório, ordenados por severid
 ## Módulos pendentes
 
 - [x] **`CenterProduct` criado.** ~~Faltavam `Partner`, `Tag`, `Reason`.~~ Módulo criado com as 7 FKs (`Product`, `Center`, `OriginCenter`, `Provider`/`Partner`, `Tag`, `Reason`, `AllocationGroup`), validação de todas (obrigatórias e opcionais) antes de tocar no banco. Próximo passo: `Notes` (depende de `CenterProduct.Id`).
-- [ ] **`Notes` bloqueado, depende de `CenterProduct`.** `Notes.CenterProductId` é FK obrigatória para `CenterProducts.Id`, que ainda não existe (ver item acima). Ordem de criação: `Tags` → `Reasons` → `CenterProduct` → `Notes`.
+- [x] **`Notes` criado.** ~~Bloqueado, dependia de `CenterProduct`.~~ Módulo criado. `Content` (maxlength 1000) + FK obrigatória para `CenterProduct`. Só o usuário que criou pode editar (`ApplyUpdate` compara `createdBy` com o usuário logado, 403 caso contrário); delete não tem essa restrição (não foi pedido). GET traz o `CenterProduct` completo e também quem criou (`CreatedByUser`, via navegação nova do campo de auditoria `createdBy` para `User` — único lugar do projeto que faz isso).
 
 ## Warnings do build (`dotnet build`)
 

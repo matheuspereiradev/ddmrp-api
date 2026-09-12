@@ -22,17 +22,7 @@ namespace Service.Application.Services
             _roleRepository = roleRepository;
         }
 
-        protected override UserGetDto ToGetDTO(User entity)
-        {
-            return new UserGetDto
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Email = entity.Email,
-                IdRole = entity.IdRole,
-                Role = entity.Role?.ToGetDto()
-            };
-        }
+        protected override UserGetDto ToGetDTO(User entity) => entity.ToGetDto();
 
         protected override User ToEntity(UserPostDto postDTO)
         {

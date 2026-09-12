@@ -37,37 +37,7 @@ namespace Service.Application.Services
             _bufferProfileRepository = bufferProfileRepository;
         }
 
-        protected override CenterProductGetDto ToGetDTO(CenterProduct entity)
-        {
-            return new CenterProductGetDto
-            {
-                Id = entity.Id,
-                IdProduct = entity.IdProduct,
-                IdCenter = entity.IdCenter,
-                IdOriginCenter = entity.IdOriginCenter,
-                PackQuantity = entity.PackQuantity,
-                Moq = entity.Moq,
-                LeadTime = entity.LeadTime,
-                Frequency = entity.Frequency,
-                Class = entity.Class,
-                Classification = entity.Classification,
-                Segment = entity.Segment,
-                Stock = entity.Stock,
-                IdProvider = entity.IdProvider,
-                IdTag = entity.IdTag,
-                IdReason = entity.IdReason,
-                IdAllocationGroup = entity.IdAllocationGroup,
-                IdBufferProfile = entity.IdBufferProfile,
-                Product = entity.Product?.ToGetDto(),
-                Center = entity.Center?.ToGetDto(),
-                OriginCenter = entity.OriginCenter?.ToGetDto(),
-                Provider = entity.Provider?.ToGetDto(),
-                Tag = entity.Tag?.ToGetDto(),
-                Reason = entity.Reason?.ToGetDto(),
-                AllocationGroup = entity.AllocationGroup?.ToGetDto(),
-                BufferProfile = entity.BufferProfile?.ToGetDto()
-            };
-        }
+        protected override CenterProductGetDto ToGetDTO(CenterProduct entity) => entity.ToGetDto();
 
         protected override CenterProduct ToEntity(CenterProductPostDto postDTO)
         {

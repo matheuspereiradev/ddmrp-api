@@ -1,11 +1,13 @@
 using Service.Application.DTOs.AllocationGroup;
 using Service.Application.DTOs.BufferProfile;
 using Service.Application.DTOs.Center;
+using Service.Application.DTOs.CenterProduct;
 using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
 using Service.Application.DTOs.Reason;
 using Service.Application.DTOs.Role;
 using Service.Application.DTOs.Tag;
+using Service.Application.DTOs.User;
 using Service.Domain.Entities;
 
 namespace Service.Application.Mappers
@@ -16,6 +18,15 @@ namespace Service.Application.Mappers
         {
             Id = role.Id,
             Name = role.Name
+        };
+
+        public static UserGetDto ToGetDto(this User user) => new()
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            IdRole = user.IdRole,
+            Role = user.Role?.ToGetDto()
         };
 
         public static CenterGetDto ToGetDto(this Center center) => new()
@@ -99,6 +110,35 @@ namespace Service.Application.Mappers
             SpikeThresholdPercentageRedZone = bufferProfile.SpikeThresholdPercentageRedZone,
             IsActive = bufferProfile.IsActive,
             IsMakeToOrder = bufferProfile.IsMakeToOrder
+        };
+
+        public static CenterProductGetDto ToGetDto(this CenterProduct centerProduct) => new()
+        {
+            Id = centerProduct.Id,
+            IdProduct = centerProduct.IdProduct,
+            IdCenter = centerProduct.IdCenter,
+            IdOriginCenter = centerProduct.IdOriginCenter,
+            PackQuantity = centerProduct.PackQuantity,
+            Moq = centerProduct.Moq,
+            LeadTime = centerProduct.LeadTime,
+            Frequency = centerProduct.Frequency,
+            Class = centerProduct.Class,
+            Classification = centerProduct.Classification,
+            Segment = centerProduct.Segment,
+            Stock = centerProduct.Stock,
+            IdProvider = centerProduct.IdProvider,
+            IdTag = centerProduct.IdTag,
+            IdReason = centerProduct.IdReason,
+            IdAllocationGroup = centerProduct.IdAllocationGroup,
+            IdBufferProfile = centerProduct.IdBufferProfile,
+            Product = centerProduct.Product?.ToGetDto(),
+            Center = centerProduct.Center?.ToGetDto(),
+            OriginCenter = centerProduct.OriginCenter?.ToGetDto(),
+            Provider = centerProduct.Provider?.ToGetDto(),
+            Tag = centerProduct.Tag?.ToGetDto(),
+            Reason = centerProduct.Reason?.ToGetDto(),
+            AllocationGroup = centerProduct.AllocationGroup?.ToGetDto(),
+            BufferProfile = centerProduct.BufferProfile?.ToGetDto()
         };
     }
 }
