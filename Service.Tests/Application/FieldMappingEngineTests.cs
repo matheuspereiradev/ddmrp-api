@@ -147,4 +147,28 @@ public class FieldMappingEngineTests
         Assert.Null(result[0].Error);
         Assert.Equal("7", result[0].Values["IdOriginCenter"]);
     }
+
+    [Fact]
+    public void MapRows_IdentifiesFailingRow_ByItsConfiguredKeyColumns_NotByPosition()
+    {
+        var source = BuildSource(
+            new FieldMappingConfig { Source = "CenterCode", Target = "IdCenter", Lookup = new LookupConfig { Entity = "Center", By = "Code" } },
+            new FieldMappingConfig { Source = "MaterialCode", Target = "IdProduct", Lookup = new LookupConfig { Entity = "Product", By = "Reference" } });
+        source.Key = ["IdProduct", "IdCenter"];
+        var rows = new List<IReadOnlyDictionary<string, string?>>
+        {
+            new Dictionary<string, string?> { ["CenterCode"] = "C1", ["MaterialCode"] = "UNKNOWN" }
+        };
+        var lookups = new Dictionary<(string, string), Dictionary<string, string>>
+        {
+            [("Center", "Code")] = new() { ["C1"] = "9" },
+            [("Product", "Reference")] = new()
+        };
+
+        var result = FieldMappingEngine.MapRows(rows, source, lookups);
+
+        Assert.Contains("CenterCode=C1", result[0].Error);
+        Assert.Contains("MaterialCode=UNKNOWN", result[0].Error);
+        Assert.DoesNotContain("Row", result[0].Error);
+    }
 }

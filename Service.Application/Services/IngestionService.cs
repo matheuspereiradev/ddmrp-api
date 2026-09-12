@@ -56,7 +56,7 @@ namespace Service.Application.Services
             var reader = _readers.FirstOrDefault(r => r.CanHandle(source.Type))
                 ?? throw new BadRequestException($"Unsupported ingestion source type '{source.Type}' for view '{source.View}'.");
 
-            var writer = _writers.FirstOrDefault(w => w.CanHandle(source.View))
+            var writer = _writers.FirstOrDefault(w => w.CanHandle(source))
                 ?? throw new BadRequestException($"Unsupported ingestion view '{source.View}'.");
 
             ValidateKeyMappings(source);
@@ -86,9 +86,17 @@ namespace Service.Application.Services
             var validRows = mapped.Where(m => m.Error == null).Select(m => m.Values).ToList();
             var errors = mapped.Where(m => m.Error != null).Select(m => m.Error!).ToList();
 
-            var writeResult = validRows.Count > 0
-                ? await writer.WriteAsync(validRows, source.DeleteNonSent, cancellationToken)
-                : new IngestionWriteResult();
+            IngestionWriteResult writeResult;
+            try
+            {
+                writeResult = validRows.Count > 0
+                    ? await writer.WriteAsync(source, validRows, cancellationToken)
+                    : new IngestionWriteResult();
+            }
+            catch (NotSupportedException ex)
+            {
+                throw new BadRequestException(ex.Message);
+            }
 
             errors.AddRange(writeResult.Errors);
 

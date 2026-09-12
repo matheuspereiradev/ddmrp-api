@@ -15,6 +15,7 @@ namespace Service.Application.Ingestion
             {
                 var mapped = new Dictionary<string, string?>();
                 string? error = null;
+                var keyPrefix = DescribeKey(source, rawRow);
 
                 foreach (var mapping in source.FieldMappings)
                 {
@@ -27,14 +28,14 @@ namespace Service.Application.Ingestion
                             if (!mapping.Required)
                                 continue;
 
-                            error ??= $"Missing value for lookup field '{mapping.Source}' (target '{mapping.Target}').";
+                            error ??= $"{keyPrefix}missing value for lookup field '{mapping.Source}' (target '{mapping.Target}').";
                             continue;
                         }
 
                         if (!resolvedLookups.TryGetValue((mapping.Lookup.Entity, mapping.Lookup.By), out var lookupMap) ||
                             !lookupMap.TryGetValue(raw, out var resolvedId))
                         {
-                            error ??= $"Could not resolve {mapping.Lookup.Entity}.{mapping.Lookup.By} = '{raw}' (target '{mapping.Target}').";
+                            error ??= $"{keyPrefix}could not resolve {mapping.Lookup.Entity}.{mapping.Lookup.By} = '{raw}' (target '{mapping.Target}').";
                             continue;
                         }
 
@@ -49,6 +50,27 @@ namespace Service.Application.Ingestion
             }
 
             return results;
+        }
+
+        // Identifies a row for error messages using its configured "key" columns (the CSV source
+        // columns the client can actually search for), instead of a line/row number.
+        private static string DescribeKey(IngestionSourceConfig source, IReadOnlyDictionary<string, string?> rawRow)
+        {
+            if (source.Key.Count == 0)
+                return string.Empty;
+
+            var parts = new List<string>();
+            foreach (var keyField in source.Key)
+            {
+                var mapping = source.FieldMappings.FirstOrDefault(f => string.Equals(f.Target, keyField, StringComparison.OrdinalIgnoreCase));
+                if (mapping?.Source == null)
+                    continue;
+
+                rawRow.TryGetValue(mapping.Source, out var value);
+                parts.Add($"{mapping.Source}={value}");
+            }
+
+            return parts.Count > 0 ? $"[{string.Join(", ", parts)}] " : string.Empty;
         }
     }
 }
