@@ -5,6 +5,7 @@ using Service.Infra.Ioc;
 using DotNetEnv;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
+using System.Text.Json.Serialization;
 
 Env.Load();
 
@@ -14,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiResponseWrapperFilter>();
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddInfrastructure(builder.Configuration);
 

@@ -24,6 +24,8 @@ namespace Service.Infra.Data.Context
         public DbSet<AllocationGroup> AllocationGroup { get; set; }
         public DbSet<CenterProduct> CenterProduct { get; set; }
         public DbSet<MasterBuffer> MasterBuffer { get; set; }
+        public DbSet<ZoneAdjustmentFactor> ZoneAdjustmentFactor { get; set; }
+        public DbSet<BufferAdjustmentFactor> BufferAdjustmentFactor { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
