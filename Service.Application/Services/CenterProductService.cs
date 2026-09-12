@@ -15,6 +15,7 @@ namespace Service.Application.Services
         private readonly ITagRepository _tagRepository;
         private readonly IReasonRepository _reasonRepository;
         private readonly IAllocationGroupRepository _allocationGroupRepository;
+        private readonly IBufferProfileRepository _bufferProfileRepository;
 
         public CenterProductService(
             ICenterProductRepository repository,
@@ -23,7 +24,8 @@ namespace Service.Application.Services
             IPartnerRepository partnerRepository,
             ITagRepository tagRepository,
             IReasonRepository reasonRepository,
-            IAllocationGroupRepository allocationGroupRepository)
+            IAllocationGroupRepository allocationGroupRepository,
+            IBufferProfileRepository bufferProfileRepository)
             : base(repository)
         {
             _productRepository = productRepository;
@@ -32,6 +34,7 @@ namespace Service.Application.Services
             _tagRepository = tagRepository;
             _reasonRepository = reasonRepository;
             _allocationGroupRepository = allocationGroupRepository;
+            _bufferProfileRepository = bufferProfileRepository;
         }
 
         protected override CenterProductGetDto ToGetDTO(CenterProduct entity)
@@ -54,13 +57,15 @@ namespace Service.Application.Services
                 IdTag = entity.IdTag,
                 IdReason = entity.IdReason,
                 IdAllocationGroup = entity.IdAllocationGroup,
+                IdBufferProfile = entity.IdBufferProfile,
                 Product = entity.Product?.ToGetDto(),
                 Center = entity.Center?.ToGetDto(),
                 OriginCenter = entity.OriginCenter?.ToGetDto(),
                 Provider = entity.Provider?.ToGetDto(),
                 Tag = entity.Tag?.ToGetDto(),
                 Reason = entity.Reason?.ToGetDto(),
-                AllocationGroup = entity.AllocationGroup?.ToGetDto()
+                AllocationGroup = entity.AllocationGroup?.ToGetDto(),
+                BufferProfile = entity.BufferProfile?.ToGetDto()
             };
         }
 
@@ -82,7 +87,8 @@ namespace Service.Application.Services
                 IdProvider = postDTO.IdProvider,
                 IdTag = postDTO.IdTag,
                 IdReason = postDTO.IdReason,
-                IdAllocationGroup = postDTO.IdAllocationGroup
+                IdAllocationGroup = postDTO.IdAllocationGroup,
+                IdBufferProfile = postDTO.IdBufferProfile
             };
         }
 
@@ -101,6 +107,7 @@ namespace Service.Application.Services
             entity.IdTag = putDTO.IdTag;
             entity.IdReason = putDTO.IdReason;
             entity.IdAllocationGroup = putDTO.IdAllocationGroup;
+            entity.IdBufferProfile = putDTO.IdBufferProfile;
         }
 
         private async Task ValidateOptionalForeignKeysAsync(
@@ -109,6 +116,7 @@ namespace Service.Application.Services
             int? idTag,
             int? idReason,
             int? idAllocationGroup,
+            int? idBufferProfile,
             CancellationToken cancellationToken)
         {
             if (idOriginCenter.HasValue && !await _centerRepository.Exists(idOriginCenter.Value, cancellationToken))
@@ -125,6 +133,9 @@ namespace Service.Application.Services
 
             if (idAllocationGroup.HasValue && !await _allocationGroupRepository.Exists(idAllocationGroup.Value, cancellationToken))
                 throw new BadRequestException("Allocation group not found.");
+
+            if (idBufferProfile.HasValue && !await _bufferProfileRepository.Exists(idBufferProfile.Value, cancellationToken))
+                throw new BadRequestException("Buffer profile not found.");
         }
 
         public override async Task<CenterProductGetDto> AddAsync(CenterProductPostDto postDTO, CancellationToken cancellationToken = default)
@@ -136,7 +147,7 @@ namespace Service.Application.Services
                 throw new BadRequestException("Center not found.");
 
             await ValidateOptionalForeignKeysAsync(
-                postDTO.IdOriginCenter, postDTO.IdProvider, postDTO.IdTag, postDTO.IdReason, postDTO.IdAllocationGroup,
+                postDTO.IdOriginCenter, postDTO.IdProvider, postDTO.IdTag, postDTO.IdReason, postDTO.IdAllocationGroup, postDTO.IdBufferProfile,
                 cancellationToken);
 
             return await base.AddAsync(postDTO, cancellationToken);
@@ -145,7 +156,7 @@ namespace Service.Application.Services
         public override async Task<CenterProductGetDto> UpdateAsync(int id, CenterProductPutDto putDTO, CancellationToken cancellationToken = default)
         {
             await ValidateOptionalForeignKeysAsync(
-                putDTO.IdOriginCenter, putDTO.IdProvider, putDTO.IdTag, putDTO.IdReason, putDTO.IdAllocationGroup,
+                putDTO.IdOriginCenter, putDTO.IdProvider, putDTO.IdTag, putDTO.IdReason, putDTO.IdAllocationGroup, putDTO.IdBufferProfile,
                 cancellationToken);
 
             return await base.UpdateAsync(id, putDTO, cancellationToken);

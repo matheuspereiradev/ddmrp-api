@@ -57,6 +57,11 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 .WithMany()
                 .HasForeignKey(cp => cp.IdAllocationGroup)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(cp => cp.BufferProfile)
+                .WithMany()
+                .HasForeignKey(cp => cp.IdBufferProfile)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

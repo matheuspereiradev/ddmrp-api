@@ -16,6 +16,7 @@ public class CenterProductServiceTests
     private readonly ITagRepository _tagRepository = Substitute.For<ITagRepository>();
     private readonly IReasonRepository _reasonRepository = Substitute.For<IReasonRepository>();
     private readonly IAllocationGroupRepository _allocationGroupRepository = Substitute.For<IAllocationGroupRepository>();
+    private readonly IBufferProfileRepository _bufferProfileRepository = Substitute.For<IBufferProfileRepository>();
     private readonly CenterProductService _sut;
 
     public CenterProductServiceTests()
@@ -26,10 +27,11 @@ public class CenterProductServiceTests
         _tagRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
         _reasonRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
         _allocationGroupRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
+        _bufferProfileRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
 
         _sut = new CenterProductService(
             _centerProductRepository, _productRepository, _centerRepository,
-            _partnerRepository, _tagRepository, _reasonRepository, _allocationGroupRepository);
+            _partnerRepository, _tagRepository, _reasonRepository, _allocationGroupRepository, _bufferProfileRepository);
     }
 
     private static CenterProductPostDto BuildPostDto() => new()
@@ -48,7 +50,8 @@ public class CenterProductServiceTests
         IdProvider = 1,
         IdTag = 1,
         IdReason = 1,
-        IdAllocationGroup = 1
+        IdAllocationGroup = 1,
+        IdBufferProfile = 1
     };
 
     [Fact]
@@ -85,7 +88,8 @@ public class CenterProductServiceTests
             Provider = new Partner { Id = 1, Code = "P001", Description = "Fornecedor" },
             Tag = new Tag { Id = 1, Name = "Promoção" },
             Reason = new Reason { Id = 1, Name = "Avaria" },
-            AllocationGroup = new AllocationGroup { Id = 1, Name = "Grupo A" }
+            AllocationGroup = new AllocationGroup { Id = 1, Name = "Grupo A" },
+            BufferProfile = new BufferProfile { Id = 1, ProfileName = "P1" }
         };
         _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(centerProduct);
 
@@ -98,6 +102,7 @@ public class CenterProductServiceTests
         Assert.Equal("Promoção", result.Tag!.Name);
         Assert.Equal("Avaria", result.Reason!.Name);
         Assert.Equal("Grupo A", result.AllocationGroup!.Name);
+        Assert.Equal("P1", result.BufferProfile!.ProfileName);
     }
 
     [Fact]
@@ -139,6 +144,7 @@ public class CenterProductServiceTests
         Assert.Null(result.IdTag);
         Assert.Null(result.IdReason);
         Assert.Null(result.IdAllocationGroup);
+        Assert.Null(result.IdBufferProfile);
     }
 
     [Fact]
@@ -195,6 +201,36 @@ public class CenterProductServiceTests
         _allocationGroupRepository.Exists(postDto.IdAllocationGroup!.Value, Arg.Any<CancellationToken>()).Returns(false);
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+    }
+
+    [Fact]
+    public async Task AddAsync_ThrowsBadRequestException_WhenBufferProfileDoesNotExist()
+    {
+        var postDto = BuildPostDto();
+        _bufferProfileRepository.Exists(postDto.IdBufferProfile!.Value, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+    }
+
+    [Fact]
+    public async Task AddAsync_AllowsNullBufferProfile()
+    {
+        var postDto = new CenterProductPostDto
+        {
+            IdProduct = 1,
+            IdCenter = 1,
+            PackQuantity = 10m,
+            Moq = 5m,
+            LeadTime = 7,
+            Frequency = 30,
+            Stock = 100m
+        };
+        _centerProductRepository.AddAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.AddAsync(postDto);
+
+        Assert.Null(result.IdBufferProfile);
     }
 
     [Fact]

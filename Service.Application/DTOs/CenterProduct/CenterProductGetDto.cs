@@ -1,4 +1,5 @@
 using Service.Application.DTOs.AllocationGroup;
+using Service.Application.DTOs.BufferProfile;
 using Service.Application.DTOs.Center;
 using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
@@ -25,6 +26,7 @@ namespace Service.Application.DTOs.CenterProduct
         public int? IdTag { get; set; }
         public int? IdReason { get; set; }
         public int? IdAllocationGroup { get; set; }
+        public int? IdBufferProfile { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
         public CenterGetDto? OriginCenter { get; set; }
@@ -32,5 +34,6 @@ namespace Service.Application.DTOs.CenterProduct
         public TagGetDto? Tag { get; set; }
         public ReasonGetDto? Reason { get; set; }
         public AllocationGroupGetDto? AllocationGroup { get; set; }
+        public BufferProfileGetDto? BufferProfile { get; set; }
     }
 }

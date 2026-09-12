@@ -20,6 +20,7 @@ namespace Service.Infra.Data.Repositories
                 .Include(cp => cp.Provider)
                 .Include(cp => cp.Tag)
                 .Include(cp => cp.Reason)
-                .Include(cp => cp.AllocationGroup);
+                .Include(cp => cp.AllocationGroup)
+                .Include(cp => cp.BufferProfile);
     }
 }

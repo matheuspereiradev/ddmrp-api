@@ -66,6 +66,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IBufferAdjustmentFactorRepository, BufferAdjustmentFactorRepository>();
             services.AddScoped<IDemandAdjustmentFactorRepository, DemandAdjustmentFactorRepository>();
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+            services.AddScoped<IBufferProfileRepository, BufferProfileRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -82,6 +83,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IZoneAdjustmentFactorService, ZoneAdjustmentFactorService>();
             services.AddScoped<IBufferAdjustmentFactorService, BufferAdjustmentFactorService>();
             services.AddScoped<IDemandAdjustmentFactorService, DemandAdjustmentFactorService>();
+            services.AddScoped<IBufferProfileService, BufferProfileService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();

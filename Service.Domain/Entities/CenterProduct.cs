@@ -24,5 +24,7 @@ namespace Service.Domain.Entities
         public Reason? Reason { get; set; }
         public int? IdAllocationGroup { get; set; }
         public AllocationGroup? AllocationGroup { get; set; }
+        public int? IdBufferProfile { get; set; }
+        public BufferProfile? BufferProfile { get; set; }
     }
 }

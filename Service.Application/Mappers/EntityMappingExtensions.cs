@@ -1,4 +1,5 @@
 using Service.Application.DTOs.AllocationGroup;
+using Service.Application.DTOs.BufferProfile;
 using Service.Application.DTOs.Center;
 using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
@@ -73,6 +74,31 @@ namespace Service.Application.Mappers
         {
             Id = allocationGroup.Id,
             Name = allocationGroup.Name
+        };
+
+        public static BufferProfileGetDto ToGetDto(this BufferProfile bufferProfile) => new()
+        {
+            Id = bufferProfile.Id,
+            ProfileName = bufferProfile.ProfileName,
+            SupplyType = bufferProfile.SupplyType,
+            LeadTimeCategory = bufferProfile.LeadTimeCategory,
+            VariabilityCategory = bufferProfile.VariabilityCategory,
+            LeadTimeFactor = bufferProfile.LeadTimeFactor,
+            VariabilityFactor = bufferProfile.VariabilityFactor,
+            AduCalculationDays = bufferProfile.AduCalculationDays,
+            AduFutureDays = bufferProfile.AduFutureDays,
+            Frequency = bufferProfile.Frequency,
+            UseAdUxDlTxFactorDlt = bufferProfile.UseAdUxDlTxFactorDlt,
+            UseMoq = bufferProfile.UseMoq,
+            UseAdUxFrequency = bufferProfile.UseAdUxFrequency,
+            SpikeHorizonType = bufferProfile.SpikeHorizonType,
+            SpikeHorizonValue = bufferProfile.SpikeHorizonValue,
+            SpikeHorizonLTDays = bufferProfile.SpikeHorizonLTDays,
+            SpikeThresholdType = bufferProfile.SpikeThresholdType,
+            SpikeThresholdAdu = bufferProfile.SpikeThresholdAdu,
+            SpikeThresholdPercentageRedZone = bufferProfile.SpikeThresholdPercentageRedZone,
+            IsActive = bufferProfile.IsActive,
+            IsMakeToOrder = bufferProfile.IsMakeToOrder
         };
     }
 }

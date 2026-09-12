@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Service.Infra.Data.Context;
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912040933_AddBufferProfiles")]
+    partial class AddBufferProfiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -317,9 +320,6 @@ namespace Service.Infra.Data.Migrations
                     b.Property<int?>("IdAllocationGroup")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("IdBufferProfile")
-                        .HasColumnType("integer");
-
                     b.Property<int>("IdCenter")
                         .HasColumnType("integer");
 
@@ -380,8 +380,6 @@ namespace Service.Infra.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IdAllocationGroup");
-
-                    b.HasIndex("IdBufferProfile");
 
                     b.HasIndex("IdCenter");
 
@@ -1071,11 +1069,6 @@ namespace Service.Infra.Data.Migrations
                         .HasForeignKey("IdAllocationGroup")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Service.Domain.Entities.BufferProfile", "BufferProfile")
-                        .WithMany()
-                        .HasForeignKey("IdBufferProfile")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("Service.Domain.Entities.Center", "Center")
                         .WithMany()
                         .HasForeignKey("IdCenter")
@@ -1109,8 +1102,6 @@ namespace Service.Infra.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AllocationGroup");
-
-                    b.Navigation("BufferProfile");
 
                     b.Navigation("Center");
 

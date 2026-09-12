@@ -28,6 +28,7 @@ namespace Service.Infra.Data.Context
         public DbSet<BufferAdjustmentFactor> BufferAdjustmentFactor { get; set; }
         public DbSet<DemandAdjustmentFactor> DemandAdjustmentFactor { get; set; }
         public DbSet<RefreshToken> RefreshToken { get; set; }
+        public DbSet<BufferProfile> BufferProfile { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
