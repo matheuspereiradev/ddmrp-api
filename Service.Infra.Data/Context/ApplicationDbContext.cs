@@ -27,6 +27,7 @@ namespace Service.Infra.Data.Context
         public DbSet<ZoneAdjustmentFactor> ZoneAdjustmentFactor { get; set; }
         public DbSet<BufferAdjustmentFactor> BufferAdjustmentFactor { get; set; }
         public DbSet<DemandAdjustmentFactor> DemandAdjustmentFactor { get; set; }
+        public DbSet<RefreshToken> RefreshToken { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

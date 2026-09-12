@@ -1,14 +1,11 @@
-﻿using Service.Application.DTOs.User;
-using Service.Domain.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Service.Application.DTOs.Auth;
 
 namespace Service.Application.Interfaces
 {
     public interface IAuthenticateService
     {
-        Task<UserGetDto> AuthenticateAsync(string email, string password, CancellationToken cancellationToken = default);
-        string GenerateToken(int id, string email);
+        Task<AuthResponseDto> AuthenticateAsync(string email, string password, CancellationToken cancellationToken = default);
+        Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
+        Task RevokeTokenAsync(int userId, string refreshToken, CancellationToken cancellationToken = default);
     }
 }

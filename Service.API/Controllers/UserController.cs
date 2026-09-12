@@ -1,8 +1,8 @@
 ﻿using Service.API.Extensions;
 using Service.API.Models;
+using Service.Application.DTOs.Auth;
 using Service.Application.DTOs.User;
 using Service.Application.Interfaces;
-using Service.Domain.Account;
 using Service.Infra.Ioc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,9 +45,23 @@ namespace Service.API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> GetTokenUser(UserLogin userLogin, CancellationToken cancellationToken)
         {
-            var user = await _authenticate.AuthenticateAsync(userLogin.Email, userLogin.Password, cancellationToken);
-            var token = _authenticate.GenerateToken(user.Id, user.Email.ToLower());
-            return Ok(new { Name = user.Name, Token = token });
+            var result = await _authenticate.AuthenticateAsync(userLogin.Email, userLogin.Password, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult> RefreshToken(RefreshTokenRequestDto refreshTokenRequestDto, CancellationToken cancellationToken)
+        {
+            var result = await _authenticate.RefreshTokenAsync(refreshTokenRequestDto.RefreshToken, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("revoke-token")]
+        [Authorize]
+        public async Task<ActionResult> RevokeToken(RefreshTokenRequestDto refreshTokenRequestDto, CancellationToken cancellationToken)
+        {
+            await _authenticate.RevokeTokenAsync(User.GetUserId(), refreshTokenRequestDto.RefreshToken, cancellationToken);
+            return Ok();
         }
 
         [HttpPut]
