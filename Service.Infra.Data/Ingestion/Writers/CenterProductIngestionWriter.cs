@@ -52,6 +52,7 @@ namespace Service.Infra.Data.Ingestion.Writers
             foreach (var (row, idProduct, idCenter) in parsedRows)
             {
                 var idOriginCenter = TryParseInt(row.GetValueOrDefault("IdOriginCenter"));
+                var idProvider = TryParseInt(row.GetValueOrDefault("IdProvider"));
                 var packQuantity = TryParseDecimal(row.GetValueOrDefault("PackQuantity")) ?? 0;
                 var moq = TryParseDecimal(row.GetValueOrDefault("Moq")) ?? 0;
                 var leadTime = TryParseInt(row.GetValueOrDefault("LeadTime")) ?? 0;
@@ -65,6 +66,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                     // Stock is also NOT touched here: it's owned by the dedicated "Stock" ingestion
                     // view/writer, which always updates it independently.
                     centerProduct.IdOriginCenter = idOriginCenter;
+                    centerProduct.IdProvider = idProvider;
                     centerProduct.PackQuantity = packQuantity;
                     centerProduct.Moq = moq;
                     centerProduct.LeadTime = leadTime;
@@ -80,6 +82,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                         IdProduct = idProduct,
                         IdCenter = idCenter,
                         IdOriginCenter = idOriginCenter,
+                        IdProvider = idProvider,
                         PackQuantity = packQuantity,
                         Moq = moq,
                         LeadTime = leadTime,
