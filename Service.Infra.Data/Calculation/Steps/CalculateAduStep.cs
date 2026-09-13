@@ -6,7 +6,8 @@ using Service.Infra.Data.Context;
 
 namespace Service.Infra.Data.Calculation.Steps
 {
-    // See Formulas.md for the business rule this implements (Adu: Historico/Futuro/Misto).
+    // See Formulas.md for the business rule this implements (Adu: Historico/Futuro/Misto;
+    // StandardDeviation/Cv: same HistoryAduDays window as Adu's Historico).
     public class CalculateAduStep : ICalculationStep
     {
         private readonly ApplicationDbContext _context;
@@ -37,6 +38,10 @@ namespace Service.Infra.Data.Calculation.Steps
 
         // DiscardStatus 2 = Discarded (Service.Domain.Enums.DiscardStatus).
         private const string Sql = """
+            UPDATE dbo.CenterProducts
+            SET Adu = 0, StandardDeviation = 0, Cv = 0
+            WHERE deletedAt IS NULL;
+
             DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 
             ;WITH RankedHistory AS (
@@ -50,10 +55,12 @@ namespace Service.Infra.Data.Calculation.Steps
                   AND h.DiscardStatus <> 2
                   AND h.Date < @Today
             ),
-            HistoricalAdu AS (
+            HistoricalStats AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS Value
+                    ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS HistoricoValue,
+                    CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18, 4)) AS StdDevValue,
+                    CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18, 4)) AS AvgValue
                 FROM dbo.CenterProducts cp
                 LEFT JOIN RankedHistory rh
                     ON rh.IdProduct = cp.IdProduct
@@ -81,16 +88,20 @@ namespace Service.Infra.Data.Calculation.Steps
             UPDATE cp
             SET cp.Adu = CASE
                     WHEN ISNULL(cp.HistoryAduDays, 0) > 0 AND ISNULL(cp.FutureAduDays, 0) = 0
-                        THEN ha.Value
+                        THEN hs.HistoricoValue
                     WHEN ISNULL(cp.HistoryAduDays, 0) = 0 AND ISNULL(cp.FutureAduDays, 0) > 0
                         THEN fa.Value
                     WHEN ISNULL(cp.HistoryAduDays, 0) > 0 AND ISNULL(cp.FutureAduDays, 0) > 0
-                         AND ha.Value IS NOT NULL AND fa.Value IS NOT NULL
-                        THEN (ha.Value + fa.Value) / 2
+                        THEN (hs.HistoricoValue + fa.Value) / 2
                     ELSE NULL
+                END,
+                cp.StandardDeviation = ISNULL(hs.StdDevValue, 0),
+                cp.Cv = CASE
+                    WHEN ISNULL(hs.AvgValue, 0) = 0 THEN 0
+                    ELSE hs.StdDevValue / hs.AvgValue
                 END
             FROM dbo.CenterProducts cp
-            LEFT JOIN HistoricalAdu ha ON ha.CenterProductId = cp.Id
+            LEFT JOIN HistoricalStats hs ON hs.CenterProductId = cp.Id
             LEFT JOIN FutureAdu fa ON fa.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL;
             """;

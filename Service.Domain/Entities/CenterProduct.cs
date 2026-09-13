@@ -30,5 +30,7 @@ namespace Service.Domain.Entities
         public int? FutureAduDays { get; set; }
         public int? HistoryAduDays { get; set; }
         public decimal? Adi { get; set; }
+        public decimal? StandardDeviation { get; set; }
+        public decimal? Cv { get; set; }
     }
 }

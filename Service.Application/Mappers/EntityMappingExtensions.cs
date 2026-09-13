@@ -135,6 +135,8 @@ namespace Service.Application.Mappers
             FutureAduDays = centerProduct.FutureAduDays,
             HistoryAduDays = centerProduct.HistoryAduDays,
             Adi = centerProduct.Adi,
+            StandardDeviation = centerProduct.StandardDeviation,
+            Cv = centerProduct.Cv,
             Product = centerProduct.Product?.ToGetDto(),
             Center = centerProduct.Center?.ToGetDto(),
             OriginCenter = centerProduct.OriginCenter?.ToGetDto(),

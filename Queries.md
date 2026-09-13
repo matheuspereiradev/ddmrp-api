@@ -25,6 +25,33 @@ WHERE cp.HistoryAduDays > 0 AND cp.FutureAduDays = 0
 GROUP BY cp.IdProduct, cp.IdCenter, cp.Adu, cp.HistoryAduDays;
 ```
 
+## Adu — StandardDeviation e Cv
+
+Valida `CenterProduct.StandardDeviation`/`Cv`. Mesma janela do Histórico (`RankedHistory` acima) — não depende de `FutureAduDays`.
+
+```sql
+;WITH RankedHistory AS (
+    SELECT
+        h.IdProduct, h.IdCenter, h.Quantity,
+        ROW_NUMBER() OVER (PARTITION BY h.IdProduct, h.IdCenter ORDER BY h.Date DESC) AS rn
+    FROM Histories h
+    WHERE h.deletedAt IS NULL
+      AND h.DiscardStatus <> 2
+      AND h.Date < CAST(GETDATE() AS DATE)
+)
+SELECT
+    cp.IdProduct, cp.IdCenter, cp.StandardDeviation, cp.Cv,
+    CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) AS ExpectedStandardDeviation,
+    CASE WHEN CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) = 0 THEN 0
+         ELSE CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) / CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4))
+    END AS ExpectedCv
+FROM CenterProducts cp
+LEFT JOIN RankedHistory rh
+    ON rh.IdProduct = cp.IdProduct AND rh.IdCenter = cp.IdCenter AND rh.rn <= cp.HistoryAduDays
+WHERE cp.HistoryAduDays > 0
+GROUP BY cp.IdProduct, cp.IdCenter, cp.StandardDeviation, cp.Cv;
+```
+
 ## Adu — Futuro
 
 Valida `CenterProduct.Adu` quando `HistoryAduDays = 0` e `FutureAduDays > 0` (fórmula pura Futuro). Espelha o `FutureAdu` do step: soma `Forecast.Quantity` dos próximos `FutureAduDays` dias corridos (dia sem forecast conta como `0` — `LEFT JOIN`, sem descarte, sem checagem de "dias insuficientes").
