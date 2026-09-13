@@ -60,7 +60,16 @@ namespace Service.Application.Services
                 IdAllocationGroup = postDTO.IdAllocationGroup,
                 IdBufferProfile = postDTO.IdBufferProfile,
                 FutureAduDays = postDTO.FutureAduDays,
-                HistoryAduDays = postDTO.HistoryAduDays
+                HistoryAduDays = postDTO.HistoryAduDays,
+                UseSuggestedLTFactor = postDTO.UseSuggestedLTFactor,
+                UseSuggestedVariabilityFactor = postDTO.UseSuggestedVariabilityFactor,
+                UseDafOnGreenZone = postDTO.UseDafOnGreenZone,
+                CustomLeadTimeFactor = postDTO.CustomLeadTimeFactor,
+                CustomVariabilityFactor = postDTO.CustomVariabilityFactor,
+                GreenZoneParametrizationUseMoq = postDTO.GreenZoneParametrizationUseMoq,
+                GreenZoneParametrizationUseAduXFrequency = postDTO.GreenZoneParametrizationUseAduXFrequency,
+                GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = postDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime,
+                BufferType = postDTO.BufferType
             };
         }
 
@@ -82,6 +91,15 @@ namespace Service.Application.Services
             entity.IdBufferProfile = putDTO.IdBufferProfile;
             entity.FutureAduDays = putDTO.FutureAduDays;
             entity.HistoryAduDays = putDTO.HistoryAduDays;
+            entity.UseSuggestedLTFactor = putDTO.UseSuggestedLTFactor;
+            entity.UseSuggestedVariabilityFactor = putDTO.UseSuggestedVariabilityFactor;
+            entity.UseDafOnGreenZone = putDTO.UseDafOnGreenZone;
+            entity.CustomLeadTimeFactor = putDTO.CustomLeadTimeFactor;
+            entity.CustomVariabilityFactor = putDTO.CustomVariabilityFactor;
+            entity.GreenZoneParametrizationUseMoq = putDTO.GreenZoneParametrizationUseMoq;
+            entity.GreenZoneParametrizationUseAduXFrequency = putDTO.GreenZoneParametrizationUseAduXFrequency;
+            entity.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = putDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime;
+            entity.BufferType = putDTO.BufferType;
         }
 
         private async Task ValidateOptionalForeignKeysAsync(

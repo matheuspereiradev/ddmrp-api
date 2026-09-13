@@ -28,9 +28,9 @@ namespace Service.Application.Services
                 AduCalculationDays = postDTO.AduCalculationDays,
                 AduFutureDays = postDTO.AduFutureDays,
                 Frequency = postDTO.Frequency,
-                UseAdUxDlTxFactorDlt = postDTO.UseAdUxDlTxFactorDlt,
-                UseMoq = postDTO.UseMoq,
-                UseAdUxFrequency = postDTO.UseAdUxFrequency,
+                GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = postDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime,
+                GreenZoneParametrizationUseMoq = postDTO.GreenZoneParametrizationUseMoq,
+                GreenZoneParametrizationUseAduXFrequency = postDTO.GreenZoneParametrizationUseAduXFrequency,
                 SpikeHorizonType = postDTO.SpikeHorizonType,
                 SpikeHorizonValue = postDTO.SpikeHorizonValue,
                 SpikeHorizonLTDays = postDTO.SpikeHorizonLTDays,
@@ -53,9 +53,9 @@ namespace Service.Application.Services
             entity.AduCalculationDays = putDTO.AduCalculationDays;
             entity.AduFutureDays = putDTO.AduFutureDays;
             entity.Frequency = putDTO.Frequency;
-            entity.UseAdUxDlTxFactorDlt = putDTO.UseAdUxDlTxFactorDlt;
-            entity.UseMoq = putDTO.UseMoq;
-            entity.UseAdUxFrequency = putDTO.UseAdUxFrequency;
+            entity.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = putDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime;
+            entity.GreenZoneParametrizationUseMoq = putDTO.GreenZoneParametrizationUseMoq;
+            entity.GreenZoneParametrizationUseAduXFrequency = putDTO.GreenZoneParametrizationUseAduXFrequency;
             entity.SpikeHorizonType = putDTO.SpikeHorizonType;
             entity.SpikeHorizonValue = putDTO.SpikeHorizonValue;
             entity.SpikeHorizonLTDays = putDTO.SpikeHorizonLTDays;

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Service.Infra.Data.Context;
 
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913155555_AddCenterProductAndProductFactorFields")]
+    partial class AddCenterProductAndProductFactorFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -163,15 +166,6 @@ namespace Service.Infra.Data.Migrations
                     b.Property<int>("Frequency")
                         .HasColumnType("int");
 
-                    b.Property<bool>("GreenZoneParametrizationUseAduXFrequency")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("GreenZoneParametrizationUseMoq")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -211,6 +205,15 @@ namespace Service.Infra.Data.Migrations
 
                     b.Property<int>("SupplyType")
                         .HasColumnType("int");
+
+                    b.Property<bool>("UseAdUxDlTxFactorDlt")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("UseAdUxFrequency")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("UseMoq")
+                        .HasColumnType("bit");
 
                     b.Property<int>("VariabilityCategory")
                         .HasColumnType("int");
@@ -311,11 +314,6 @@ namespace Service.Infra.Data.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
-                    b.Property<int>("BufferType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<string>("Class")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -349,21 +347,6 @@ namespace Service.Infra.Data.Migrations
                     b.Property<decimal?>("GreenZone")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
-
-                    b.Property<bool>("GreenZoneParametrizationUseAduXFrequency")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("GreenZoneParametrizationUseMoq")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
 
                     b.Property<int?>("HistoryAduDays")
                         .HasColumnType("int");

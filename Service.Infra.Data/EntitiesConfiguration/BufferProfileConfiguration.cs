@@ -21,9 +21,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(b => b.AduCalculationDays).IsRequired();
             builder.Property(b => b.AduFutureDays).IsRequired();
             builder.Property(b => b.Frequency).IsRequired();
-            builder.Property(b => b.UseAdUxDlTxFactorDlt).IsRequired();
-            builder.Property(b => b.UseMoq).IsRequired();
-            builder.Property(b => b.UseAdUxFrequency).IsRequired();
+            builder.Property(b => b.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime).IsRequired();
+            builder.Property(b => b.GreenZoneParametrizationUseMoq).IsRequired();
+            builder.Property(b => b.GreenZoneParametrizationUseAduXFrequency).IsRequired();
             builder.Property(b => b.SpikeHorizonType).IsRequired();
             builder.Property(b => b.SpikeHorizonValue).IsRequired();
             builder.Property(b => b.SpikeHorizonLTDays).IsRequired();

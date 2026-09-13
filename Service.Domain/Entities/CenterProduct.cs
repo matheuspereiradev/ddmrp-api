@@ -1,3 +1,5 @@
+using Service.Domain.Enums;
+
 namespace Service.Domain.Entities
 {
     public class CenterProduct : BaseEntity
@@ -32,5 +34,19 @@ namespace Service.Domain.Entities
         public decimal? Adi { get; set; }
         public decimal? StandardDeviation { get; set; }
         public decimal? Cv { get; set; }
+        public bool UseSuggestedLTFactor { get; set; } = true;
+        public bool UseSuggestedVariabilityFactor { get; set; } = true;
+        public decimal? RedZoneBase { get; set; }
+        public decimal? RedZoneSafe { get; set; }
+        public decimal? RedZone => RedZoneBase + RedZoneSafe;
+        public decimal? YellowZone { get; set; }
+        public decimal? GreenZone { get; set; }
+        public bool UseDafOnGreenZone { get; set; }
+        public decimal CustomLeadTimeFactor { get; set; } = 1;
+        public decimal CustomVariabilityFactor { get; set; } = 1;
+        public bool GreenZoneParametrizationUseMoq { get; set; } = true;
+        public bool GreenZoneParametrizationUseAduXFrequency { get; set; } = true;
+        public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; } = true;
+        public BufferType BufferType { get; set; }
     }
 }

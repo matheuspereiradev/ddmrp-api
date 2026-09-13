@@ -98,3 +98,63 @@ Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas 
 - `CalculateAdiStep` roda em lote (uma `UPDATE` set-based via `ExecuteSqlInterpolatedAsync`, que parametriza `ThresholdDays` com segurança em vez de concatenar a string), full recompute a cada execução.
 - **Antes de calcular**, roda um `UPDATE` zerando `Adi` de todo `CenterProduct` ativo (mesma convenção do `CalculateAduStandardDesvAndCvStep`).
 - "Hoje" é `CAST(GETDATE() AS DATE)`; a janela é `[hoje - ThresholdDays, hoje)`.
+
+## Buffer Ddmrp zonas normal (`CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone`)
+
+Step: `Service.Infra.Data/Calculation/Steps/CalculateNormalBufferZonesStep.cs` (nome no `calculation.config.json`: `"CalculateNormalBufferZones"`)
+
+**Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (resultado; `RedZone` é a propriedade calculada `RedZoneBase + RedZoneSafe`, nunca gravada diretamente — ver `CLAUDE.md`), `CenterProduct.Adu`/`LeadTime`/`Frequency`/`Moq`/`BufferType`/`UseSuggestedLTFactor`/`UseSuggestedVariabilityFactor`/`UseDafOnGreenZone`/`CustomLeadTimeFactor`/`CustomVariabilityFactor`/`GreenZoneParametrizationUseMoq`/`GreenZoneParametrizationUseAduXFrequency`/`GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime`, `BufferProfile.LeadTimeFactor`/`VariabilityFactor`, `DemandAdjustmentFactor.IsActive`/`EffectiveFrom`/`EffectiveTo`/`AdjustmentType`/`AdjustmentValue`.
+
+**Escopo: só `CenterProduct.BufferType = 0` (Normal)**. `ManualFixed`/`MinMax`/`DynamicMinMax` não são tocados por esse step — `ManualFixed` presumivelmente usa `BufferAdjustmentFactor.BufferDdmrpRed`/`YellowOld`/`GreenOld`... (a ser confirmado), `MinMax`/`DynamicMinMax` teriam lógica própria futura. **Depende de `CenterProduct.Adu` já calculado** — por isso roda depois de `CalculateAduStandardDesvAndCv` em `calculation.config.json`. **Não trata itens MTO ainda** — ver `TODO.md`.
+
+### Adjusted Adu (fator DAF aplicado ao Adu)
+
+```
+DAF ativo = DemandAdjustmentFactor com IsActive = true E EffectiveFrom <= hoje E EffectiveTo >= hoje,
+            pro mesmo (IdProduct, IdCenter)
+
+AdjustedAdu = Adu,                                    se não houver DAF ativo
+            = DAF.AdjustmentValue + Adu,               se DAF.AdjustmentType = FlatValue
+            = DAF.AdjustmentValue * Adu,                se DAF.AdjustmentType = Percentage
+```
+
+- Mais de um DAF ativo simultâneo pro mesmo item não é tratado (a query assume unicidade) — depende da validação de overlap de período ainda não implementada (ver `TODO.md`, "Ajustes PAF... não impedem períodos sobrepostos").
+
+### Yellow
+
+```
+Yellow = AdjustedAdu * LeadTime
+```
+
+### Green
+
+```
+Green = MAX(GreenCandidate1, GreenCandidate2, GreenCandidate3)
+```
+
+Cada candidato é zerado (não excluído do `MAX`, substituído por `0`) quando seu toggle correspondente em `CenterProduct` está desligado:
+
+```
+GreenCandidate1 = Moq,                                                                        se GreenZoneParametrizationUseMoq = true, senão 0
+GreenCandidate2 = Adu * LeadTime * LeadTimeFactor,                                             se GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = true, senão 0
+GreenCandidate3 = Frequency * (AdjustedAdu, se UseDafOnGreenZone = true, senão Adu),            se GreenZoneParametrizationUseAduXFrequency = true, senão 0
+```
+
+- `LeadTimeFactor` em `GreenCandidate2` é `BufferProfile.LeadTimeFactor` quando `UseSuggestedLTFactor = true`, senão `CenterProduct.CustomLeadTimeFactor`.
+
+### RedZoneSafe / RedZoneBase
+
+```
+RedZoneSafe = AdjustedAdu * LeadTime * LeadTimeFactor
+RedZoneBase = AdjustedAdu * LeadTime * LeadTimeFactor * VariabilityFactor
+```
+
+- `LeadTimeFactor`: `BufferProfile.LeadTimeFactor` se `UseSuggestedLTFactor = true`, senão `CenterProduct.CustomLeadTimeFactor`.
+- `VariabilityFactor`: `BufferProfile.VariabilityFactor` se `UseSuggestedVariabilityFactor = true`, senão `CenterProduct.CustomVariabilityFactor`.
+- `RedZone` (a propriedade calculada) = `RedZoneSafe + RedZoneBase`.
+
+### Execução
+
+- `CalculateNormalBufferZonesStep` roda em lote (uma `UPDATE` set-based via `ExecuteSqlRawAsync`, sem parâmetro externo — nada a parametrizar), full recompute a cada execução, escopado a `BufferType = 0`.
+- **Antes de calcular**, roda um `UPDATE` zerando `YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase` de todo `CenterProduct` ativo com `BufferType = 0` (mesma convenção dos outros steps — escopada ao `BufferType` pra nunca tocar itens de outro tipo).
+- "Hoje" é `GETDATE()` (sem `CAST(... AS DATE)`, diferente do Adu/Adi — usado apenas na comparação de vigência do DAF).

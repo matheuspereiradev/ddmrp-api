@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 
 namespace Service.Infra.Data.EntitiesConfiguration
 {
@@ -26,6 +27,20 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(cp => cp.Adi).HasPrecision(18, 4);
             builder.Property(cp => cp.StandardDeviation).HasPrecision(18, 4);
             builder.Property(cp => cp.Cv).HasPrecision(18, 4);
+            builder.Property(cp => cp.UseSuggestedLTFactor).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.UseSuggestedVariabilityFactor).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.RedZoneBase).HasPrecision(18, 4);
+            builder.Property(cp => cp.RedZoneSafe).HasPrecision(18, 4);
+            builder.Ignore(cp => cp.RedZone);
+            builder.Property(cp => cp.YellowZone).HasPrecision(18, 4);
+            builder.Property(cp => cp.GreenZone).HasPrecision(18, 4);
+            builder.Property(cp => cp.UseDafOnGreenZone).IsRequired().HasDefaultValue(false);
+            builder.Property(cp => cp.CustomLeadTimeFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
+            builder.Property(cp => cp.CustomVariabilityFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
+            builder.Property(cp => cp.GreenZoneParametrizationUseMoq).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.GreenZoneParametrizationUseAduXFrequency).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.BufferType).IsRequired().HasDefaultValue(BufferType.Normal);
 
             builder.HasOne(cp => cp.Product)
                 .WithMany()

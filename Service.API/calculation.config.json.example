@@ -9,6 +9,10 @@
       "parameters": [
         { "name": "ThresholdDays", "value": "360" }
       ]
+    },
+    {
+      "name": "CalculateNormalBufferZones",
+      "parameters": []
     }
   ]
 }

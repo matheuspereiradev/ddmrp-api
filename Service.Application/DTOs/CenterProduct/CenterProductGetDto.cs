@@ -5,6 +5,7 @@ using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
 using Service.Application.DTOs.Reason;
 using Service.Application.DTOs.Tag;
+using Service.Domain.Enums;
 
 namespace Service.Application.DTOs.CenterProduct
 {
@@ -33,6 +34,20 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal? Adi { get; set; }
         public decimal? StandardDeviation { get; set; }
         public decimal? Cv { get; set; }
+        public bool UseSuggestedLTFactor { get; set; }
+        public bool UseSuggestedVariabilityFactor { get; set; }
+        public decimal? RedZoneBase { get; set; }
+        public decimal? RedZoneSafe { get; set; }
+        public decimal? RedZone { get; set; }
+        public decimal? YellowZone { get; set; }
+        public decimal? GreenZone { get; set; }
+        public bool UseDafOnGreenZone { get; set; }
+        public decimal CustomLeadTimeFactor { get; set; }
+        public decimal CustomVariabilityFactor { get; set; }
+        public bool GreenZoneParametrizationUseMoq { get; set; }
+        public bool GreenZoneParametrizationUseAduXFrequency { get; set; }
+        public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; }
+        public BufferType BufferType { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
         public CenterGetDto? OriginCenter { get; set; }

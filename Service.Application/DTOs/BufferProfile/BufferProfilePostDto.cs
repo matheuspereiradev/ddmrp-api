@@ -39,13 +39,13 @@ namespace Service.Application.DTOs.BufferProfile
         public int Frequency { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
-        public bool UseAdUxDlTxFactorDlt { get; set; }
+        public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
-        public bool UseMoq { get; set; }
+        public bool GreenZoneParametrizationUseMoq { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
-        public bool UseAdUxFrequency { get; set; }
+        public bool GreenZoneParametrizationUseAduXFrequency { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
         [EnumDataType(typeof(SpikeHorizonType), ErrorMessage = "Invalid value for field {0}.")]

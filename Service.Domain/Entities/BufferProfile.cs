@@ -13,9 +13,9 @@ namespace Service.Domain.Entities
         public int AduCalculationDays { get; set; }
         public int AduFutureDays { get; set; }
         public int Frequency { get; set; }
-        public bool UseAdUxDlTxFactorDlt { get; set; }
-        public bool UseMoq { get; set; }
-        public bool UseAdUxFrequency { get; set; }
+        public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; }
+        public bool GreenZoneParametrizationUseMoq { get; set; }
+        public bool GreenZoneParametrizationUseAduXFrequency { get; set; }
         public SpikeHorizonType SpikeHorizonType { get; set; }
         public int SpikeHorizonValue { get; set; }
         public int SpikeHorizonLTDays { get; set; }

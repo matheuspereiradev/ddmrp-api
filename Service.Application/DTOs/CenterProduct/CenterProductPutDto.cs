@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Service.Domain.Enums;
 
 namespace Service.Application.DTOs.CenterProduct
 {
@@ -40,5 +41,21 @@ namespace Service.Application.DTOs.CenterProduct
         public int? IdBufferProfile { get; set; }
         public int? FutureAduDays { get; set; }
         public int? HistoryAduDays { get; set; }
+        public bool UseSuggestedLTFactor { get; set; } = true;
+        public bool UseSuggestedVariabilityFactor { get; set; } = true;
+        public bool UseDafOnGreenZone { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal CustomLeadTimeFactor { get; set; } = 1;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal CustomVariabilityFactor { get; set; } = 1;
+
+        public bool GreenZoneParametrizationUseMoq { get; set; } = true;
+        public bool GreenZoneParametrizationUseAduXFrequency { get; set; } = true;
+        public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; } = true;
+
+        [EnumDataType(typeof(BufferType), ErrorMessage = "Invalid value for field {0}.")]
+        public BufferType BufferType { get; set; } = BufferType.Normal;
     }
 }
