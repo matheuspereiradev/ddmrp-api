@@ -109,6 +109,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICalculationConfigProvider>(_ =>
                 new JsonCalculationConfigProvider(configuration["Calculation:ConfigPath"] ?? "calculation.config.json"));
             services.AddScoped<ICalculationStep, CalculateAduStep>();
+            services.AddScoped<ICalculationStep, CalculateAdiStep>();
             services.AddScoped<ICalculationService, CalculationService>();
 
             services.AddScoped<IRobotService, RobotService>();

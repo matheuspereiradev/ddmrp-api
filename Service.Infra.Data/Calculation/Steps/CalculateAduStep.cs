@@ -53,9 +53,9 @@ namespace Service.Infra.Data.Calculation.Steps
             HistoricalAdu AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    SUM(rh.Quantity) / cp.HistoryAduDays AS Value
+                    ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS Value
                 FROM dbo.CenterProducts cp
-                INNER JOIN RankedHistory rh
+                LEFT JOIN RankedHistory rh
                     ON rh.IdProduct = cp.IdProduct
                     AND rh.IdCenter = cp.IdCenter
                     AND rh.rn <= cp.HistoryAduDays

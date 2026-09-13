@@ -25,7 +25,7 @@ Histórico = (Soma de History.Quantity dos últimos HistoryAduDays dias não des
 
 - "Últimos N dias não descartados" caminha para trás a partir de ontem (hoje não entra), pulando qualquer dia cujo `History.DiscardStatus = Discarded` — **cada dia descartado estende a janela em mais um dia pra trás**, até completar `HistoryAduDays` dias válidos.
 - O divisor é sempre `HistoryAduDays` (fixo), não a quantidade de linhas realmente somadas.
-- Se não existirem `HistoryAduDays` dias válidos disponíveis no histórico (produto muito novo, por exemplo), o resultado fica `NULL` em vez de calcular com uma janela incompleta.
+- Se não existirem `HistoryAduDays` dias válidos disponíveis no histórico (produto muito novo, por exemplo), soma o que houver disponível mesmo assim e divide por `HistoryAduDays` (janela incompleta, mesmo divisor fixo). Se não existir **nenhum** dia válido, o resultado é `0` (não `NULL`).
 
 **Exemplo** (hoje = 12/09/2026, `HistoryAduDays` = 3):
 
@@ -54,9 +54,32 @@ Futuro = (Soma de Forecast.Quantity dos próximos FutureAduDays dias) / FutureAd
 Misto = (Histórico + Futuro) / 2
 ```
 
-- Só calcula quando os dois componentes (Histórico e Futuro) puderam ser calculados — se um dos dois ficar indisponível (ex.: histórico insuficiente), `Adu` fica `NULL` em vez de tratar o componente faltante como zero.
+- Sempre calculável quando `HistoryAduDays > 0` e `FutureAduDays > 0`: cada componente já vem `0` (não `NULL`) quando não há dados suficientes (ver regra do Histórico acima), então a média nunca fica bloqueada por falta de um dos dois.
 
 ### Execução
 
 - `CalculateAduStep` roda em lote (uma `UPDATE` set-based cobrindo todo `CenterProduct` ativo, executada via `ExecuteSqlRawAsync` dentro da classe C#), não em loop por linha — full recompute a cada execução, sem cálculo incremental (consistente com a regra geral do Robot).
 - "Hoje" é `CAST(GETDATE() AS DATE)` — não é parametrizado.
+
+## Adi (`CenterProduct.Adi`)
+
+Step: `Service.Infra.Data/Calculation/Steps/CalculateAdiStep.cs` (nome no `calculation.config.json`: `"CalculateAdi"`)
+
+**Campos envolvidos**: `CenterProduct.Adi` (resultado), `History.Quantity`/`Date` (todas as linhas contam, independente de `DiscardStatus`).
+
+**Average Demand Interval** — mede o quão intermitente é a demanda: quanto maior o `Adi`, mais espaçadas as ocorrências de consumo.
+
+```
+Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas com Quantity > 0)
+```
+
+- **Parâmetro `ThresholdDays`** (recebido pelo step via `calculation.config.json`, ex.: `{ "name": "ThresholdDays", "value": "360", "type": "int" }`, padrão `360` se omitido) — é **global pra execução inteira**, não um campo por `CenterProduct` como `HistoryAduDays`/`FutureAduDays`. Define o período: os últimos `ThresholdDays` dias corridos, terminando ontem (hoje não entra, mesma convenção do Adu).
+- O numerador é a contagem real de linhas de `History` existentes no período — **não** o valor de `ThresholdDays` (se só existirem 200 linhas nos últimos 360 dias, numerador é 200, não 360).
+- **Todas** as linhas contam, mesmo as com `DiscardStatus = Discarded` (diferente do Adu — aqui não há filtro de descarte).
+- Se não existir nenhuma linha com `Quantity > 0` no período (incluindo o caso de não existir nenhuma linha de `History` no período), `Adi = 0` (não `NULL`).
+- Não depende de `HistoryAduDays`/`FutureAduDays` — roda pra todo `CenterProduct` ativo que tenha (ou não) histórico no período.
+
+### Execução
+
+- `CalculateAdiStep` roda em lote (uma `UPDATE` set-based via `ExecuteSqlInterpolatedAsync`, que parametriza `ThresholdDays` com segurança em vez de concatenar a string), full recompute a cada execução.
+- "Hoje" é `CAST(GETDATE() AS DATE)`; a janela é `[hoje - ThresholdDays, hoje)`.

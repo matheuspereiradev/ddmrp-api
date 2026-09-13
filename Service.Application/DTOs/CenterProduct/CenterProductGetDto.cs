@@ -30,6 +30,7 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal? Adu { get; set; }
         public int? FutureAduDays { get; set; }
         public int? HistoryAduDays { get; set; }
+        public decimal? Adi { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
         public CenterGetDto? OriginCenter { get; set; }
