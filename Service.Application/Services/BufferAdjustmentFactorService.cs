@@ -11,15 +11,18 @@ namespace Service.Application.Services
     {
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
+        private readonly ICenterProductRepository _centerProductRepository;
 
         public BufferAdjustmentFactorService(
             IBufferAdjustmentFactorRepository repository,
             IProductRepository productRepository,
-            ICenterRepository centerRepository)
+            ICenterRepository centerRepository,
+            ICenterProductRepository centerProductRepository)
             : base(repository)
         {
             _productRepository = productRepository;
             _centerRepository = centerRepository;
+            _centerProductRepository = centerProductRepository;
         }
 
         protected override BufferAdjustmentFactorGetDto ToGetDTO(BufferAdjustmentFactor entity)
@@ -38,9 +41,11 @@ namespace Service.Application.Services
                 Obs = entity.Obs,
                 IsActive = entity.IsActive,
                 BufferTypeOld = entity.BufferTypeOld,
-                BufferDdmrpRedOld = entity.BufferDdmrpRedOld,
+                BufferDdmrpRedSafeOld = entity.BufferDdmrpRedSafeOld,
+                BufferDdmrpRedBaseOld = entity.BufferDdmrpRedBaseOld,
                 BufferDdmrpYellowOld = entity.BufferDdmrpYellowOld,
                 BufferDdmrpGreenOld = entity.BufferDdmrpGreenOld,
+                AlreadyReverted = entity.AlreadyReverted,
                 Product = entity.Product?.ToGetDto(),
                 Center = entity.Center?.ToGetDto()
             };
@@ -61,7 +66,8 @@ namespace Service.Application.Services
                 Obs = postDTO.Obs,
                 IsActive = postDTO.IsActive,
                 BufferTypeOld = null,
-                BufferDdmrpRedOld = null,
+                BufferDdmrpRedSafeOld = null,
+                BufferDdmrpRedBaseOld = null,
                 BufferDdmrpYellowOld = null,
                 BufferDdmrpGreenOld = null
             };
@@ -87,7 +93,20 @@ namespace Service.Application.Services
             if (!await _centerRepository.Exists(postDTO.IdCenter, cancellationToken))
                 throw new BadRequestException("Center not found.");
 
-            return await base.AddAsync(postDTO, cancellationToken);
+            var entity = ToEntity(postDTO);
+
+            var centerProduct = await _centerProductRepository.GetByProductAndCenterAsync(postDTO.IdProduct, postDTO.IdCenter, cancellationToken);
+            if (centerProduct != null)
+            {
+                entity.BufferTypeOld = centerProduct.BufferType;
+                entity.BufferDdmrpRedSafeOld = centerProduct.RedZoneSafe;
+                entity.BufferDdmrpRedBaseOld = centerProduct.RedZoneBase;
+                entity.BufferDdmrpYellowOld = centerProduct.YellowZone;
+                entity.BufferDdmrpGreenOld = centerProduct.GreenZone;
+            }
+
+            var created = await _repository.AddAsync(entity, cancellationToken);
+            return ToGetDTO(created);
         }
 
         public async Task<BufferAdjustmentFactorGetDto> SetActiveAsync(int id, bool isActive, CancellationToken cancellationToken = default)
@@ -96,9 +115,61 @@ namespace Service.Application.Services
             if (entity == null)
                 throw new NotFoundException("Not found");
 
+            if (!isActive && IsActiveAndInPeriod(entity) && !entity.AlreadyReverted)
+            {
+                await RevertCenterProductAsync(entity, cancellationToken);
+                entity.AlreadyReverted = true;
+            }
+            else if (isActive)
+            {
+                entity.AlreadyReverted = false;
+            }
+
             entity.IsActive = isActive;
             var updated = await _repository.UpdateAsync(entity, cancellationToken);
             return ToGetDTO(updated);
+        }
+
+        public override async Task<BufferAdjustmentFactorGetDto> DeleteAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var entity = await _repository.GetByIdAsync(id, cancellationToken);
+            if (entity == null)
+                throw new NotFoundException("Not found");
+
+            if (IsActiveAndInPeriod(entity) && !entity.AlreadyReverted)
+            {
+                await RevertCenterProductAsync(entity, cancellationToken);
+                entity.AlreadyReverted = true;
+            }
+
+            var deleted = await _repository.DeleteAsync(id, cancellationToken);
+            return ToGetDTO(deleted);
+        }
+
+        private static bool IsActiveAndInPeriod(BufferAdjustmentFactor entity)
+        {
+            var now = DateTime.Now;
+            return entity.IsActive && entity.EffectiveFrom <= now && entity.EffectiveTo >= now;
+        }
+
+        private async Task RevertCenterProductAsync(BufferAdjustmentFactor baf, CancellationToken cancellationToken)
+        {
+            var centerProduct = await _centerProductRepository.GetByProductAndCenterAsync(baf.IdProduct, baf.IdCenter, cancellationToken);
+            if (centerProduct == null)
+                return;
+
+            if (baf.BufferTypeOld.HasValue)
+                centerProduct.BufferType = baf.BufferTypeOld.Value;
+            if (baf.BufferDdmrpRedSafeOld.HasValue)
+                centerProduct.RedZoneSafe = baf.BufferDdmrpRedSafeOld;
+            if (baf.BufferDdmrpRedBaseOld.HasValue)
+                centerProduct.RedZoneBase = baf.BufferDdmrpRedBaseOld;
+            if (baf.BufferDdmrpYellowOld.HasValue)
+                centerProduct.YellowZone = baf.BufferDdmrpYellowOld;
+            if (baf.BufferDdmrpGreenOld.HasValue)
+                centerProduct.GreenZone = baf.BufferDdmrpGreenOld;
+
+            await _centerProductRepository.UpdateAsync(centerProduct, cancellationToken);
         }
     }
 }

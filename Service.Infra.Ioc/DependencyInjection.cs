@@ -113,6 +113,7 @@ namespace Service.Infra.Ioc
                 new JsonCalculationConfigProvider(configuration["Calculation:ConfigPath"] ?? "calculation.config.json"));
             services.AddScoped<ICalculationStep, CalculateAduStandardDesvAndCvStep>();
             services.AddScoped<ICalculationStep, CalculateAdiStep>();
+            services.AddScoped<ICalculationStep, ApplyBafStep>();
             services.AddScoped<ICalculationStep, CalculateNormalBufferZonesStep>();
             services.AddScoped<ICalculationStep, CalculateMinMaxBufferZonesStep>();
             services.AddScoped<ICalculationStep, CalculateDynamicMinMaxBufferZonesStep>();

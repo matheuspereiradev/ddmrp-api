@@ -91,9 +91,11 @@ namespace Service.Infra.Data.Calculation.Steps
             Zones AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    cp.Moq AS GreenCandidate1,
-                    cp.Adu * cp.LeadTime * (CASE WHEN cp.UseSuggestedLTFactor = 1 THEN bp.LeadTimeFactor ELSE cp.CustomLeadTimeFactor END) AS GreenCandidate2,
-                    cp.Frequency * (CASE WHEN cp.UseDafOnGreenZone = 1 THEN a.Value ELSE cp.Adu END) AS GreenCandidate3,
+                    (SELECT MAX(v) FROM (VALUES
+                        (IIF(cp.GreenZoneParametrizationUseMoq = 1, cp.Moq, 0)),
+                        (IIF(cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = 1, cp.Adu * cp.LeadTime * (CASE WHEN cp.UseSuggestedLTFactor = 1 THEN bp.LeadTimeFactor ELSE cp.CustomLeadTimeFactor END), 0)),
+                        (IIF(cp.GreenZoneParametrizationUseAduXFrequency = 1, cp.Frequency * (CASE WHEN cp.UseDafOnGreenZone = 1 THEN a.Value ELSE cp.Adu END), 0))
+                    ) AS g(v)) AS Green,
                     ISNULL(mo.Value, 0) AS RedBase
                 FROM dbo.CenterProducts cp
                 LEFT JOIN dbo.BufferProfiles bp ON bp.Id = cp.IdBufferProfile
@@ -103,14 +105,8 @@ namespace Service.Infra.Data.Calculation.Steps
             )
             UPDATE cp
             SET
-                cp.GreenZone = (
-                    SELECT MAX(v) FROM (VALUES
-                        (IIF(cp.GreenZoneParametrizationUseMoq = 1, z.GreenCandidate1, 0)),
-                        (IIF(cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = 1, z.GreenCandidate2, 0)),
-                        (IIF(cp.GreenZoneParametrizationUseAduXFrequency = 1, z.GreenCandidate3, 0))
-                    ) AS g(v)
-                ),
-                cp.RedZoneBase = z.RedBase
+                cp.GreenZone = IIF(z.Green < 0, 0, z.Green),
+                cp.RedZoneBase = IIF(z.RedBase < 0, 0, z.RedBase)
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType = 2;

@@ -22,5 +22,12 @@ namespace Service.Infra.Data.Repositories
                 .Include(cp => cp.Reason)
                 .Include(cp => cp.AllocationGroup)
                 .Include(cp => cp.BufferProfile);
+
+        public async Task<CenterProduct> GetByProductAndCenterAsync(int idProduct, int idCenter, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet.FirstOrDefaultAsync(
+                cp => cp.IdProduct == idProduct && cp.IdCenter == idCenter && cp.deletedAt == null,
+                cancellationToken);
+        }
     }
 }

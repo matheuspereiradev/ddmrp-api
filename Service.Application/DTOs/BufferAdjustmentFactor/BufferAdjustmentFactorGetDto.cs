@@ -19,9 +19,11 @@ namespace Service.Application.DTOs.BufferAdjustmentFactor
         public string? Obs { get; set; }
         public bool IsActive { get; set; }
         public BufferType? BufferTypeOld { get; set; }
-        public decimal? BufferDdmrpRedOld { get; set; }
+        public decimal? BufferDdmrpRedSafeOld { get; set; }
+        public decimal? BufferDdmrpRedBaseOld { get; set; }
         public decimal? BufferDdmrpYellowOld { get; set; }
         public decimal? BufferDdmrpGreenOld { get; set; }
+        public bool AlreadyReverted { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
     }

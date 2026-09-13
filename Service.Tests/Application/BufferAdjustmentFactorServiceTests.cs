@@ -13,13 +13,14 @@ public class BufferAdjustmentFactorServiceTests
     private readonly IBufferAdjustmentFactorRepository _bufferAdjustmentFactorRepository = Substitute.For<IBufferAdjustmentFactorRepository>();
     private readonly IProductRepository _productRepository = Substitute.For<IProductRepository>();
     private readonly ICenterRepository _centerRepository = Substitute.For<ICenterRepository>();
+    private readonly ICenterProductRepository _centerProductRepository = Substitute.For<ICenterProductRepository>();
     private readonly BufferAdjustmentFactorService _sut;
 
     public BufferAdjustmentFactorServiceTests()
     {
         _productRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
         _centerRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
-        _sut = new BufferAdjustmentFactorService(_bufferAdjustmentFactorRepository, _productRepository, _centerRepository);
+        _sut = new BufferAdjustmentFactorService(_bufferAdjustmentFactorRepository, _productRepository, _centerRepository, _centerProductRepository);
     }
 
     private static BufferAdjustmentFactorPostDto BuildPostDto() => new()
@@ -57,21 +58,49 @@ public class BufferAdjustmentFactorServiceTests
     }
 
     [Fact]
-    public async Task AddAsync_AlwaysPersistsOldFieldsAsNull()
+    public async Task AddAsync_LeavesOldFieldsNull_WhenNoCenterProductExists()
     {
         var postDto = BuildPostDto();
+        _centerProductRepository.GetByProductAndCenterAsync(postDto.IdProduct, postDto.IdCenter, Arg.Any<CancellationToken>())
+            .Returns((CenterProduct)null!);
         _bufferAdjustmentFactorRepository.AddAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<BufferAdjustmentFactor>());
 
         var result = await _sut.AddAsync(postDto);
 
         Assert.Null(result.BufferTypeOld);
-        Assert.Null(result.BufferDdmrpRedOld);
+        Assert.Null(result.BufferDdmrpRedSafeOld);
+        Assert.Null(result.BufferDdmrpRedBaseOld);
         Assert.Null(result.BufferDdmrpYellowOld);
         Assert.Null(result.BufferDdmrpGreenOld);
-        await _bufferAdjustmentFactorRepository.Received(1).AddAsync(
-            Arg.Is<BufferAdjustmentFactor>(b => b.BufferTypeOld == null && b.BufferDdmrpRedOld == null),
-            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AddAsync_SnapshotsOldFieldsFromCenterProduct_WhenCenterProductExists()
+    {
+        var postDto = BuildPostDto();
+        var centerProduct = new CenterProduct
+        {
+            IdProduct = postDto.IdProduct,
+            IdCenter = postDto.IdCenter,
+            BufferType = BufferType.MinMax,
+            RedZoneSafe = 1m,
+            RedZoneBase = 2m,
+            YellowZone = 3m,
+            GreenZone = 4m
+        };
+        _centerProductRepository.GetByProductAndCenterAsync(postDto.IdProduct, postDto.IdCenter, Arg.Any<CancellationToken>())
+            .Returns(centerProduct);
+        _bufferAdjustmentFactorRepository.AddAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<BufferAdjustmentFactor>());
+
+        var result = await _sut.AddAsync(postDto);
+
+        Assert.Equal(BufferType.MinMax, result.BufferTypeOld);
+        Assert.Equal(1m, result.BufferDdmrpRedSafeOld);
+        Assert.Equal(2m, result.BufferDdmrpRedBaseOld);
+        Assert.Equal(3m, result.BufferDdmrpYellowOld);
+        Assert.Equal(4m, result.BufferDdmrpGreenOld);
     }
 
     [Fact]
@@ -173,5 +202,107 @@ public class BufferAdjustmentFactorServiceTests
         _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((BufferAdjustmentFactor)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetActiveAsync(1, true));
+    }
+
+    private static BufferAdjustmentFactor BuildActiveInPeriodEntity() => new()
+    {
+        Id = 1,
+        IdProduct = 1,
+        IdCenter = 1,
+        IsActive = true,
+        EffectiveFrom = DateTime.Now.AddDays(-1),
+        EffectiveTo = DateTime.Now.AddDays(1),
+        BufferTypeOld = BufferType.Normal,
+        BufferDdmrpRedSafeOld = 1m,
+        BufferDdmrpRedBaseOld = 2m,
+        BufferDdmrpYellowOld = 3m,
+        BufferDdmrpGreenOld = 4m,
+        AlreadyReverted = false
+    };
+
+    [Fact]
+    public async Task SetActiveAsync_RevertsCenterProductAndSetsAlreadyReverted_WhenDeactivatingAnActiveInPeriodBaf()
+    {
+        var existing = BuildActiveInPeriodEntity();
+        var centerProduct = new CenterProduct { IdProduct = 1, IdCenter = 1, BufferType = BufferType.ManualFixed };
+        _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _bufferAdjustmentFactorRepository.UpdateAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<BufferAdjustmentFactor>());
+        _centerProductRepository.GetByProductAndCenterAsync(1, 1, Arg.Any<CancellationToken>()).Returns(centerProduct);
+
+        var result = await _sut.SetActiveAsync(1, false);
+
+        Assert.False(result.IsActive);
+        Assert.True(result.AlreadyReverted);
+        Assert.Equal(BufferType.Normal, centerProduct.BufferType);
+        Assert.Equal(1m, centerProduct.RedZoneSafe);
+        Assert.Equal(2m, centerProduct.RedZoneBase);
+        Assert.Equal(3m, centerProduct.YellowZone);
+        Assert.Equal(4m, centerProduct.GreenZone);
+        await _centerProductRepository.Received(1).UpdateAsync(centerProduct, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_DoesNotRevert_WhenDeactivatingABafOutsideItsPeriod()
+    {
+        var existing = BuildActiveInPeriodEntity();
+        existing.EffectiveTo = DateTime.Now.AddDays(-1);
+        _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _bufferAdjustmentFactorRepository.UpdateAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<BufferAdjustmentFactor>());
+
+        var result = await _sut.SetActiveAsync(1, false);
+
+        Assert.False(result.IsActive);
+        Assert.False(result.AlreadyReverted);
+        await _centerProductRepository.DidNotReceive().GetByProductAndCenterAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_ResetsAlreadyReverted_WhenReactivating()
+    {
+        var existing = BuildActiveInPeriodEntity();
+        existing.IsActive = false;
+        existing.AlreadyReverted = true;
+        _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _bufferAdjustmentFactorRepository.UpdateAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<BufferAdjustmentFactor>());
+
+        var result = await _sut.SetActiveAsync(1, true);
+
+        Assert.True(result.IsActive);
+        Assert.False(result.AlreadyReverted);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_RevertsCenterProductAndSetsAlreadyReverted_WhenDeletingAnActiveInPeriodBaf()
+    {
+        var existing = BuildActiveInPeriodEntity();
+        var centerProduct = new CenterProduct { IdProduct = 1, IdCenter = 1, BufferType = BufferType.ManualFixed };
+        _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _bufferAdjustmentFactorRepository.DeleteAsync(1, Arg.Any<CancellationToken>())
+            .Returns(callInfo => existing);
+        _centerProductRepository.GetByProductAndCenterAsync(1, 1, Arg.Any<CancellationToken>()).Returns(centerProduct);
+
+        var result = await _sut.DeleteAsync(1);
+
+        Assert.True(result.AlreadyReverted);
+        Assert.Equal(BufferType.Normal, centerProduct.BufferType);
+        await _centerProductRepository.Received(1).UpdateAsync(centerProduct, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DoesNotRevert_WhenBafIsNotActive()
+    {
+        var existing = BuildActiveInPeriodEntity();
+        existing.IsActive = false;
+        _bufferAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _bufferAdjustmentFactorRepository.DeleteAsync(1, Arg.Any<CancellationToken>())
+            .Returns(callInfo => existing);
+
+        var result = await _sut.DeleteAsync(1);
+
+        Assert.False(result.AlreadyReverted);
+        await _centerProductRepository.DidNotReceive().GetByProductAndCenterAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 }

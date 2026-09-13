@@ -99,13 +99,69 @@ Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas 
 - **Antes de calcular**, roda um `UPDATE` zerando `Adi` de todo `CenterProduct` ativo (mesma convenção do `CalculateAduStandardDesvAndCvStep`).
 - "Hoje" é `CAST(GETDATE() AS DATE)`; a janela é `[hoje - ThresholdDays, hoje)`.
 
+## BAF (`Service.Domain.Entities.BufferAdjustmentFactor`) → `CenterProduct.BufferType`/zonas
+
+Step: `Service.Infra.Data/Calculation/Steps/ApplyBafStep.cs` (nome no `calculation.config.json`: `"ApplyBAF"`)
+
+**Roda antes dos steps de zona** (`CalculateNormalBufferZones`/`CalculateMinMaxBufferZones`/`CalculateDynamicMinMaxBufferZones`) — precisa decidir o `BufferType` do dia antes deles, já que cada um filtra `CenterProduct` pelo `BufferType`. Não depende de `Adu`.
+
+Três passos sequenciais, todos escopados por `(IdProduct, IdCenter)` casando `CenterProduct` com `BufferAdjustmentFactor`:
+
+### Passo 1 — Reverter BAFs finalizados
+
+Pra todo `BufferAdjustmentFactor` com `EffectiveTo < hoje` (já acabou) e `AlreadyReverted = false` (ainda não revertido):
+
+```
+CenterProduct.BufferType    = BAF.BufferTypeOld
+CenterProduct.RedZoneSafe   = BAF.BufferDdmrpRedSafeOld
+CenterProduct.RedZoneBase   = BAF.BufferDdmrpRedBaseOld
+CenterProduct.YellowZone    = BAF.BufferDdmrpYellowOld
+CenterProduct.GreenZone     = BAF.BufferDdmrpGreenOld
+```
+
+Só sobrescreve o campo se o `*Old` correspondente não for `NULL` (`ISNULL(BAF.*Old, CenterProduct.*)` — se o BAF nasceu sem `CenterProduct` pra tirar o snapshot, aquele campo específico fica como está, não é zerado). Depois de reverter, marca `BAF.AlreadyReverted = true` — pra nunca reverter de novo.
+
+**Nota**: se o `BufferType` revertido for `Normal`/`MinMax`/`DynamicMinMax`, as zonas revertidas aqui são recalculadas do zero logo em seguida pelos steps de zona (full recompute sempre) — então reverter a zona só tem efeito prático duradouro quando o `BufferType` revertido é `ManualFixed` (que não tem step de recálculo).
+
+### Passo 2 — `BufferType` segue o BAF ativo e vigente
+
+Pra todo `BufferAdjustmentFactor` **ativo e vigente** (`IsActive = true` E `EffectiveFrom <= hoje` E `EffectiveTo >= hoje`, ambos os extremos incluídos):
+
+```
+CenterProduct.BufferType = BAF.BufferType
+```
+
+### Passo 3 — Zonas manuais direto do BAF
+
+Pra todo `BufferAdjustmentFactor` ativo e vigente (mesmo critério do passo 2) **com `BufferType = ManualFixed`**:
+
+```
+CenterProduct.YellowZone   = BAF.BufferDdmrpYellow
+CenterProduct.GreenZone    = BAF.BufferDdmrpGreen
+CenterProduct.RedZoneSafe  = BAF.BufferDdmrpRed / 2
+CenterProduct.RedZoneBase  = BAF.BufferDdmrpRed / 2
+```
+
+`BufferDdmrpRed` (um valor só) é dividido igualmente entre `RedZoneSafe`/`RedZoneBase`.
+
+### Execução
+
+- `ApplyBafStep` roda em lote (4 `UPDATE`s set-based via `ExecuteSqlRawAsync`, sem parâmetro externo), full recompute a cada execução.
+- Sem escopo de `BufferType` na entrada — o próprio step é o que decide/muda o `BufferType`.
+- **Mais de um `BufferAdjustmentFactor` casando pro mesmo `CenterProduct`** em qualquer um dos 3 passos não é tratado (a `UPDATE ... FROM ... JOIN` do SQL Server pega uma linha arbitrária) — mesma postura já adotada pro DAF/ZAF, depende da validação de overlap ainda não implementada (ver `TODO.md`).
+- "Hoje" é `GETDATE()` (sem `CAST(... AS DATE)`), usado só nas comparações de vigência do BAF.
+
+### Reversão imediata via API (fora do Robot)
+
+Além do passo 1 do `ApplyBafStep` (que só reverte BAFs **já finalizados**, `EffectiveTo < hoje`), `BufferAdjustmentFactorService` também reverte na hora, fora do Robot, quando o usuário **exclui** (`DeleteAsync`) ou **desativa** (`SetActiveAsync(id, false)`) um BAF que está `IsActive = true` **e dentro do período de vigência** (`EffectiveFrom <= agora <= EffectiveTo`) **e** ainda não revertido (`AlreadyReverted = false`) — mesma lógica de reversão (campo a campo, só sobrescreve se o `*Old` não for `NULL`), aplicada direto em C# contra o `CenterProduct` (não é SQL bruto, é a mesma regra reimplementada no service). Ao **reativar** (`SetActiveAsync(id, true)`), `AlreadyReverted` sempre volta pra `false`, sem checar vigência — pra que uma desativação/expiração futura possa reverter de novo. Usa `DateTime.Now` (não `UtcNow`) pra bater com o `GETDATE()` do `ApplyBafStep`.
+
 ## Buffer Ddmrp zonas normal (`CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone`)
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateNormalBufferZonesStep.cs` (nome no `calculation.config.json`: `"CalculateNormalBufferZones"`)
 
 **Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (resultado; `RedZone` é a propriedade calculada `RedZoneBase + RedZoneSafe`, nunca gravada diretamente — ver `CLAUDE.md`), `CenterProduct.Adu`/`LeadTime`/`Frequency`/`Moq`/`BufferType`/`UseSuggestedLTFactor`/`UseSuggestedVariabilityFactor`/`UseDafOnGreenZone`/`CustomLeadTimeFactor`/`CustomVariabilityFactor`/`GreenZoneParametrizationUseMoq`/`GreenZoneParametrizationUseAduXFrequency`/`GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime`, `BufferProfile.LeadTimeFactor`/`VariabilityFactor`, `DemandAdjustmentFactor.IsActive`/`EffectiveFrom`/`EffectiveTo`/`AdjustmentType`/`AdjustmentValue`.
 
-**Escopo: só `CenterProduct.BufferType = 0` (Normal)**. `ManualFixed`/`MinMax`/`DynamicMinMax` não são tocados por esse step — `ManualFixed` presumivelmente usa `BufferAdjustmentFactor.BufferDdmrpRed`/`YellowOld`/`GreenOld`... (a ser confirmado), `MinMax`/`DynamicMinMax` teriam lógica própria futura. **Depende de `CenterProduct.Adu` já calculado** — por isso roda depois de `CalculateAduStandardDesvAndCv` em `calculation.config.json`. **Não trata itens MTO ainda** — ver `TODO.md`.
+**Escopo: só `CenterProduct.BufferType = 0` (Normal)**. `ManualFixed`/`MinMax`/`DynamicMinMax` não são tocados por esse step — `ManualFixed` tem suas zonas definidas pelo `ApplyBafStep` (ver seção "BAF" acima), `MinMax`/`DynamicMinMax` têm os próprios steps (`CalculateMinMaxBufferZonesStep`/`CalculateDynamicMinMaxBufferZonesStep`, abaixo). **Depende de `CenterProduct.Adu` já calculado** — por isso roda depois de `CalculateAduStandardDesvAndCv` em `calculation.config.json`. **Não trata itens MTO ainda** — ver `TODO.md`.
 
 ### Adjusted Adu (fator DAF aplicado ao Adu)
 
@@ -155,6 +211,8 @@ RedZoneBase = AdjustedAdu * LeadTime * LeadTimeFactor * VariabilityFactor
 - `VariabilityFactor`: `BufferProfile.VariabilityFactor` se `UseSuggestedVariabilityFactor = true`, senão `CenterProduct.CustomVariabilityFactor`.
 - `RedZone` (a propriedade calculada) = `RedZoneSafe + RedZoneBase`.
 
+> **Importante (2026-09-13)**: nenhuma zona pode ficar negativa — toda zona é sempre `MAX(valor calculado, 0)`. Vale pros 4 valores (`YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase`) nos **3 steps** de cálculo de zona (`Normal`, `MinMax`, `DynamicMinMax`) — cada um clampa seu próprio resultado antes de gravar. Não vale (ainda) pro delta do ZAF (`ApplyZafStep`) — só foi pedido pras zonas base.
+
 ### Execução
 
 - `CalculateNormalBufferZonesStep` roda em lote (uma `UPDATE` set-based via `ExecuteSqlRawAsync`, sem parâmetro externo — nada a parametrizar), full recompute a cada execução, escopado a `BufferType = 0`.
@@ -182,6 +240,7 @@ RedBase   = MAX(History.Quantity) nos últimos ThresholdDays dias corridos, term
 - **Parâmetro `ThresholdDays`** (`calculation.config.json`, ex.: `{ "name": "ThresholdDays", "value": "180" }`, padrão `180` se omitido) — mesma mecânica do `CalculateAdiStep` (`ExecuteSqlInterpolatedAsync`, parametrizado com segurança), mas com default diferente (`180`, não `360`).
 - Janela `[hoje - ThresholdDays, hoje)`, mesma convenção do Adu/Adi (dias corridos, hoje não conta).
 - `RedBase` é o "maior consumo diário" da janela — não uma média nem soma; um único dia de pico define o valor.
+- Zonas nunca negativas (`MAX(valor, 0)`) — ver nota importante na seção do Normal.
 
 ### Execução
 
@@ -263,6 +322,8 @@ Green    = 0,                              se MaiorAcumulado = 0
 RedBase  = 0,                              se MaiorAcumulado = 0
          = MaiorAcumulado - (LeadTime * Adu), senão
 ```
+
+- Zonas nunca negativas (`MAX(valor, 0)`) — ver nota importante na seção do Normal. Relevante em especial pro `RedBase`: se `LeadTime * Adu` for maior que `MaiorAcumulado`, o resultado natural seria negativo — vira `0`.
 
 ### Execução
 

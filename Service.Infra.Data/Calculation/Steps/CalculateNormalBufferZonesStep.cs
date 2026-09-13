@@ -70,9 +70,11 @@ namespace Service.Infra.Data.Calculation.Steps
                 SELECT
                     cp.Id AS CenterProductId,
                     a.Value * cp.LeadTime AS Yellow,
-                    cp.Moq AS GreenCandidate1,
-                    cp.Adu * cp.LeadTime * (CASE WHEN cp.UseSuggestedLTFactor = 1 THEN bp.LeadTimeFactor ELSE cp.CustomLeadTimeFactor END) AS GreenCandidate2,
-                    cp.Frequency * (CASE WHEN cp.UseDafOnGreenZone = 1 THEN a.Value ELSE cp.Adu END) AS GreenCandidate3,
+                    (SELECT MAX(v) FROM (VALUES
+                        (IIF(cp.GreenZoneParametrizationUseMoq = 1, cp.Moq, 0)),
+                        (IIF(cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = 1, cp.Adu * cp.LeadTime * (CASE WHEN cp.UseSuggestedLTFactor = 1 THEN bp.LeadTimeFactor ELSE cp.CustomLeadTimeFactor END), 0)),
+                        (IIF(cp.GreenZoneParametrizationUseAduXFrequency = 1, cp.Frequency * (CASE WHEN cp.UseDafOnGreenZone = 1 THEN a.Value ELSE cp.Adu END), 0))
+                    ) AS g(v)) AS Green,
                     a.Value * cp.LeadTime
                         * (CASE WHEN cp.UseSuggestedLTFactor = 1 THEN bp.LeadTimeFactor ELSE cp.CustomLeadTimeFactor END) AS RedSafe,
                     a.Value * cp.LeadTime
@@ -85,16 +87,10 @@ namespace Service.Infra.Data.Calculation.Steps
             )
             UPDATE cp
             SET
-                cp.YellowZone = z.Yellow,
-                cp.GreenZone = (
-                    SELECT MAX(v) FROM (VALUES
-                        (IIF(cp.GreenZoneParametrizationUseMoq = 1, z.GreenCandidate1, 0)),
-                        (IIF(cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = 1, z.GreenCandidate2, 0)),
-                        (IIF(cp.GreenZoneParametrizationUseAduXFrequency = 1, z.GreenCandidate3, 0))
-                    ) AS g(v)
-                ),
-                cp.RedZoneSafe = z.RedSafe,
-                cp.RedZoneBase = z.RedBase
+                cp.YellowZone = IIF(z.Yellow < 0, 0, z.Yellow),
+                cp.GreenZone = IIF(z.Green < 0, 0, z.Green),
+                cp.RedZoneSafe = IIF(z.RedSafe < 0, 0, z.RedSafe),
+                cp.RedZoneBase = IIF(z.RedBase < 0, 0, z.RedBase)
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType = 0;

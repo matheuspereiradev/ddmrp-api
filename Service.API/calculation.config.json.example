@@ -11,6 +11,10 @@
       ]
     },
     {
+      "name": "ApplyBAF",
+      "parameters": []
+    },
+    {
       "name": "CalculateNormalBufferZones",
       "parameters": []
     },
