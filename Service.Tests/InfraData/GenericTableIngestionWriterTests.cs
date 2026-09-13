@@ -8,9 +8,9 @@ using Service.Infra.Data.Ingestion.Writers;
 
 namespace Service.Tests.InfraData;
 
-public class CenterProductFieldUpdateIngestionWriterTests
+public class GenericTableIngestionWriterTests
 {
-    private static (CenterProductFieldUpdateIngestionWriter writer, ApplicationDbContext context) CreateSut()
+    private static (GenericTableIngestionWriter writer, ApplicationDbContext context) CreateSut()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -20,58 +20,77 @@ public class CenterProductFieldUpdateIngestionWriterTests
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(1);
 
-        var writer = new CenterProductFieldUpdateIngestionWriter(context, currentUser);
+        var writer = new GenericTableIngestionWriter(context, currentUser);
         return (writer, context);
     }
 
-    private static IngestionSourceConfig BuildSource(string view, string target) => new()
+    private static IngestionSourceConfig BuildStockSource() => new()
     {
-        View = view,
+        View = "Stock",
         Type = "Csv",
         Path = "test.csv",
         Table = "CenterProducts",
+        AllowInsert = false,
         Key = ["IdProduct", "IdCenter"],
         FieldMappings =
         [
             new FieldMappingConfig { Source = "MaterialCode", Target = "IdProduct" },
             new FieldMappingConfig { Source = "CenterCode", Target = "IdCenter" },
-            new FieldMappingConfig { Source = "Quantity", Target = target }
+            new FieldMappingConfig { Source = "Quantity", Target = "Stock" }
         ]
     };
 
     [Fact]
-    public void CanHandle_ReturnsTrue_WhenTableIsCenterProducts_RegardlessOfViewName()
+    public void CanHandle_ReturnsTrue_ForAnAllowedResolvableTable()
     {
         var (writer, _) = CreateSut();
-        var source = BuildSource("Stock", "Stock");
 
-        Assert.True(writer.CanHandle(source));
+        Assert.True(writer.CanHandle(BuildStockSource()));
+    }
+
+    [Fact]
+    public void CanHandle_ReturnsFalse_ForOrders_EvenThoughItsAValidTable()
+    {
+        // Orders has its own dedicated OrderIngestionWriter (Type-scoped, fictional-excluding
+        // delete-non-sent business logic) — it must never be picked up by the generic engine too.
+        var (writer, _) = CreateSut();
+        var source = new IngestionSourceConfig { View = "Whatever", Type = "Csv", Path = "test.csv", Table = "Orders" };
+
+        Assert.False(writer.CanHandle(source));
+    }
+
+    [Fact]
+    public void CanHandle_ReturnsFalse_WhenTableIsNotOnTheAllowList()
+    {
+        var (writer, _) = CreateSut();
+        var source = new IngestionSourceConfig { View = "Whatever", Type = "Csv", Path = "test.csv", Table = "Users" };
+
+        Assert.False(writer.CanHandle(source));
     }
 
     [Fact]
     public void CanHandle_ReturnsFalse_WhenTableIsNotSet()
     {
         var (writer, _) = CreateSut();
-        var source = new IngestionSourceConfig { View = "CenterProducts", Type = "Csv", Path = "test.csv" };
+        var source = new IngestionSourceConfig { View = "Whatever", Type = "Csv", Path = "test.csv" };
 
         Assert.False(writer.CanHandle(source));
     }
 
     [Fact]
-    public async Task WriteAsync_UpdatesOnlyTheMappedField_OnExistingCenterProduct()
+    public async Task WriteAsync_UpdatesOnlyTheMappedField_WhenExistingRowMatches()
     {
         var (writer, context) = CreateSut();
         var centerProduct = new CenterProduct { IdProduct = 1, IdCenter = 2, PackQuantity = 5, Stock = 0 };
         context.CenterProduct.Add(centerProduct);
         await context.SaveChangesAsync();
 
-        var source = BuildSource("Stock", "Stock");
         var rows = new List<Dictionary<string, string?>>
         {
             new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["Stock"] = "42.5" }
         };
 
-        var result = await writer.WriteAsync(source, rows);
+        var result = await writer.WriteAsync(BuildStockSource(), rows);
 
         Assert.Equal(1, result.Updated);
         Assert.Empty(result.Errors);
@@ -81,49 +100,45 @@ public class CenterProductFieldUpdateIngestionWriterTests
     }
 
     [Fact]
-    public async Task WriteAsync_NeverInserts_WhenNoMatchingCenterProductExists()
+    public async Task WriteAsync_NeverInserts_WhenAllowInsertIsFalse_AndNoMatchingRowExists()
     {
         var (writer, context) = CreateSut();
-        var source = BuildSource("Stock", "Stock");
         var rows = new List<Dictionary<string, string?>>
         {
             new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["Stock"] = "10" }
         };
 
-        var result = await writer.WriteAsync(source, rows);
+        var result = await writer.WriteAsync(BuildStockSource(), rows);
 
         Assert.Equal(0, result.Updated);
         Assert.Single(result.Errors);
-        Assert.Contains("no CenterProduct found", result.Errors[0]);
+        Assert.Contains("doesn't create new rows", result.Errors[0]);
         Assert.Empty(context.CenterProduct);
     }
 
     [Fact]
-    public async Task WriteAsync_Throws_WhenMappedFieldIsNotAnUpdatableCenterProductProperty()
+    public async Task WriteAsync_Throws_WhenMappedFieldIsNotRecognizedForTheTable()
     {
         var (writer, _) = CreateSut();
-        var source = BuildSource("Stock", "NotARealField");
+        var source = BuildStockSource();
+        source.FieldMappings.Add(new FieldMappingConfig { Source = "Nope", Target = "NotARealField" });
         var rows = new List<Dictionary<string, string?>>
         {
-            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["NotARealField"] = "10" }
+            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["Stock"] = "10", ["NotARealField"] = "x" }
         };
 
         await Assert.ThrowsAsync<NotSupportedException>(() => writer.WriteAsync(source, rows));
     }
 
-    [Theory]
-    [InlineData("Adu")]
-    [InlineData("Adi")]
-    [InlineData("StandardDeviation")]
-    [InlineData("Cv")]
-    [InlineData("Id")]
-    public async Task WriteAsync_Throws_WhenMappedFieldIsAProtectedField(string protectedField)
+    [Fact]
+    public async Task WriteAsync_Throws_WhenDeclaredKeyFieldIsNotRecognizedForTheTable()
     {
         var (writer, _) = CreateSut();
-        var source = BuildSource("Stock", protectedField);
+        var source = BuildStockSource();
+        source.Key = ["NotARealField"];
         var rows = new List<Dictionary<string, string?>>
         {
-            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", [protectedField] = "10" }
+            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["Stock"] = "10" }
         };
 
         await Assert.ThrowsAsync<NotSupportedException>(() => writer.WriteAsync(source, rows));

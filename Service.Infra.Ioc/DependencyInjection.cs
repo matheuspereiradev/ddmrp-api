@@ -72,6 +72,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             services.AddScoped<IBufferProfileRepository, BufferProfileRepository>();
             services.AddScoped<INoteRepository, NoteRepository>();
+            services.AddScoped<IOrderRepository, OrderRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -90,6 +91,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IDemandAdjustmentFactorService, DemandAdjustmentFactorService>();
             services.AddScoped<IBufferProfileService, BufferProfileService>();
             services.AddScoped<INoteService, NoteService>();
+            services.AddScoped<IOrderService, OrderService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();
@@ -103,7 +105,8 @@ namespace Service.Infra.Ioc
             services.AddScoped<IIngestionWriter, CenterProductIngestionWriter>();
             services.AddScoped<IIngestionWriter, ForecastIngestionWriter>();
             services.AddScoped<IIngestionWriter, HistoryIngestionWriter>();
-            services.AddScoped<IIngestionWriter, CenterProductFieldUpdateIngestionWriter>();
+            services.AddScoped<IIngestionWriter, OrderIngestionWriter>();
+            services.AddScoped<IIngestionWriter, GenericTableIngestionWriter>();
             services.AddScoped<IIngestionService, IngestionService>();
 
             services.AddScoped<ICalculationConfigProvider>(_ =>

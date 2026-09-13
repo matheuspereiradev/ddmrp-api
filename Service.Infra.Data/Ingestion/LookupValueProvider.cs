@@ -6,11 +6,13 @@ namespace Service.Infra.Data.Ingestion
     {
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
+        private readonly IPartnerRepository _partnerRepository;
 
-        public LookupValueProvider(IProductRepository productRepository, ICenterRepository centerRepository)
+        public LookupValueProvider(IProductRepository productRepository, ICenterRepository centerRepository, IPartnerRepository partnerRepository)
         {
             _productRepository = productRepository;
             _centerRepository = centerRepository;
+            _partnerRepository = partnerRepository;
         }
 
         public async Task<Dictionary<string, string>> ResolveAsync(string entity, string by, IEnumerable<string> values, CancellationToken cancellationToken = default)
@@ -28,6 +30,12 @@ namespace Service.Infra.Data.Ingestion
             if (string.Equals(entity, "Center", StringComparison.OrdinalIgnoreCase) && string.Equals(by, "Code", StringComparison.OrdinalIgnoreCase))
             {
                 var ids = await _centerRepository.GetIdsByCodesAsync(valueList, cancellationToken);
+                return ids.ToDictionary(kv => kv.Key, kv => kv.Value.ToString());
+            }
+
+            if (string.Equals(entity, "Partner", StringComparison.OrdinalIgnoreCase) && string.Equals(by, "Code", StringComparison.OrdinalIgnoreCase))
+            {
+                var ids = await _partnerRepository.GetIdsByCodesAsync(valueList, cancellationToken);
                 return ids.ToDictionary(kv => kv.Key, kv => kv.Value.ToString());
             }
 

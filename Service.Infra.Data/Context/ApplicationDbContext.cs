@@ -30,6 +30,7 @@ namespace Service.Infra.Data.Context
         public DbSet<RefreshToken> RefreshToken { get; set; }
         public DbSet<BufferProfile> BufferProfile { get; set; }
         public DbSet<Note> Note { get; set; }
+        public DbSet<Order> Order { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
