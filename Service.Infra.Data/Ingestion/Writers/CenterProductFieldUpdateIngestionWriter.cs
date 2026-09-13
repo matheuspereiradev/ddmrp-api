@@ -13,7 +13,8 @@ namespace Service.Infra.Data.Ingestion.Writers
     {
         private static readonly HashSet<string> ProtectedFields = new(StringComparer.OrdinalIgnoreCase)
         {
-            nameof(CenterProduct.Id), nameof(CenterProduct.IdProduct), nameof(CenterProduct.IdCenter), nameof(CenterProduct.Adu),
+            nameof(CenterProduct.Id), nameof(CenterProduct.IdProduct), nameof(CenterProduct.IdCenter),
+            nameof(CenterProduct.Adu), nameof(CenterProduct.Adi), nameof(CenterProduct.StandardDeviation), nameof(CenterProduct.Cv),
             "createdAt", "updatedAt", "deletedAt", "createdBy", "updatedBy", "deletedBy"
         };
 

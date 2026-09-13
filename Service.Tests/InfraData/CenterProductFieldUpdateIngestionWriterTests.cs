@@ -111,14 +111,19 @@ public class CenterProductFieldUpdateIngestionWriterTests
         await Assert.ThrowsAsync<NotSupportedException>(() => writer.WriteAsync(source, rows));
     }
 
-    [Fact]
-    public async Task WriteAsync_Throws_WhenMappedFieldIsAProtectedField()
+    [Theory]
+    [InlineData("Adu")]
+    [InlineData("Adi")]
+    [InlineData("StandardDeviation")]
+    [InlineData("Cv")]
+    [InlineData("Id")]
+    public async Task WriteAsync_Throws_WhenMappedFieldIsAProtectedField(string protectedField)
     {
         var (writer, _) = CreateSut();
-        var source = BuildSource("Stock", "Adu");
+        var source = BuildSource("Stock", protectedField);
         var rows = new List<Dictionary<string, string?>>
         {
-            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", ["Adu"] = "10" }
+            new() { ["IdProduct"] = "1", ["IdCenter"] = "2", [protectedField] = "10" }
         };
 
         await Assert.ThrowsAsync<NotSupportedException>(() => writer.WriteAsync(source, rows));

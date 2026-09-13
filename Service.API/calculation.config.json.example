@@ -7,7 +7,7 @@
     {
       "name": "CalculateAdi",
       "parameters": [
-        { "name": "ThresholdDays", "value": "360", "type": "int" }
+        { "name": "ThresholdDays", "value": "360" }
       ]
     }
   ]
