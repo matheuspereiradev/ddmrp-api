@@ -54,7 +54,7 @@ namespace Service.Infra.Data.Calculation.Steps
         // Adi = (total de linhas de History no período) / (linhas com Quantity > 0) — sem filtro de
         // DiscardStatus (todas as linhas contam) e sem denominador zero: sem nenhuma linha com
         // Quantity > 0 no período, Adi = 0. Zera a coluna antes de calcular (mesma convenção usada
-        // por todo step de cálculo, ver CalculateAduStep).
+        // por todo step de cálculo, ver CalculateAduStandardDesvAndCvStep).
         private static FormattableString BuildSql(int thresholdDays) => $"""
             UPDATE dbo.CenterProducts
             SET Adi = 0

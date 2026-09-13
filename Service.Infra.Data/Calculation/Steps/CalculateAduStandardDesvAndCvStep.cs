@@ -8,16 +8,16 @@ namespace Service.Infra.Data.Calculation.Steps
 {
     // See Formulas.md for the business rule this implements (Adu: Historico/Futuro/Misto;
     // StandardDeviation/Cv: same HistoryAduDays window as Adu's Historico).
-    public class CalculateAduStep : ICalculationStep
+    public class CalculateAduStandardDesvAndCvStep : ICalculationStep
     {
         private readonly ApplicationDbContext _context;
 
-        public CalculateAduStep(ApplicationDbContext context)
+        public CalculateAduStandardDesvAndCvStep(ApplicationDbContext context)
         {
             _context = context;
         }
 
-        public bool CanHandle(string name) => string.Equals(name, "CalculateAdu", StringComparison.OrdinalIgnoreCase);
+        public bool CanHandle(string name) => string.Equals(name, "CalculateAduStandardDesvAndCv", StringComparison.OrdinalIgnoreCase);
 
         public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
         {

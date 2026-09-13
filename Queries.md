@@ -4,7 +4,7 @@ Queries T-SQL para validar manualmente o resultado dos steps de cálculo do Robo
 
 ## Adu — Histórico
 
-Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays = 0` (fórmula pura Histórico). Espelha o `RankedHistory`/`HistoricalAdu` do `CalculateAduStep`: pega os últimos `HistoryAduDays` dias não descartados (pula `Discarded`, estende a janela pra trás); se não houver `HistoryAduDays` dias válidos disponíveis, soma o que existir (janela incompleta, mesmo divisor fixo); se não houver nenhum dia válido, `ExpectedHistorico` é `0` (não `NULL` — `LEFT JOIN`).
+Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays = 0` (fórmula pura Histórico). Espelha o `RankedHistory`/`HistoricalAdu` do `CalculateAduStandardDesvAndCvStep`: pega os últimos `HistoryAduDays` dias não descartados (pula `Discarded`, estende a janela pra trás); se não houver `HistoryAduDays` dias válidos disponíveis, soma o que existir (janela incompleta, mesmo divisor fixo); se não houver nenhum dia válido, `ExpectedHistorico` é `0` (não `NULL` — `LEFT JOIN`).
 
 ```sql
 ;WITH RankedHistory AS (

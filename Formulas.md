@@ -4,7 +4,7 @@ Lista centralizada das fórmulas usadas pelos steps de cálculo do Robot (`POST 
 
 ## Adu (`CenterProduct.Adu`)
 
-Step: `Service.Infra.Data/Calculation/Steps/CalculateAduStep.cs` (nome no `calculation.config.json`: `"CalculateAdu"`)
+Step: `Service.Infra.Data/Calculation/Steps/CalculateAduStandardDesvAndCvStep.cs` (nome no `calculation.config.json`: `"CalculateAduStandardDesvAndCv"`)
 
 **Campos envolvidos**: `CenterProduct.Adu` (resultado), `CenterProduct.HistoryAduDays`, `CenterProduct.FutureAduDays`, `History.Quantity`/`Date`/`DiscardStatus`, `Forecast.Quantity`/`Date`.
 
@@ -58,7 +58,7 @@ Misto = (Histórico + Futuro) / 2
 
 ### StandardDeviation e Cv (`CenterProduct.StandardDeviation`/`Cv`)
 
-Calculados no **mesmo step** (`CalculateAduStep`), reaproveitando a mesma janela de dias válidos usada pelo Histórico (últimos `HistoryAduDays` dias não descartados, mesma regra de pular `Discarded` e estender a janela pra trás) — não participam do Histórico/Futuro/Misto, dependem só de `HistoryAduDays` (mesmo que `FutureAduDays` também esteja preenchido).
+Calculados no **mesmo step** (`CalculateAduStandardDesvAndCvStep`), reaproveitando a mesma janela de dias válidos usada pelo Histórico (últimos `HistoryAduDays` dias não descartados, mesma regra de pular `Discarded` e estender a janela pra trás) — não participam do Histórico/Futuro/Misto, dependem só de `HistoryAduDays` (mesmo que `FutureAduDays` também esteja preenchido).
 
 ```
 StandardDeviation = STDEVP(ISNULL(History.Quantity, 0)) dos dias do Histórico
@@ -71,7 +71,7 @@ Cv = StandardDeviation / AVG(ISNULL(History.Quantity, 0)) dos mesmos dias
 
 ### Execução
 
-- `CalculateAduStep` roda em lote (uma `UPDATE` set-based cobrindo todo `CenterProduct` ativo, executada via `ExecuteSqlRawAsync` dentro da classe C#), não em loop por linha — full recompute a cada execução, sem cálculo incremental (consistente com a regra geral do Robot).
+- `CalculateAduStandardDesvAndCvStep` roda em lote (uma `UPDATE` set-based cobrindo todo `CenterProduct` ativo, executada via `ExecuteSqlRawAsync` dentro da classe C#), não em loop por linha — full recompute a cada execução, sem cálculo incremental (consistente com a regra geral do Robot).
 - **Antes de calcular**, roda um `UPDATE` zerando `Adu`/`StandardDeviation`/`Cv` de todo `CenterProduct` ativo — convenção aplicada a toda coluna calculada do Robot (ver também `CalculateAdiStep`), pra garantir que nenhuma coluna fique com um valor de uma execução anterior caso a lógica de cálculo mude e deixe de cobrir algum caso.
 - "Hoje" é `CAST(GETDATE() AS DATE)` — não é parametrizado.
 
@@ -96,5 +96,5 @@ Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas 
 ### Execução
 
 - `CalculateAdiStep` roda em lote (uma `UPDATE` set-based via `ExecuteSqlInterpolatedAsync`, que parametriza `ThresholdDays` com segurança em vez de concatenar a string), full recompute a cada execução.
-- **Antes de calcular**, roda um `UPDATE` zerando `Adi` de todo `CenterProduct` ativo (mesma convenção do `CalculateAduStep`).
+- **Antes de calcular**, roda um `UPDATE` zerando `Adi` de todo `CenterProduct` ativo (mesma convenção do `CalculateAduStandardDesvAndCvStep`).
 - "Hoje" é `CAST(GETDATE() AS DATE)`; a janela é `[hoje - ThresholdDays, hoje)`.
