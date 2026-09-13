@@ -41,6 +41,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(cp => cp.GreenZoneParametrizationUseAduXFrequency).IsRequired().HasDefaultValue(true);
             builder.Property(cp => cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime).IsRequired().HasDefaultValue(true);
             builder.Property(cp => cp.BufferType).IsRequired().HasDefaultValue(BufferType.Normal);
+            builder.Property(cp => cp.ZafRedZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
+            builder.Property(cp => cp.ZafYellowZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
+            builder.Property(cp => cp.ZafGreenZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
 
             builder.HasOne(cp => cp.Product)
                 .WithMany()

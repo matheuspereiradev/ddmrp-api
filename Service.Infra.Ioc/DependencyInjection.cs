@@ -114,6 +114,9 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICalculationStep, CalculateAduStandardDesvAndCvStep>();
             services.AddScoped<ICalculationStep, CalculateAdiStep>();
             services.AddScoped<ICalculationStep, CalculateNormalBufferZonesStep>();
+            services.AddScoped<ICalculationStep, CalculateMinMaxBufferZonesStep>();
+            services.AddScoped<ICalculationStep, CalculateDynamicMinMaxBufferZonesStep>();
+            services.AddScoped<ICalculationStep, ApplyZafStep>();
             services.AddScoped<ICalculationService, CalculationService>();
 
             services.AddScoped<IRobotService, RobotService>();

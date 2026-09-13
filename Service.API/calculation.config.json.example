@@ -13,6 +13,20 @@
     {
       "name": "CalculateNormalBufferZones",
       "parameters": []
+    },
+    {
+      "name": "CalculateMinMaxBufferZones",
+      "parameters": [
+        { "name": "ThresholdDays", "value": "180" }
+      ]
+    },
+    {
+      "name": "CalculateDynamicMinMaxBufferZones",
+      "parameters": []
+    },
+    {
+      "name": "ApplyZAF",
+      "parameters": []
     }
   ]
 }

@@ -48,5 +48,8 @@ namespace Service.Domain.Entities
         public bool GreenZoneParametrizationUseAduXFrequency { get; set; } = true;
         public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; } = true;
         public BufferType BufferType { get; set; }
+        public decimal ZafRedZone { get; set; }
+        public decimal ZafYellowZone { get; set; }
+        public decimal ZafGreenZone { get; set; }
     }
 }

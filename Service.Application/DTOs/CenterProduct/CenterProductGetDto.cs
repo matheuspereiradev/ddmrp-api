@@ -48,6 +48,9 @@ namespace Service.Application.DTOs.CenterProduct
         public bool GreenZoneParametrizationUseAduXFrequency { get; set; }
         public bool GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime { get; set; }
         public BufferType BufferType { get; set; }
+        public decimal ZafRedZone { get; set; }
+        public decimal ZafYellowZone { get; set; }
+        public decimal ZafGreenZone { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
         public CenterGetDto? OriginCenter { get; set; }
