@@ -459,7 +459,7 @@ OptimizedOrderQuantity = 0,                                         se PackQuant
 Quantity = OrderQuantity(Netflow, TopOfYellow, TopOfGreen)
 
 OptimizedOrderQuantity = 0,                                         se Quantity < Moq (pedido menor que o mínimo, não vale a pena gerar)
-                        = CEILING(Quantity / PackQuantity) * PackQuantity,   caso contrário (arredonda pra cima pro múltiplo de PackQuantity)
+                        = FLOOR(Quantity / PackQuantity) * PackQuantity,   caso contrário (arredonda pra baixo pro múltiplo de PackQuantity — decidido 2026-09-14, era CEILING antes)
 ```
 
 **Campos envolvidos**: `Netflow`/`TopOfYellow`/`TopOfGreen` (mesmos do `OrderQuantity`, ver seção acima), `CenterProduct.Moq`, `CenterProduct.PackQuantity` — todos passados como parâmetro. Chama `CalculateOrderQuantity` internamente (não duplica a lógica). `PackQuantity = 0` retorna `0` (guarda adicionada 2026-09-14 — antes disparava `DivideByZeroException`, mesma "se não tiver base pra calcular, retorne 0" convenção já usada em `CalculateBufferPercentage`/`CalculateBufferColor` pro caso `TopOfGreen = 0`).

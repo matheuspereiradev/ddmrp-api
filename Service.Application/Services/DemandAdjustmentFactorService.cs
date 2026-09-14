@@ -9,6 +9,7 @@ namespace Service.Application.Services
 {
     public class DemandAdjustmentFactorService : BaseService<DemandAdjustmentFactor, DemandAdjustmentFactorGetDto, DemandAdjustmentFactorPostDto, DemandAdjustmentFactorPutDto>, IDemandAdjustmentFactorService
     {
+        private readonly IDemandAdjustmentFactorRepository _demandAdjustmentFactorRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
 
@@ -18,6 +19,7 @@ namespace Service.Application.Services
             ICenterRepository centerRepository)
             : base(repository)
         {
+            _demandAdjustmentFactorRepository = repository;
             _productRepository = productRepository;
             _centerRepository = centerRepository;
         }
@@ -57,8 +59,6 @@ namespace Service.Application.Services
 
         protected override void ApplyUpdate(DemandAdjustmentFactor entity, DemandAdjustmentFactorPutDto putDTO)
         {
-            entity.EffectiveFrom = putDTO.EffectiveFrom;
-            entity.EffectiveTo = putDTO.EffectiveTo;
             entity.IsActive = putDTO.IsActive;
             entity.Obs = putDTO.Obs;
             entity.AdjustmentType = putDTO.AdjustmentType;
@@ -72,6 +72,9 @@ namespace Service.Application.Services
 
             if (!await _centerRepository.Exists(postDTO.IdCenter, cancellationToken))
                 throw new BadRequestException("Center not found.");
+
+            if (await _demandAdjustmentFactorRepository.ExistsOverlappingAsync(postDTO.IdProduct, postDTO.IdCenter, postDTO.EffectiveFrom, postDTO.EffectiveTo, cancellationToken))
+                throw new BadRequestException("There is already an active demand adjustment factor for this product/center in the given period.");
 
             return await base.AddAsync(postDTO, cancellationToken);
         }

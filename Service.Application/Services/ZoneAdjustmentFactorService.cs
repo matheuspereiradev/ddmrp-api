@@ -9,6 +9,7 @@ namespace Service.Application.Services
 {
     public class ZoneAdjustmentFactorService : BaseService<ZoneAdjustmentFactor, ZoneAdjustmentFactorGetDto, ZoneAdjustmentFactorPostDto, ZoneAdjustmentFactorPutDto>, IZoneAdjustmentFactorService
     {
+        private readonly IZoneAdjustmentFactorRepository _zoneAdjustmentFactorRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
 
@@ -18,6 +19,7 @@ namespace Service.Application.Services
             ICenterRepository centerRepository)
             : base(repository)
         {
+            _zoneAdjustmentFactorRepository = repository;
             _productRepository = productRepository;
             _centerRepository = centerRepository;
         }
@@ -64,8 +66,6 @@ namespace Service.Application.Services
             entity.AdjustmentValue = putDTO.AdjustmentValue;
             entity.Obs = putDTO.Obs;
             entity.IsActive = putDTO.IsActive;
-            entity.EffectiveFrom = putDTO.EffectiveFrom;
-            entity.EffectiveTo = putDTO.EffectiveTo;
         }
 
         public override async Task<ZoneAdjustmentFactorGetDto> AddAsync(ZoneAdjustmentFactorPostDto postDTO, CancellationToken cancellationToken = default)
@@ -75,6 +75,9 @@ namespace Service.Application.Services
 
             if (!await _centerRepository.Exists(postDTO.IdCenter, cancellationToken))
                 throw new BadRequestException("Center not found.");
+
+            if (await _zoneAdjustmentFactorRepository.ExistsOverlappingAsync(postDTO.IdProduct, postDTO.IdCenter, postDTO.TargetZone, postDTO.EffectiveFrom, postDTO.EffectiveTo, cancellationToken))
+                throw new BadRequestException("There is already an active zone adjustment factor for this product/center/zone in the given period.");
 
             return await base.AddAsync(postDTO, cancellationToken);
         }

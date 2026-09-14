@@ -47,6 +47,11 @@ namespace Service.Domain.Entities
         public decimal? RedZoneExecution => TopOfRed / 2;
         public decimal? YellowZoneExecution => TopOfRed / 2;
         public decimal? GreenZoneExecution => YellowZone;
+        public decimal? RedSafeAnalytical => RedZone / 2;
+        public decimal? YellowSafeAnalytical => RedZone;
+        public decimal? GreenAnalytical => RedZone + GreenZone;
+        public decimal? YellowExcessAnalytical => RedZone + YellowZone;
+        public decimal? RedSafeExcessAnalytical => RedZone / 2;
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; } = 1;
         public decimal CustomVariabilityFactor { get; set; } = 1;

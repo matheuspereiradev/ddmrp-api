@@ -91,13 +91,32 @@ public class DemandAdjustmentFactorServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_AppliesChanges_ButKeepsIdProductAndIdCenter()
+    public async Task AddAsync_ThrowsBadRequestException_WhenOverlappingActiveDemandAdjustmentFactorExists()
     {
-        var existing = new DemandAdjustmentFactor { Id = 1, IdProduct = 1, IdCenter = 1, AdjustmentType = AdjustmentType.Percentage, AdjustmentValue = 10m };
+        var postDto = BuildPostDto();
+        _demandAdjustmentFactorRepository.ExistsOverlappingAsync(postDto.IdProduct, postDto.IdCenter, postDto.EffectiveFrom, postDto.EffectiveTo, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+
+        await _demandAdjustmentFactorRepository.DidNotReceive().AddAsync(Arg.Any<DemandAdjustmentFactor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_AppliesChanges_ButKeepsIdProductAndIdCenterAndPeriod()
+    {
+        var existing = new DemandAdjustmentFactor
+        {
+            Id = 1,
+            IdProduct = 1,
+            IdCenter = 1,
+            AdjustmentType = AdjustmentType.Percentage,
+            AdjustmentValue = 10m,
+            EffectiveFrom = new DateTime(2026, 1, 1),
+            EffectiveTo = new DateTime(2026, 12, 31)
+        };
         var putDto = new DemandAdjustmentFactorPutDto
         {
-            EffectiveFrom = new DateTime(2026, 2, 1),
-            EffectiveTo = new DateTime(2026, 11, 30),
             IsActive = false,
             AdjustmentType = AdjustmentType.FlatValue,
             AdjustmentValue = 20m
@@ -113,6 +132,8 @@ public class DemandAdjustmentFactorServiceTests
         Assert.False(result.IsActive);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);
+        Assert.Equal(new DateTime(2026, 1, 1), result.EffectiveFrom);
+        Assert.Equal(new DateTime(2026, 12, 31), result.EffectiveTo);
     }
 
     [Fact]

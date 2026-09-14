@@ -31,9 +31,9 @@ public class UtilsDdmrpTests
     [Theory]
     [InlineData(50, 100, 200, 200, 10, 0)]
     [InlineData(50, 100, 200, 100, 10, 150)]
-    [InlineData(50, 100, 200, 100, 40, 160)]
+    [InlineData(50, 100, 200, 100, 40, 120)]
     [InlineData(100, 100, 200, 10, 10, 0)]
-    public void CalculateOptimizedOrderQuantity_RoundsUpToPackMultiple_UnlessBelowMoq(
+    public void CalculateOptimizedOrderQuantity_RoundsDownToPackMultiple_UnlessBelowMoq(
         decimal netflow, decimal topOfYellow, decimal topOfGreen, decimal moq, decimal packQuantity, decimal expected)
     {
         var result = UtilsDdmrp.CalculateOptimizedOrderQuantity(netflow, topOfYellow, topOfGreen, moq, packQuantity);

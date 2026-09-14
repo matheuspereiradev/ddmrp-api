@@ -102,17 +102,37 @@ public class ZoneAdjustmentFactorServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_AppliesChanges_ButKeepsIdProductAndIdCenter_WhenZoneAdjustmentFactorExists()
+    public async Task AddAsync_ThrowsBadRequestException_WhenOverlappingActiveZoneAdjustmentFactorExists()
     {
-        var existing = new ZoneAdjustmentFactor { Id = 1, IdProduct = 1, IdCenter = 1, TargetZone = TargetZone.RedZone, AdjustmentType = AdjustmentType.Percentage, AdjustmentValue = 10m };
+        var postDto = BuildPostDto();
+        _zoneAdjustmentFactorRepository.ExistsOverlappingAsync(postDto.IdProduct, postDto.IdCenter, postDto.TargetZone, postDto.EffectiveFrom, postDto.EffectiveTo, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+
+        await _zoneAdjustmentFactorRepository.DidNotReceive().AddAsync(Arg.Any<ZoneAdjustmentFactor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_AppliesChanges_ButKeepsIdProductAndIdCenterAndPeriod_WhenZoneAdjustmentFactorExists()
+    {
+        var existing = new ZoneAdjustmentFactor
+        {
+            Id = 1,
+            IdProduct = 1,
+            IdCenter = 1,
+            TargetZone = TargetZone.RedZone,
+            AdjustmentType = AdjustmentType.Percentage,
+            AdjustmentValue = 10m,
+            EffectiveFrom = new DateTime(2026, 1, 1),
+            EffectiveTo = new DateTime(2026, 12, 31)
+        };
         var putDto = new ZoneAdjustmentFactorPutDto
         {
             TargetZone = TargetZone.YellowZone,
             AdjustmentType = AdjustmentType.FlatValue,
             AdjustmentValue = 20m,
-            IsActive = false,
-            EffectiveFrom = new DateTime(2026, 2, 1),
-            EffectiveTo = new DateTime(2026, 11, 30)
+            IsActive = false
         };
         _zoneAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
         _zoneAdjustmentFactorRepository.UpdateAsync(Arg.Any<ZoneAdjustmentFactor>(), Arg.Any<CancellationToken>())
@@ -126,6 +146,8 @@ public class ZoneAdjustmentFactorServiceTests
         Assert.False(result.IsActive);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);
+        Assert.Equal(new DateTime(2026, 1, 1), result.EffectiveFrom);
+        Assert.Equal(new DateTime(2026, 12, 31), result.EffectiveTo);
     }
 
     [Fact]

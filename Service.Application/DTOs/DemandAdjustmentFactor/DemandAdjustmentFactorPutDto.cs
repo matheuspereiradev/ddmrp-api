@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel.DataAnnotations;
 using Service.Domain.Enums;
 
@@ -6,12 +5,6 @@ namespace Service.Application.DTOs.DemandAdjustmentFactor
 {
     public class DemandAdjustmentFactorPutDto
     {
-        [Required(ErrorMessage = "Field {0} required.")]
-        public DateTime EffectiveFrom { get; set; }
-
-        [Required(ErrorMessage = "Field {0} required.")]
-        public DateTime EffectiveTo { get; set; }
-
         [Required(ErrorMessage = "Field {0} required.")]
         public bool IsActive { get; set; }
 

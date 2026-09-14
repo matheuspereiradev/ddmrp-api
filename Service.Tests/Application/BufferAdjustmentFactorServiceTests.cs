@@ -124,7 +124,19 @@ public class BufferAdjustmentFactorServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_UpdatesFields_ButKeepsIdProductAndIdCenter()
+    public async Task AddAsync_ThrowsBadRequestException_WhenOverlappingActiveBufferAdjustmentFactorExists()
+    {
+        var postDto = BuildPostDto();
+        _bufferAdjustmentFactorRepository.ExistsOverlappingAsync(postDto.IdProduct, postDto.IdCenter, postDto.EffectiveFrom, postDto.EffectiveTo, Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+
+        await _bufferAdjustmentFactorRepository.DidNotReceive().AddAsync(Arg.Any<BufferAdjustmentFactor>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesFields_ButKeepsIdProductAndIdCenterAndPeriod()
     {
         var existing = new BufferAdjustmentFactor
         {
@@ -134,12 +146,12 @@ public class BufferAdjustmentFactorServiceTests
             BufferType = BufferType.Normal,
             BufferDdmrpRed = 10m,
             BufferDdmrpYellow = 20m,
-            BufferDdmrpGreen = 30m
+            BufferDdmrpGreen = 30m,
+            EffectiveFrom = new DateTime(2026, 1, 1),
+            EffectiveTo = new DateTime(2026, 12, 31)
         };
         var putDto = new BufferAdjustmentFactorPutDto
         {
-            EffectiveFrom = new DateTime(2026, 2, 1),
-            EffectiveTo = new DateTime(2026, 11, 30),
             BufferType = BufferType.DynamicMinMax,
             BufferDdmrpRed = 15m,
             BufferDdmrpYellow = 25m,
@@ -157,6 +169,8 @@ public class BufferAdjustmentFactorServiceTests
         Assert.False(result.IsActive);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);
+        Assert.Equal(new DateTime(2026, 1, 1), result.EffectiveFrom);
+        Assert.Equal(new DateTime(2026, 12, 31), result.EffectiveTo);
         Assert.Null(result.BufferTypeOld);
     }
 

@@ -9,6 +9,7 @@ namespace Service.Application.Services
 {
     public class BufferAdjustmentFactorService : BaseService<BufferAdjustmentFactor, BufferAdjustmentFactorGetDto, BufferAdjustmentFactorPostDto, BufferAdjustmentFactorPutDto>, IBufferAdjustmentFactorService
     {
+        private readonly IBufferAdjustmentFactorRepository _bufferAdjustmentFactorRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
         private readonly ICenterProductRepository _centerProductRepository;
@@ -20,6 +21,7 @@ namespace Service.Application.Services
             ICenterProductRepository centerProductRepository)
             : base(repository)
         {
+            _bufferAdjustmentFactorRepository = repository;
             _productRepository = productRepository;
             _centerRepository = centerRepository;
             _centerProductRepository = centerProductRepository;
@@ -75,8 +77,6 @@ namespace Service.Application.Services
 
         protected override void ApplyUpdate(BufferAdjustmentFactor entity, BufferAdjustmentFactorPutDto putDTO)
         {
-            entity.EffectiveFrom = putDTO.EffectiveFrom;
-            entity.EffectiveTo = putDTO.EffectiveTo;
             entity.BufferType = putDTO.BufferType;
             entity.BufferDdmrpRed = putDTO.BufferDdmrpRed;
             entity.BufferDdmrpYellow = putDTO.BufferDdmrpYellow;
@@ -92,6 +92,9 @@ namespace Service.Application.Services
 
             if (!await _centerRepository.Exists(postDTO.IdCenter, cancellationToken))
                 throw new BadRequestException("Center not found.");
+
+            if (await _bufferAdjustmentFactorRepository.ExistsOverlappingAsync(postDTO.IdProduct, postDTO.IdCenter, postDTO.EffectiveFrom, postDTO.EffectiveTo, cancellationToken))
+                throw new BadRequestException("There is already an active buffer adjustment factor for this product/center in the given period.");
 
             var entity = ToEntity(postDTO);
 
