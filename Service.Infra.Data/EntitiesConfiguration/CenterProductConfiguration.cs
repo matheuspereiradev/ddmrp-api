@@ -44,6 +44,13 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(cp => cp.ZafRedZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
             builder.Property(cp => cp.ZafYellowZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
             builder.Property(cp => cp.ZafGreenZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
+            builder.Property(cp => cp.QualifiedDemand).HasPrecision(18, 4);
+            builder.Property(cp => cp.SpikeHorizonType).IsRequired();
+            builder.Property(cp => cp.SpikeHorizonValue).IsRequired().HasDefaultValue(60);
+            builder.Property(cp => cp.SpikeHorizonLTDays).IsRequired().HasDefaultValue(1);
+            builder.Property(cp => cp.SpikeThresholdType).IsRequired();
+            builder.Property(cp => cp.SpikeThresholdAdu).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
+            builder.Property(cp => cp.SpikeThresholdPercentageRedZone).IsRequired().HasPrecision(18, 4).HasDefaultValue(0.5);
 
             builder.HasOne(cp => cp.Product)
                 .WithMany()

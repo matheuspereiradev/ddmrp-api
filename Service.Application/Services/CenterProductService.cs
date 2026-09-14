@@ -69,7 +69,13 @@ namespace Service.Application.Services
                 GreenZoneParametrizationUseMoq = postDTO.GreenZoneParametrizationUseMoq,
                 GreenZoneParametrizationUseAduXFrequency = postDTO.GreenZoneParametrizationUseAduXFrequency,
                 GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = postDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime,
-                BufferType = postDTO.BufferType
+                BufferType = postDTO.BufferType,
+                SpikeHorizonType = postDTO.SpikeHorizonType,
+                SpikeHorizonValue = postDTO.SpikeHorizonValue,
+                SpikeHorizonLTDays = postDTO.SpikeHorizonLTDays,
+                SpikeThresholdType = postDTO.SpikeThresholdType,
+                SpikeThresholdAdu = postDTO.SpikeThresholdAdu,
+                SpikeThresholdPercentageRedZone = postDTO.SpikeThresholdPercentageRedZone
             };
         }
 
@@ -100,6 +106,12 @@ namespace Service.Application.Services
             entity.GreenZoneParametrizationUseAduXFrequency = putDTO.GreenZoneParametrizationUseAduXFrequency;
             entity.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = putDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime;
             entity.BufferType = putDTO.BufferType;
+            entity.SpikeHorizonType = putDTO.SpikeHorizonType;
+            entity.SpikeHorizonValue = putDTO.SpikeHorizonValue;
+            entity.SpikeHorizonLTDays = putDTO.SpikeHorizonLTDays;
+            entity.SpikeThresholdType = putDTO.SpikeThresholdType;
+            entity.SpikeThresholdAdu = putDTO.SpikeThresholdAdu;
+            entity.SpikeThresholdPercentageRedZone = putDTO.SpikeThresholdPercentageRedZone;
         }
 
         private async Task ValidateOptionalForeignKeysAsync(

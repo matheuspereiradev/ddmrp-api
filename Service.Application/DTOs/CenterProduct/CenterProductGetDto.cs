@@ -51,6 +51,13 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal ZafRedZone { get; set; }
         public decimal ZafYellowZone { get; set; }
         public decimal ZafGreenZone { get; set; }
+        public decimal? QualifiedDemand { get; set; }
+        public SpikeHorizonType SpikeHorizonType { get; set; }
+        public int SpikeHorizonValue { get; set; }
+        public int SpikeHorizonLTDays { get; set; }
+        public SpikeThresholdType SpikeThresholdType { get; set; }
+        public decimal SpikeThresholdAdu { get; set; }
+        public decimal SpikeThresholdPercentageRedZone { get; set; }
         public ProductGetDto? Product { get; set; }
         public CenterGetDto? Center { get; set; }
         public CenterGetDto? OriginCenter { get; set; }

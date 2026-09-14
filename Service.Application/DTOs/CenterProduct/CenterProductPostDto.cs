@@ -63,5 +63,23 @@ namespace Service.Application.DTOs.CenterProduct
 
         [EnumDataType(typeof(BufferType), ErrorMessage = "Invalid value for field {0}.")]
         public BufferType BufferType { get; set; } = BufferType.Normal;
+
+        [EnumDataType(typeof(SpikeHorizonType), ErrorMessage = "Invalid value for field {0}.")]
+        public SpikeHorizonType SpikeHorizonType { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public int SpikeHorizonValue { get; set; } = 60;
+
+        [Range(0, int.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public int SpikeHorizonLTDays { get; set; } = 1;
+
+        [EnumDataType(typeof(SpikeThresholdType), ErrorMessage = "Invalid value for field {0}.")]
+        public SpikeThresholdType SpikeThresholdType { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal SpikeThresholdAdu { get; set; } = 1;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal SpikeThresholdPercentageRedZone { get; set; } = 0.5m;
     }
 }

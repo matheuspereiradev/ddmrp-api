@@ -375,3 +375,53 @@ RedZoneBase   = RedZoneBase + ZafRedZone
 - **Antes de calcular**, roda um `UPDATE` zerando `ZafRedZone`/`ZafYellowZone`/`ZafGreenZone` de **todo** `CenterProduct` ativo, sem escopo de `BufferType` — inclui `ManualFixed`, que nunca recebe um delta real depois (fica sempre `0`).
 - Depende de rodar **depois** de `CalculateNormalBufferZonesStep`, `CalculateMinMaxBufferZonesStep` e `CalculateDynamicMinMaxBufferZonesStep` na mesma execução — como o pipeline inteiro roda full recompute diário (sem incremental), `GreenZone`/`YellowZone`/`RedZoneBase`/`RedZoneSafe` já estão "limpos" (recalculados do zero) antes do ZAF ser somado, então não há risco de acumular o mesmo ajuste em execuções sucessivas.
 - "Hoje" é `GETDATE()`, usado só na comparação de vigência do ZAF.
+
+## Demanda Qualificada (`CenterProduct.QualifiedDemand`)
+
+Step: `Service.Infra.Data/Calculation/Steps/CalculateQualifiedDemandStep.cs` (nome no `calculation.config.json`: `"CalculateQualifiedDemand"`).
+
+**Campos envolvidos**: `CenterProduct.QualifiedDemand` (resultado), `CenterProduct.LeadTime`/`Adu`/`RedZoneBase`/`RedZoneSafe`, `CenterProduct.SpikeHorizonType`/`SpikeHorizonValue`/`SpikeHorizonLTDays`, `CenterProduct.SpikeThresholdType`/`SpikeThresholdAdu`/`SpikeThresholdPercentageRedZone`, `Order.IdProduct`/`IdOriginCenter`/`IsOutbound`/`Quantity`/`DeliveredQuantity`/`DeliveryDate`.
+
+**Sem escopo de `BufferType`** — aplica pra todo `CenterProduct`. **Sem relação com MTO** (`BufferProfile.IsMakeToOrder`) — conceito independente, confirmado.
+
+### Base: demanda pendente por dia
+
+`IdOriginCenter` da `Order` é casado com `CenterProduct.IdCenter` — o buffer consumido por uma ordem outbound é o do centro de origem, não o de destino. Todo agrupamento abaixo é `Order.IsOutbound = 1` e não excluída (`deletedAt IS NULL`).
+
+**Dia de hoje é um bucket especial** (2026-09-13, correção — antes hoje ficava de fora do cálculo inteiro): o valor do dia de hoje, por `(IdProduct, IdOriginCenter)`, é
+
+```
+Hoje = (soma de Quantity - DeliveredQuantity das ordens NÃO fictícias com DeliveryDate <= hoje, ou seja atrasadas + as de hoje)
+     + (soma de Quantity - DeliveredQuantity das ordens fictícias com DeliveryDate = hoje)
+```
+
+**Dias futuros** (`DeliveryDate > hoje`, sem distinguir fictícia/real — mesma regra confirmada antes): agrupa por `(IdProduct, IdOriginCenter, DeliveryDate)`, somando `Quantity - DeliveredQuantity` de cada dia.
+
+O bucket de hoje entra na mesma lista de "dias" que os dias futuros (mesmo threshold aplicado a todos, ver abaixo) — só a forma de somar a quantidade pendente muda pra esse dia específico.
+
+### Horizonte (quantos dias pra frente olhar)
+
+```
+Horizonte = LeadTime * SpikeHorizonLTDays,   se SpikeHorizonType = Dlt
+          = SpikeHorizonValue,                se SpikeHorizonType = Days
+```
+
+Entram no cálculo: o bucket de hoje (sempre) e os dias-grupo futuros com `DeliveryDate <= hoje + Horizonte`.
+
+### Threshold (quando o dia "qualifica")
+
+```
+Quantidade do dia entra em QualifiedDemand se:
+  SUM do dia >= Adu * SpikeThresholdAdu,                               quando SpikeThresholdType = Adu
+  SUM do dia >= (RedZoneBase + RedZoneSafe) * SpikeThresholdPercentageRedZone,   quando SpikeThresholdType = PlanningRedZone
+
+Senão, o dia contribui 0.
+```
+
+### Resultado final
+
+```
+QualifiedDemand = soma dos valores de todos os dias qualificados dentro do horizonte
+```
+
+Não é o maior dia nem um valor por dia — é a soma total.

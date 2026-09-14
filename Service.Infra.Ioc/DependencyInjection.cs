@@ -118,6 +118,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICalculationStep, CalculateMinMaxBufferZonesStep>();
             services.AddScoped<ICalculationStep, CalculateDynamicMinMaxBufferZonesStep>();
             services.AddScoped<ICalculationStep, ApplyZafStep>();
+            services.AddScoped<ICalculationStep, CalculateQualifiedDemandStep>();
             services.AddScoped<ICalculationService, CalculationService>();
 
             services.AddScoped<IRobotService, RobotService>();

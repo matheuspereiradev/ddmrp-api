@@ -51,5 +51,12 @@ namespace Service.Domain.Entities
         public decimal ZafRedZone { get; set; }
         public decimal ZafYellowZone { get; set; }
         public decimal ZafGreenZone { get; set; }
+        public decimal? QualifiedDemand { get; set; }
+        public SpikeHorizonType SpikeHorizonType { get; set; }
+        public int SpikeHorizonValue { get; set; } = 60;
+        public int SpikeHorizonLTDays { get; set; } = 1;
+        public SpikeThresholdType SpikeThresholdType { get; set; }
+        public decimal SpikeThresholdAdu { get; set; } = 1;
+        public decimal SpikeThresholdPercentageRedZone { get; set; } = 0.5m;
     }
 }

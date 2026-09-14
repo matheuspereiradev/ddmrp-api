@@ -31,6 +31,10 @@
     {
       "name": "ApplyZAF",
       "parameters": []
+    },
+    {
+      "name": "CalculateQualifiedDemand",
+      "parameters": []
     }
   ]
 }
