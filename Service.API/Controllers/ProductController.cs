@@ -28,9 +28,11 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllProducts([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllProducts([FromQuery] int? idCenter, [FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
-            var products = await _productService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var products = idCenter.HasValue
+                ? await _productService.GetByCenterAsync(idCenter.Value, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken)
+                : await _productService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, products.TotalCount, products.TotalPages));

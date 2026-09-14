@@ -20,7 +20,6 @@ namespace Service.Application.DTOs.ZoneAdjustmentFactor
         [MaxLength(300, ErrorMessage = "The field {0} has the maxlength 300")]
         public string? Obs { get; set; }
 
-        [Required(ErrorMessage = "Field {0} required.")]
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }

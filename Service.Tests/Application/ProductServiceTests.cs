@@ -4,17 +4,20 @@ using Service.Application.Exceptions;
 using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Tests.Application;
 
 public class ProductServiceTests
 {
     private readonly IProductRepository _productRepository = Substitute.For<IProductRepository>();
+    private readonly ICenterRepository _centerRepository = Substitute.For<ICenterRepository>();
     private readonly ProductService _sut;
 
     public ProductServiceTests()
     {
-        _sut = new ProductService(_productRepository);
+        _centerRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
+        _sut = new ProductService(_productRepository, _centerRepository);
     }
 
     private static ProductPostDto BuildPostDto() => new()
@@ -114,5 +117,33 @@ public class ProductServiceTests
         _productRepository.DeleteAsync(1, Arg.Any<CancellationToken>()).Returns((Product)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.DeleteAsync(1));
+    }
+
+    [Fact]
+    public async Task GetByCenterAsync_ReturnsMappedPagedList_WhenCenterExists()
+    {
+        var products = new List<Product>
+        {
+            new() { Id = 1, Reference = "REF001", Description = "Produto 1" },
+            new() { Id = 2, Reference = "REF002", Description = "Produto 2" }
+        };
+        _productRepository.GetByCenterAsync(5, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<Product>(products, 1, 10, 2));
+
+        var result = await _sut.GetByCenterAsync(5, 1, 10);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal("REF001", result[0].Reference);
+    }
+
+    [Fact]
+    public async Task GetByCenterAsync_ThrowsNotFoundException_WhenCenterDoesNotExist()
+    {
+        _centerRepository.Exists(5, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.GetByCenterAsync(5, 1, 10));
+
+        await _productRepository.DidNotReceive().GetByCenterAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 }

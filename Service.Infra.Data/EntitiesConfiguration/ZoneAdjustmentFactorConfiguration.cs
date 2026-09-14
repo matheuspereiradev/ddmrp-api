@@ -18,7 +18,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(z => z.AdjustmentType).IsRequired();
             builder.Property(z => z.AdjustmentValue).IsRequired().HasPrecision(18, 4);
             builder.Property(z => z.Obs).HasMaxLength(300);
-            builder.Property(z => z.IsActive).IsRequired();
+            builder.Property(z => z.IsActive).IsRequired().HasDefaultValue(true);
             builder.Property(z => z.EffectiveFrom).IsRequired();
             builder.Property(z => z.EffectiveTo).IsRequired();
 

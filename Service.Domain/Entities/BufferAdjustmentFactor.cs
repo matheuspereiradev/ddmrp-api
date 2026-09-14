@@ -16,7 +16,7 @@ namespace Service.Domain.Entities
         public decimal BufferDdmrpYellow { get; set; }
         public decimal BufferDdmrpGreen { get; set; }
         public string? Obs { get; set; }
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
         public BufferType? BufferTypeOld { get; set; }
         public decimal? BufferDdmrpRedSafeOld { get; set; }
         public decimal? BufferDdmrpRedBaseOld { get; set; }

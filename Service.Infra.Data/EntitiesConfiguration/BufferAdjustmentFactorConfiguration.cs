@@ -21,7 +21,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(b => b.BufferDdmrpYellow).IsRequired().HasPrecision(18, 4);
             builder.Property(b => b.BufferDdmrpGreen).IsRequired().HasPrecision(18, 4);
             builder.Property(b => b.Obs).HasMaxLength(300);
-            builder.Property(b => b.IsActive).IsRequired();
+            builder.Property(b => b.IsActive).IsRequired().HasDefaultValue(true);
             builder.Property(b => b.BufferTypeOld);
             builder.Property(b => b.BufferDdmrpRedSafeOld).HasPrecision(18, 4);
             builder.Property(b => b.BufferDdmrpRedBaseOld).HasPrecision(18, 4);

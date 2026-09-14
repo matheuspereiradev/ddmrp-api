@@ -13,7 +13,7 @@ namespace Service.Domain.Entities
         public AdjustmentType AdjustmentType { get; set; }
         public decimal AdjustmentValue { get; set; }
         public string? Obs { get; set; }
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
         public DateTime EffectiveFrom { get; set; }
         public DateTime EffectiveTo { get; set; }
     }

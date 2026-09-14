@@ -1,15 +1,22 @@
 using Service.Application.DTOs.Product;
+using Service.Application.Exceptions;
 using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
     public class ProductService : BaseService<Product, ProductGetDto, ProductPostDto, ProductPutDto>, IProductService
     {
-        public ProductService(IProductRepository repository) : base(repository)
+        private readonly IProductRepository _productRepository;
+        private readonly ICenterRepository _centerRepository;
+
+        public ProductService(IProductRepository repository, ICenterRepository centerRepository) : base(repository)
         {
+            _productRepository = repository;
+            _centerRepository = centerRepository;
         }
 
         protected override ProductGetDto ToGetDTO(Product entity) => entity.ToGetDto();
@@ -53,6 +60,16 @@ namespace Service.Application.Services
             entity.Subline = putDTO.Subline;
             entity.Brand = putDTO.Brand;
             entity.WorkCenter = putDTO.WorkCenter;
+        }
+
+        public async Task<PagedList<ProductGetDto>> GetByCenterAsync(int idCenter, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            if (!await _centerRepository.Exists(idCenter, cancellationToken))
+                throw new NotFoundException("Center not found.");
+
+            var paged = await _productRepository.GetByCenterAsync(idCenter, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<ProductGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
     }
 }

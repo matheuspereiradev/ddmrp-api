@@ -1,6 +1,7 @@
 using Service.API.Filters;
 using Service.API.HealthChecks;
 using Service.API.Middleware;
+using Service.API.Swagger;
 using Service.Infra.Ioc;
 using DotNetEnv;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -31,8 +32,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Default", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
+        if (allowedOrigins.Length == 0)
+            policy.AllowAnyOrigin();
+        else
+            policy.WithOrigins(allowedOrigins);
+
+        policy.AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
@@ -51,6 +56,8 @@ builder.Services.AddSwaggerGen(options =>
     {
         [new OpenApiSecuritySchemeReference("bearer", document)] = []
     });
+
+    options.OperationFilter<ApiResponseWrapperOperationFilter>();
 });
 
 var app = builder.Build();
