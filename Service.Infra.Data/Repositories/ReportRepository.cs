@@ -54,6 +54,9 @@ namespace Service.Infra.Data.Repositories
                     TopOfRed = cp.TopOfRed,
                     TopOfYellow = cp.TopOfYellow,
                     TopOfGreen = cp.TopOfGreen,
+                    RedZoneExecution = cp.RedZoneExecution,
+                    YellowZoneExecution = cp.YellowZoneExecution,
+                    GreenZoneExecution = cp.GreenZoneExecution,
                     UseDafOnGreenZone = cp.UseDafOnGreenZone,
                     CustomLeadTimeFactor = cp.CustomLeadTimeFactor,
                     CustomVariabilityFactor = cp.CustomVariabilityFactor,
@@ -99,16 +102,16 @@ namespace Service.Infra.Data.Repositories
                     ReasonName = cp.Reason != null && cp.Reason.deletedAt == null ? cp.Reason.Name : null,
                     AllocationGroupName = cp.AllocationGroup != null && cp.AllocationGroup.deletedAt == null ? cp.AllocationGroup.Name : null,
 
-                    Entradas = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct)
+                    Inbounds = _context.Order
+                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && !o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
-                    EntradasFicticias = _context.Order
+                    FictionalInbounds = _context.Order
                         .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
-                    Saidas = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter && o.IdProduct == cp.IdProduct)
+                    Outbounds = _context.Order
+                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && !o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
-                    SaidasFicticias = _context.Order
+                    FictionalOutbounds = _context.Order
                         .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0
                 })
@@ -116,9 +119,14 @@ namespace Service.Infra.Data.Repositories
 
             foreach (var row in rows)
             {
-                row.Netflow = UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Entradas);
+                row.Netflow = UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Inbounds);
                 row.OrderQuantity = UtilsDdmrp.CalculateOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0);
                 row.OptimizedOrderQuantity = UtilsDdmrp.CalculateOptimizedOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0, row.Moq, row.PackQuantity);
+                row.NetflowBufferPercentage = UtilsDdmrp.CalculateBufferPercentage(row.TopOfGreen ?? 0, row.Netflow);
+                row.NetflowBufferColor = UtilsDdmrp.CalculateBufferColor(row.Netflow, row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0);
+                row.CoverageDays = UtilsDdmrp.CalculateCoverageDays(row.Stock, row.Adu ?? 0);
+                row.ExecutionBufferPercentage = UtilsDdmrp.CalculateBufferPercentage(row.GreenZoneExecution ?? 0, row.Stock);
+                row.ExecutionBufferColor = UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0);
             }
 
             return rows;

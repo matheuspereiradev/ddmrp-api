@@ -58,7 +58,7 @@ namespace Service.Infra.Data.Calculation.Steps
             HistoricalStats AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    ISNULL(SUM(rh.Consumption), 0) / cp.HistoryAduDays AS HistoricoValue,
+                    ISNULL(SUM(rh.Consumption), 0) / cp.HistoryAduDays AS HistoricalValue,
                     CAST(STDEVP(ISNULL(rh.Consumption, 0)) AS DECIMAL(18, 4)) AS StdDevValue,
                     CAST(AVG(ISNULL(rh.Consumption, 0)) AS DECIMAL(18, 4)) AS AvgValue
                 FROM dbo.CenterProducts cp
@@ -88,11 +88,11 @@ namespace Service.Infra.Data.Calculation.Steps
             UPDATE cp
             SET cp.Adu = CASE
                     WHEN ISNULL(cp.HistoryAduDays, 0) > 0 AND ISNULL(cp.FutureAduDays, 0) = 0
-                        THEN hs.HistoricoValue
+                        THEN hs.HistoricalValue
                     WHEN ISNULL(cp.HistoryAduDays, 0) = 0 AND ISNULL(cp.FutureAduDays, 0) > 0
                         THEN fa.Value
                     WHEN ISNULL(cp.HistoryAduDays, 0) > 0 AND ISNULL(cp.FutureAduDays, 0) > 0
-                        THEN (hs.HistoricoValue + fa.Value) / 2
+                        THEN (hs.HistoricalValue + fa.Value) / 2
                     ELSE NULL
                 END,
                 cp.StandardDeviation = ISNULL(hs.StdDevValue, 0),

@@ -36,7 +36,11 @@ public class ReportRepositoryTests
             IdBufferProfile = bufferProfile.Id,
             PackQuantity = 10m,
             Moq = 5m,
-            Stock = 100m
+            Stock = 100m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
         };
 
         context.AddRange(center, otherCenter, product, otherProduct, provider, bufferProfile, centerProduct);
@@ -65,10 +69,10 @@ public class ReportRepositoryTests
         Assert.Equal("P1", row.ProviderCode);
         Assert.Equal("BP1", row.BufferProfileName);
 
-        Assert.Equal(90m, row.Entradas);
-        Assert.Equal(30m, row.EntradasFicticias);
-        Assert.Equal(55m, row.Saidas);
-        Assert.Equal(15m, row.SaidasFicticias);
+        Assert.Equal(60m, row.Inbounds);
+        Assert.Equal(30m, row.FictionalInbounds);
+        Assert.Equal(40m, row.Outbounds);
+        Assert.Equal(15m, row.FictionalOutbounds);
     }
 
     [Fact]
@@ -78,7 +82,19 @@ public class ReportRepositoryTests
 
         var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
         var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
-        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 100m };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 100m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
+        };
 
         context.AddRange(center, product, centerProduct);
         await context.SaveChangesAsync();
@@ -90,7 +106,7 @@ public class ReportRepositoryTests
         var row = Assert.Single(rows);
         Assert.Null(row.ProviderCode);
         Assert.Null(row.BufferProfileName);
-        Assert.Equal(0m, row.Entradas);
-        Assert.Equal(0m, row.Saidas);
+        Assert.Equal(0m, row.Inbounds);
+        Assert.Equal(0m, row.Outbounds);
     }
 }

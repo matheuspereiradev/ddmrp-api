@@ -44,6 +44,9 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal? TopOfRed { get; set; }
         public decimal? TopOfYellow { get; set; }
         public decimal? TopOfGreen { get; set; }
+        public decimal? RedZoneExecution { get; set; }
+        public decimal? YellowZoneExecution { get; set; }
+        public decimal? GreenZoneExecution { get; set; }
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; }
         public decimal CustomVariabilityFactor { get; set; }

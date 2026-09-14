@@ -37,6 +37,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Ignore(cp => cp.TopOfRed);
             builder.Ignore(cp => cp.TopOfYellow);
             builder.Ignore(cp => cp.TopOfGreen);
+            builder.Ignore(cp => cp.RedZoneExecution);
+            builder.Ignore(cp => cp.YellowZoneExecution);
+            builder.Ignore(cp => cp.GreenZoneExecution);
             builder.Property(cp => cp.UseDafOnGreenZone).IsRequired().HasDefaultValue(false);
             builder.Property(cp => cp.CustomLeadTimeFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
             builder.Property(cp => cp.CustomVariabilityFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);

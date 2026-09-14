@@ -447,15 +447,56 @@ OrderQuantity = TopOfGreen - Netflow,   se Netflow < TopOfYellow
 
 **Campos envolvidos**: `Netflow` (resultado de `CalculateNetflow`, ver seção acima), `CenterProduct.TopOfYellow`/`TopOfGreen` (ver seção "Colunas calculadas" de `CenterProduct` em `CLAUDE.md`) — todos passados como parâmetro, nenhum lido diretamente do banco pelo método.
 
+**Validado 2026-09-14**: a fórmula correta é `BufferSize - Netflow`, e `BufferSize` é o mesmo conceito que `TopOfGreen` (o topo do buffer) — ou seja, `TopOfGreen - Netflow` já é a fórmula certa, sem mudança de código necessária. A alternativa cogitada (`BufferSize - AvailableStock - TotalInbounds`, que descartaria o termo `QualifiedDemand`) foi descartada — `QualifiedDemand` continua fazendo parte do cálculo via `Netflow`.
+
 ## OptimizedOrderQuantity
 
 Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateOptimizedOrderQuantity(decimal netflow, decimal topOfYellow, decimal topOfGreen, decimal moq, decimal packQuantity)`. Mesmo status do NetFlow/OrderQuantity: método estático compartilhado, não é um calculation step.
 
 ```
+OptimizedOrderQuantity = 0,                                         se PackQuantity = 0 (sem múltiplo válido pra arredondar)
+
 Quantity = OrderQuantity(Netflow, TopOfYellow, TopOfGreen)
 
 OptimizedOrderQuantity = 0,                                         se Quantity < Moq (pedido menor que o mínimo, não vale a pena gerar)
                         = CEILING(Quantity / PackQuantity) * PackQuantity,   caso contrário (arredonda pra cima pro múltiplo de PackQuantity)
 ```
 
-**Campos envolvidos**: `Netflow`/`TopOfYellow`/`TopOfGreen` (mesmos do `OrderQuantity`, ver seção acima), `CenterProduct.Moq`, `CenterProduct.PackQuantity` — todos passados como parâmetro. Chama `CalculateOrderQuantity` internamente (não duplica a lógica).
+**Campos envolvidos**: `Netflow`/`TopOfYellow`/`TopOfGreen` (mesmos do `OrderQuantity`, ver seção acima), `CenterProduct.Moq`, `CenterProduct.PackQuantity` — todos passados como parâmetro. Chama `CalculateOrderQuantity` internamente (não duplica a lógica). `PackQuantity = 0` retorna `0` (guarda adicionada 2026-09-14 — antes disparava `DivideByZeroException`, mesma "se não tiver base pra calcular, retorne 0" convenção já usada em `CalculateBufferPercentage`/`CalculateBufferColor` pro caso `TopOfGreen = 0`).
+
+## BufferPercentage
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateBufferPercentage(decimal topOfGreen, decimal delta)` (parâmetro renomeado de `netflow` pra `delta` 2026-09-14, quando passou a ser usado também com `Stock` no lugar de `Netflow` — ver `NetflowBufferPercentage`/`ExecutionBufferPercentage` no report). Mesmo status dos outros: método estático compartilhado, não é um calculation step.
+
+```
+BufferPercentage = Delta / TopOfGreen,   se TopOfGreen <> 0
+                  = 0,                    se TopOfGreen = 0 (sem buffer)
+```
+
+**Campos envolvidos**: `TopOfGreen`, `Delta` — ambos passados como parâmetro; qual "topo" e qual "delta" dependem de quem chama (ver report, abaixo). `TopOfGreen = 0` é o caso comum de um item que ainda não teve as zonas calculadas pelo Robot — tratado como "sem buffer" e retorna `0`, não uma exceção.
+
+## BufferColor
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateBufferColor(decimal quantity, decimal topOfRed, decimal topOfYellow, decimal topOfGreen)` (renomeado de `CalculateNetflowBufferColor`, parâmetro `netflow` renomeado pra `quantity`, 2026-09-14 — o método é genérico o bastante pra classificar qualquer quantidade contra os topos de zona, não só o Netflow), retorna `Service.Domain.Enums.BufferColor` (`Red`/`Yellow`/`Green`/`Blue`/`Black`/`NoColor`). Mesmo status dos outros: método estático compartilhado, não é um calculation step.
+
+```
+BufferColor = NoColor,   se TopOfGreen = 0 (sem buffer calculado)
+            = Black,    se Quantity < 0
+            = Blue,     se Quantity > TopOfGreen
+            = Red,      se 0 <= Quantity <= TopOfRed
+            = Yellow,   se TopOfRed < Quantity <= TopOfYellow
+            = Green,    se TopOfYellow < Quantity <= TopOfGreen
+```
+
+**Campos envolvidos**: `Quantity` (no report `InventoryBufferManagement`, é o `Netflow` — resultado de `CalculateNetflow` — que alimenta o campo `NetflowBufferColor` da linha), `CenterProduct.TopOfRed`/`TopOfYellow`/`TopOfGreen` — todos passados como parâmetro. `NoColor` = ainda não tem buffer calculado (checado primeiro, antes de qualquer outra condição — mesmo caso "sem buffer" do `BufferPercentage`), `Black` = quantidade negativa (ruptura, quando `Quantity` é o Netflow), `Blue` = acima do topo do verde (excesso), `Red`/`Yellow`/`Green` = dentro do buffer normal, cada um na sua faixa.
+
+## CoverageDays
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateCoverageDays(decimal availableStock, decimal adu)`. Mesmo status dos outros: método estático compartilhado, não é um calculation step.
+
+```
+CoverageDays = AvailableStock / Adu,   se Adu > 0
+             = 0,                       caso contrário
+```
+
+**Campos envolvidos**: `CenterProduct.Stock` (passado como `availableStock`), `CenterProduct.Adu` — ambos passados como parâmetro. Guarda contra `Adu <= 0` (item sem consumo médio calculado ainda, ou item genuinamente sem consumo) retornando `0` em vez de dividir por zero.
