@@ -9,7 +9,7 @@ namespace Service.Domain.Entities
         public Product Product { get; set; }
         public int IdCenter { get; set; }
         public Center Center { get; set; }
-        public decimal Quantity { get; set; }
+        public decimal Consumption { get; set; }
         public DateTime Date { get; set; }
         public DiscardStatus DiscardStatus { get; set; } = DiscardStatus.NotReviewed;
     }

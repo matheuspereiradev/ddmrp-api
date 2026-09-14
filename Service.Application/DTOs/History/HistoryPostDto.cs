@@ -13,7 +13,7 @@ namespace Service.Application.DTOs.History
 
         [Required(ErrorMessage = "Field {0} required.")]
         [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
-        public decimal Quantity { get; set; }
+        public decimal Consumption { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
         public DateTime Date { get; set; }

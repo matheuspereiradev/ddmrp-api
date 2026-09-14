@@ -316,4 +316,113 @@ public class CenterProductServiceTests
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.DeleteAsync(1));
     }
+
+    [Fact]
+    public async Task SetAllocationGroupAsync_UpdatesOnlyIdAllocationGroup_WhenCenterProductExists()
+    {
+        var existing = new CenterProduct { Id = 1, IdProduct = 1, IdCenter = 1, PackQuantity = 10m, Moq = 5m, Stock = 100m, IdTag = 7 };
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _centerProductRepository.UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.SetAllocationGroupAsync(1, 3);
+
+        Assert.Equal(3, result.IdAllocationGroup);
+        Assert.Equal(7, result.IdTag);
+    }
+
+    [Fact]
+    public async Task SetAllocationGroupAsync_AllowsClearingTheAssociation_WhenIdIsNull()
+    {
+        var existing = new CenterProduct { Id = 1, IdProduct = 1, IdCenter = 1, PackQuantity = 10m, Moq = 5m, Stock = 100m, IdAllocationGroup = 3 };
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _centerProductRepository.UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.SetAllocationGroupAsync(1, null);
+
+        Assert.Null(result.IdAllocationGroup);
+    }
+
+    [Fact]
+    public async Task SetAllocationGroupAsync_ThrowsBadRequestException_WhenAllocationGroupDoesNotExist()
+    {
+        _allocationGroupRepository.Exists(3, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.SetAllocationGroupAsync(1, 3));
+
+        await _centerProductRepository.DidNotReceive().UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetAllocationGroupAsync_ThrowsNotFoundException_WhenCenterProductDoesNotExist()
+    {
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((CenterProduct)null!);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetAllocationGroupAsync(1, 3));
+    }
+
+    [Fact]
+    public async Task SetTagAsync_UpdatesOnlyIdTag_WhenCenterProductExists()
+    {
+        var existing = new CenterProduct { Id = 1, IdProduct = 1, IdCenter = 1, PackQuantity = 10m, Moq = 5m, Stock = 100m, IdReason = 9 };
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _centerProductRepository.UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.SetTagAsync(1, 4);
+
+        Assert.Equal(4, result.IdTag);
+        Assert.Equal(9, result.IdReason);
+    }
+
+    [Fact]
+    public async Task SetTagAsync_ThrowsBadRequestException_WhenTagDoesNotExist()
+    {
+        _tagRepository.Exists(4, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.SetTagAsync(1, 4));
+
+        await _centerProductRepository.DidNotReceive().UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetTagAsync_ThrowsNotFoundException_WhenCenterProductDoesNotExist()
+    {
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((CenterProduct)null!);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetTagAsync(1, 4));
+    }
+
+    [Fact]
+    public async Task SetReasonAsync_UpdatesOnlyIdReason_WhenCenterProductExists()
+    {
+        var existing = new CenterProduct { Id = 1, IdProduct = 1, IdCenter = 1, PackQuantity = 10m, Moq = 5m, Stock = 100m, IdTag = 7 };
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _centerProductRepository.UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<CenterProduct>());
+
+        var result = await _sut.SetReasonAsync(1, 6);
+
+        Assert.Equal(6, result.IdReason);
+        Assert.Equal(7, result.IdTag);
+    }
+
+    [Fact]
+    public async Task SetReasonAsync_ThrowsBadRequestException_WhenReasonDoesNotExist()
+    {
+        _reasonRepository.Exists(6, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.SetReasonAsync(1, 6));
+
+        await _centerProductRepository.DidNotReceive().UpdateAsync(Arg.Any<CenterProduct>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetReasonAsync_ThrowsNotFoundException_WhenCenterProductDoesNotExist()
+    {
+        _centerProductRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((CenterProduct)null!);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetReasonAsync(1, 6));
+    }
 }

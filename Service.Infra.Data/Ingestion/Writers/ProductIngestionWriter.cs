@@ -107,7 +107,6 @@ namespace Service.Infra.Data.Ingestion.Writers
             product.Pallet = TryParseDecimal(row.GetValueOrDefault("Pallet"));
             product.Line = row.GetValueOrDefault("Line");
             product.Subline = row.GetValueOrDefault("Subline");
-            product.ABC = row.GetValueOrDefault("ABC");
             product.Brand = row.GetValueOrDefault("Brand");
             product.WorkCenter = row.GetValueOrDefault("WorkCenter");
         }

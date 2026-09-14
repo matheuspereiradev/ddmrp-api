@@ -25,7 +25,6 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(p => p.Pallet).HasPrecision(18, 4);
             builder.Property(p => p.Line).HasMaxLength(100);
             builder.Property(p => p.Subline).HasMaxLength(100);
-            builder.Property(p => p.ABC).HasMaxLength(5);
             builder.Property(p => p.Brand).HasMaxLength(100);
             builder.Property(p => p.WorkCenter).HasMaxLength(50);
         }

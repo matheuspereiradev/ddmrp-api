@@ -24,20 +24,20 @@ namespace Service.Infra.Data.Ingestion.Writers
         public async Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default)
         {
             var result = new IngestionWriteResult();
-            var parsedRows = new List<(int IdProduct, int IdCenter, DateTime Date, decimal Quantity)>();
+            var parsedRows = new List<(int IdProduct, int IdCenter, DateTime Date, decimal Consumption)>();
 
             foreach (var row in mappedRows)
             {
                 if (!int.TryParse(row.GetValueOrDefault("IdProduct"), out var idProduct) ||
                     !int.TryParse(row.GetValueOrDefault("IdCenter"), out var idCenter) ||
                     !DateTime.TryParse(row.GetValueOrDefault("Date"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ||
-                    !decimal.TryParse(row.GetValueOrDefault("Quantity"), NumberStyles.Any, CultureInfo.InvariantCulture, out var quantity))
+                    !decimal.TryParse(row.GetValueOrDefault("Consumption"), NumberStyles.Any, CultureInfo.InvariantCulture, out var consumption))
                 {
-                    result.Errors.Add("Row skipped: missing/invalid IdProduct, IdCenter, Date or Quantity.");
+                    result.Errors.Add("Row skipped: missing/invalid IdProduct, IdCenter, Date or Consumption.");
                     continue;
                 }
 
-                parsedRows.Add((idProduct, idCenter, DateTime.SpecifyKind(date.Date, DateTimeKind.Utc), quantity));
+                parsedRows.Add((idProduct, idCenter, DateTime.SpecifyKind(date.Date, DateTimeKind.Utc), consumption));
             }
 
             var productIds = parsedRows.Select(r => r.IdProduct).Distinct().ToList();
@@ -51,11 +51,11 @@ namespace Service.Infra.Data.Ingestion.Writers
             var now = DateTime.UtcNow;
             var userId = _currentUser.UserId;
 
-            foreach (var (idProduct, idCenter, date, quantity) in parsedRows)
+            foreach (var (idProduct, idCenter, date, consumption) in parsedRows)
             {
                 if (existingMap.TryGetValue((idProduct, idCenter, date), out var history))
                 {
-                    history.Quantity = quantity;
+                    history.Consumption = consumption;
                     history.updatedAt = now;
                     history.updatedBy = userId;
                     result.Updated++;
@@ -67,7 +67,7 @@ namespace Service.Infra.Data.Ingestion.Writers
                         IdProduct = idProduct,
                         IdCenter = idCenter,
                         Date = date,
-                        Quantity = quantity,
+                        Consumption = consumption,
                         createdAt = now,
                         createdBy = userId
                     };

@@ -70,7 +70,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 FROM DateSpine ds
                 JOIN dbo.CenterProducts cp ON cp.Id = ds.CenterProductId
                 CROSS APPLY (
-                    SELECT SUM(h.Quantity) AS RollingSum
+                    SELECT SUM(h.Consumption) AS RollingSum
                     FROM dbo.Histories h
                     WHERE h.IdProduct = cp.IdProduct AND h.IdCenter = cp.IdCenter
                       AND h.deletedAt IS NULL AND h.DiscardStatus <> 2

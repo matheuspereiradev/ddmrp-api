@@ -31,7 +31,6 @@ namespace Service.Application.Services
                 Pallet = postDTO.Pallet,
                 Line = postDTO.Line,
                 Subline = postDTO.Subline,
-                ABC = postDTO.ABC,
                 Brand = postDTO.Brand,
                 WorkCenter = postDTO.WorkCenter
             };
@@ -52,7 +51,6 @@ namespace Service.Application.Services
             entity.Pallet = putDTO.Pallet;
             entity.Line = putDTO.Line;
             entity.Subline = putDTO.Subline;
-            entity.ABC = putDTO.ABC;
             entity.Brand = putDTO.Brand;
             entity.WorkCenter = putDTO.WorkCenter;
         }

@@ -48,7 +48,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 SELECT
                     h.IdProduct,
                     h.IdCenter,
-                    h.Quantity,
+                    h.Consumption,
                     ROW_NUMBER() OVER (PARTITION BY h.IdProduct, h.IdCenter ORDER BY h.Date DESC) AS rn
                 FROM dbo.Histories h
                 WHERE h.deletedAt IS NULL
@@ -58,9 +58,9 @@ namespace Service.Infra.Data.Calculation.Steps
             HistoricalStats AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS HistoricoValue,
-                    CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18, 4)) AS StdDevValue,
-                    CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18, 4)) AS AvgValue
+                    ISNULL(SUM(rh.Consumption), 0) / cp.HistoryAduDays AS HistoricoValue,
+                    CAST(STDEVP(ISNULL(rh.Consumption, 0)) AS DECIMAL(18, 4)) AS StdDevValue,
+                    CAST(AVG(ISNULL(rh.Consumption, 0)) AS DECIMAL(18, 4)) AS AvgValue
                 FROM dbo.CenterProducts cp
                 LEFT JOIN RankedHistory rh
                     ON rh.IdProduct = cp.IdProduct

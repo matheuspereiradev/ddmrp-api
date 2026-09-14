@@ -1,6 +1,7 @@
 using Service.API.Extensions;
 using Service.API.Models;
 using Service.Application.DTOs.CenterProduct;
+using Service.Application.DTOs.Common;
 using Service.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -51,6 +52,30 @@ namespace Service.API.Controllers
         public async Task<ActionResult> DeleteCenterProduct(int id, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.DeleteAsync(id, cancellationToken);
+            return Ok(centerProduct);
+        }
+
+        [HttpPatch("{id}/allocation-group")]
+        [Authorize]
+        public async Task<ActionResult> SetAllocationGroup(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
+        {
+            var centerProduct = await _centerProductService.SetAllocationGroupAsync(id, setOptionalIdDto.Id, cancellationToken);
+            return Ok(centerProduct);
+        }
+
+        [HttpPatch("{id}/tag")]
+        [Authorize]
+        public async Task<ActionResult> SetTag(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
+        {
+            var centerProduct = await _centerProductService.SetTagAsync(id, setOptionalIdDto.Id, cancellationToken);
+            return Ok(centerProduct);
+        }
+
+        [HttpPatch("{id}/reason")]
+        [Authorize]
+        public async Task<ActionResult> SetReason(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
+        {
+            var centerProduct = await _centerProductService.SetReasonAsync(id, setOptionalIdDto.Id, cancellationToken);
             return Ok(centerProduct);
         }
     }

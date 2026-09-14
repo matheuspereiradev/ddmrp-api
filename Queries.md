@@ -9,7 +9,7 @@ Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays = 0` (f�
 ```sql
 ;WITH RankedHistory AS (
     SELECT
-        h.IdProduct, h.IdCenter, h.Quantity,
+        h.IdProduct, h.IdCenter, h.Consumption,
         ROW_NUMBER() OVER (PARTITION BY h.IdProduct, h.IdCenter ORDER BY h.Date DESC) AS rn
     FROM Histories h
     WHERE h.deletedAt IS NULL
@@ -17,7 +17,7 @@ Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays = 0` (f�
       AND h.Date < CAST(GETDATE() AS DATE)  -- hoje não entra
 )
 SELECT cp.IdProduct, cp.IdCenter, cp.Adu,
-       ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS ExpectedHistorico
+       ISNULL(SUM(rh.Consumption), 0) / cp.HistoryAduDays AS ExpectedHistorico
 FROM CenterProducts cp
 LEFT JOIN RankedHistory rh
     ON rh.IdProduct = cp.IdProduct AND rh.IdCenter = cp.IdCenter AND rh.rn <= cp.HistoryAduDays
@@ -32,7 +32,7 @@ Valida `CenterProduct.StandardDeviation`/`Cv`. Mesma janela do Histórico (`Rank
 ```sql
 ;WITH RankedHistory AS (
     SELECT
-        h.IdProduct, h.IdCenter, h.Quantity,
+        h.IdProduct, h.IdCenter, h.Consumption,
         ROW_NUMBER() OVER (PARTITION BY h.IdProduct, h.IdCenter ORDER BY h.Date DESC) AS rn
     FROM Histories h
     WHERE h.deletedAt IS NULL
@@ -41,9 +41,9 @@ Valida `CenterProduct.StandardDeviation`/`Cv`. Mesma janela do Histórico (`Rank
 )
 SELECT
     cp.IdProduct, cp.IdCenter, cp.StandardDeviation, cp.Cv,
-    CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) AS ExpectedStandardDeviation,
-    CASE WHEN CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) = 0 THEN 0
-         ELSE CAST(STDEVP(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4)) / CAST(AVG(ISNULL(rh.Quantity, 0)) AS DECIMAL(18,4))
+    CAST(STDEVP(ISNULL(rh.Consumption, 0)) AS DECIMAL(18,4)) AS ExpectedStandardDeviation,
+    CASE WHEN CAST(AVG(ISNULL(rh.Consumption, 0)) AS DECIMAL(18,4)) = 0 THEN 0
+         ELSE CAST(STDEVP(ISNULL(rh.Consumption, 0)) AS DECIMAL(18,4)) / CAST(AVG(ISNULL(rh.Consumption, 0)) AS DECIMAL(18,4))
     END AS ExpectedCv
 FROM CenterProducts cp
 LEFT JOIN RankedHistory rh
@@ -78,7 +78,7 @@ Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays > 0` (`A
 ```sql
 ;WITH RankedHistory AS (
     SELECT
-        h.IdProduct, h.IdCenter, h.Quantity,
+        h.IdProduct, h.IdCenter, h.Consumption,
         ROW_NUMBER() OVER (PARTITION BY h.IdProduct, h.IdCenter ORDER BY h.Date DESC) AS rn
     FROM Histories h
     WHERE h.deletedAt IS NULL
@@ -88,7 +88,7 @@ Valida `CenterProduct.Adu` quando `HistoryAduDays > 0` e `FutureAduDays > 0` (`A
 Historico AS (
     SELECT
         cp.Id AS CenterProductId,
-        ISNULL(SUM(rh.Quantity), 0) / cp.HistoryAduDays AS Value
+        ISNULL(SUM(rh.Consumption), 0) / cp.HistoryAduDays AS Value
     FROM CenterProducts cp
     LEFT JOIN RankedHistory rh
         ON rh.IdProduct = cp.IdProduct AND rh.IdCenter = cp.IdCenter AND rh.rn <= cp.HistoryAduDays
@@ -120,14 +120,14 @@ WHERE cp.HistoryAduDays > 0 AND cp.FutureAduDays > 0;
 
 ## Adi
 
-Valida `CenterProduct.Adi`. Espelha o `HistoryWindow`/`AdiAgg` do `CalculateAdiStep`: total de linhas de `History` no período (`ThresholdDays` dias corridos, terminando ontem) dividido pelas linhas com `Quantity > 0` — sem filtro de `DiscardStatus` (todas contam), `0` quando não há nenhuma linha com `Quantity > 0`. Troque `360` pelo valor de `ThresholdDays` usado no `calculation.config.json`.
+Valida `CenterProduct.Adi`. Espelha o `HistoryWindow`/`AdiAgg` do `CalculateAdiStep`: total de linhas de `History` no período (`ThresholdDays` dias corridos, terminando ontem) dividido pelas linhas com `Consumption > 0` — sem filtro de `DiscardStatus` (todas contam), `0` quando não há nenhuma linha com `Consumption > 0`. Troque `360` pelo valor de `ThresholdDays` usado no `calculation.config.json`.
 
 ```sql
 DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 DECLARE @WindowStart DATE = DATEADD(DAY, -360, @Today);  -- mesmo ThresholdDays do calculation.config.json
 
 ;WITH HistoryWindow AS (
-    SELECT h.IdProduct, h.IdCenter, h.Quantity
+    SELECT h.IdProduct, h.IdCenter, h.Consumption
     FROM Histories h
     WHERE h.deletedAt IS NULL
       AND h.Date >= @WindowStart
@@ -137,7 +137,7 @@ AdiAgg AS (
     SELECT
         IdProduct, IdCenter,
         COUNT(*) AS TotalRecords,
-        SUM(CASE WHEN Quantity > 0 THEN 1 ELSE 0 END) AS PositiveRecords
+        SUM(CASE WHEN Consumption > 0 THEN 1 ELSE 0 END) AS PositiveRecords
     FROM HistoryWindow
     GROUP BY IdProduct, IdCenter
 )

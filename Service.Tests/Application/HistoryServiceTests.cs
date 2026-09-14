@@ -26,14 +26,14 @@ public class HistoryServiceTests
     {
         IdProduct = 1,
         IdCenter = 1,
-        Quantity = 100.5m,
+        Consumption = 100.5m,
         Date = new DateTime(2026, 9, 11)
     };
 
     [Fact]
     public async Task GetByIdAsync_ReturnsDto_WhenHistoryExists()
     {
-        var history = new History { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = DateTime.UtcNow };
+        var history = new History { Id = 1, IdProduct = 1, IdCenter = 1, Consumption = 10m, Date = DateTime.UtcNow };
         _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(history);
 
         var result = await _sut.GetByIdAsync(1);
@@ -51,7 +51,7 @@ public class HistoryServiceTests
             Id = 1,
             IdProduct = 1,
             IdCenter = 2,
-            Quantity = 10m,
+            Consumption = 10m,
             Date = DateTime.UtcNow,
             Product = new Product { Id = 1, Reference = "REF001", Description = "Produto Teste", UnitOfMeasure = "UN" },
             Center = new Center { Id = 2, Code = "C001", Description = "Centro Teste" }
@@ -84,7 +84,7 @@ public class HistoryServiceTests
         var result = await _sut.AddAsync(postDto);
 
         Assert.Equal(postDto.IdProduct, result.IdProduct);
-        Assert.Equal(postDto.Quantity, result.Quantity);
+        Assert.Equal(postDto.Consumption, result.Consumption);
         Assert.Equal(DiscardStatus.NotReviewed, result.DiscardStatus);
         await _historyRepository.Received(1).AddAsync(
             Arg.Is<History>(h => h.IdProduct == postDto.IdProduct && h.IdCenter == postDto.IdCenter && h.DiscardStatus == DiscardStatus.NotReviewed),
@@ -114,17 +114,17 @@ public class HistoryServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_UpdatesQuantityAndDiscardStatus_ButKeepsIdProductIdCenterAndDate()
+    public async Task UpdateAsync_UpdatesConsumptionAndDiscardStatus_ButKeepsIdProductIdCenterAndDate()
     {
-        var existing = new History { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = new DateTime(2026, 9, 11), DiscardStatus = DiscardStatus.NotReviewed };
-        var putDto = new HistoryPutDto { Quantity = 200m, DiscardStatus = DiscardStatus.Discarded };
+        var existing = new History { Id = 1, IdProduct = 1, IdCenter = 1, Consumption = 10m, Date = new DateTime(2026, 9, 11), DiscardStatus = DiscardStatus.NotReviewed };
+        var putDto = new HistoryPutDto { Consumption = 200m, DiscardStatus = DiscardStatus.Discarded };
         _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
         _historyRepository.UpdateAsync(Arg.Any<History>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<History>());
 
         var result = await _sut.UpdateAsync(1, putDto);
 
-        Assert.Equal(200m, result.Quantity);
+        Assert.Equal(200m, result.Consumption);
         Assert.Equal(DiscardStatus.Discarded, result.DiscardStatus);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);

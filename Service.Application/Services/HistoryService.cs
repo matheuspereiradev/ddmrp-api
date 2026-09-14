@@ -27,7 +27,7 @@ namespace Service.Application.Services
                 Id = entity.Id,
                 IdProduct = entity.IdProduct,
                 IdCenter = entity.IdCenter,
-                Quantity = entity.Quantity,
+                Consumption = entity.Consumption,
                 Date = entity.Date,
                 DiscardStatus = entity.DiscardStatus,
                 Product = entity.Product?.ToGetDto(),
@@ -41,7 +41,7 @@ namespace Service.Application.Services
             {
                 IdProduct = postDTO.IdProduct,
                 IdCenter = postDTO.IdCenter,
-                Quantity = postDTO.Quantity,
+                Consumption = postDTO.Consumption,
                 Date = postDTO.Date,
                 DiscardStatus = DiscardStatus.NotReviewed
             };
@@ -49,7 +49,7 @@ namespace Service.Application.Services
 
         protected override void ApplyUpdate(History entity, HistoryPutDto putDTO)
         {
-            entity.Quantity = putDTO.Quantity;
+            entity.Consumption = putDTO.Consumption;
             entity.DiscardStatus = putDTO.DiscardStatus;
         }
 

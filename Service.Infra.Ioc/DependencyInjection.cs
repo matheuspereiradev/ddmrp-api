@@ -73,6 +73,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IBufferProfileRepository, BufferProfileRepository>();
             services.AddScoped<INoteRepository, NoteRepository>();
             services.AddScoped<IOrderRepository, OrderRepository>();
+            services.AddScoped<IReportRepository, ReportRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -120,6 +121,8 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICalculationStep, ApplyZafStep>();
             services.AddScoped<ICalculationStep, CalculateQualifiedDemandStep>();
             services.AddScoped<ICalculationService, CalculationService>();
+
+            services.AddScoped<IReportService, ReportService>();
 
             services.AddScoped<IRobotService, RobotService>();
 

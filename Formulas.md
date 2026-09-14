@@ -6,7 +6,7 @@ Lista centralizada das fórmulas usadas pelos steps de cálculo do Robot (`POST 
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateAduStandardDesvAndCvStep.cs` (nome no `calculation.config.json`: `"CalculateAduStandardDesvAndCv"`)
 
-**Campos envolvidos**: `CenterProduct.Adu` (resultado), `CenterProduct.HistoryAduDays`, `CenterProduct.FutureAduDays`, `History.Quantity`/`Date`/`DiscardStatus`, `Forecast.Quantity`/`Date`.
+**Campos envolvidos**: `CenterProduct.Adu` (resultado), `CenterProduct.HistoryAduDays`, `CenterProduct.FutureAduDays`, `History.Consumption`/`Date`/`DiscardStatus`, `Forecast.Quantity`/`Date`.
 
 ### Qual fórmula usar (por `CenterProduct`)
 
@@ -20,7 +20,7 @@ Step: `Service.Infra.Data/Calculation/Steps/CalculateAduStandardDesvAndCvStep.cs
 ### Histórico
 
 ```
-Histórico = (Soma de History.Quantity dos últimos HistoryAduDays dias não descartados) / HistoryAduDays
+Histórico = (Soma de History.Consumption dos últimos HistoryAduDays dias não descartados) / HistoryAduDays
 ```
 
 - "Últimos N dias não descartados" caminha para trás a partir de ontem (hoje não entra), pulando qualquer dia cujo `History.DiscardStatus = Discarded` — **cada dia descartado estende a janela em mais um dia pra trás**, até completar `HistoryAduDays` dias válidos.
@@ -61,12 +61,12 @@ Misto = (Histórico + Futuro) / 2
 Calculados no **mesmo step** (`CalculateAduStandardDesvAndCvStep`), reaproveitando a mesma janela de dias válidos usada pelo Histórico (últimos `HistoryAduDays` dias não descartados, mesma regra de pular `Discarded` e estender a janela pra trás) — não participam do Histórico/Futuro/Misto, dependem só de `HistoryAduDays` (mesmo que `FutureAduDays` também esteja preenchido).
 
 ```
-StandardDeviation = STDEVP(ISNULL(History.Quantity, 0)) dos dias do Histórico
-Cv = StandardDeviation / AVG(ISNULL(History.Quantity, 0)) dos mesmos dias
+StandardDeviation = STDEVP(ISNULL(History.Consumption, 0)) dos dias do Histórico
+Cv = StandardDeviation / AVG(ISNULL(History.Consumption, 0)) dos mesmos dias
 ```
 
 - `STDEVP` é desvio padrão populacional (não amostral).
-- Se `AVG(ISNULL(History.Quantity, 0)) = 0` (sem consumo nos dias considerados), `Cv = 0` em vez de dividir por zero.
+- Se `AVG(ISNULL(History.Consumption, 0)) = 0` (sem consumo nos dias considerados), `Cv = 0` em vez de dividir por zero.
 - Mesma condição de aplicação do Histórico: só calculado quando `HistoryAduDays > 0`; caso contrário, `0`.
 
 ### Execução
@@ -79,18 +79,18 @@ Cv = StandardDeviation / AVG(ISNULL(History.Quantity, 0)) dos mesmos dias
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateAdiStep.cs` (nome no `calculation.config.json`: `"CalculateAdi"`)
 
-**Campos envolvidos**: `CenterProduct.Adi` (resultado), `History.Quantity`/`Date` (todas as linhas contam, independente de `DiscardStatus`).
+**Campos envolvidos**: `CenterProduct.Adi` (resultado), `History.Consumption`/`Date` (todas as linhas contam, independente de `DiscardStatus`).
 
 **Average Demand Interval** — mede o quão intermitente é a demanda: quanto maior o `Adi`, mais espaçadas as ocorrências de consumo.
 
 ```
-Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas com Quantity > 0)
+Adi = (quantidade de linhas de History no período) / (quantidade dessas linhas com Consumption > 0)
 ```
 
 - **Parâmetro `ThresholdDays`** (recebido pelo step via `calculation.config.json`, ex.: `{ "name": "ThresholdDays", "value": "360" }`, padrão `360` se omitido) — é **global pra execução inteira**, não um campo por `CenterProduct` como `HistoryAduDays`/`FutureAduDays`. Define o período: os últimos `ThresholdDays` dias corridos, terminando ontem (hoje não entra, mesma convenção do Adu).
 - O numerador é a contagem real de linhas de `History` existentes no período — **não** o valor de `ThresholdDays` (se só existirem 200 linhas nos últimos 360 dias, numerador é 200, não 360).
 - **Todas** as linhas contam, mesmo as com `DiscardStatus = Discarded` (diferente do Adu — aqui não há filtro de descarte).
-- Se não existir nenhuma linha com `Quantity > 0` no período (incluindo o caso de não existir nenhuma linha de `History` no período), `Adi = 0` (não `NULL`).
+- Se não existir nenhuma linha com `Consumption > 0` no período (incluindo o caso de não existir nenhuma linha de `History` no período), `Adi = 0` (não `NULL`).
 - Não depende de `HistoryAduDays`/`FutureAduDays` — roda pra todo `CenterProduct` ativo que tenha (ou não) histórico no período.
 
 ### Execução
@@ -223,7 +223,7 @@ RedZoneBase = AdjustedAdu * LeadTime * LeadTimeFactor * VariabilityFactor
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateMinMaxBufferZonesStep.cs` (nome no `calculation.config.json`: `"CalculateMinMaxBufferZones"`)
 
-**Campos envolvidos**: mesmos do Normal, mais `History.Quantity`/`Date`/`DiscardStatus` (janela de `ThresholdDays` dias).
+**Campos envolvidos**: mesmos do Normal, mais `History.Consumption`/`Date`/`DiscardStatus` (janela de `ThresholdDays` dias).
 
 **Escopo: só `CenterProduct.BufferType = 2` (MinMax)**. **Não trata itens MTO** — mesma ressalva dos outros steps de zona, ver `TODO.md`.
 
@@ -232,7 +232,7 @@ Yellow    = 0
 Green     = mesma fórmula do Green do Normal (MAX de GreenCandidate1/2/3, mesmos toggles
             GreenZoneParametrizationUse*, mesmo AdjustedAdu via DAF pro GreenCandidate3)
 RedSafe   = 0
-RedBase   = MAX(History.Quantity) nos últimos ThresholdDays dias corridos, terminando ontem
+RedBase   = MAX(History.Consumption) nos últimos ThresholdDays dias corridos, terminando ontem
             (hoje não entra), excluindo linhas com DiscardStatus = Discarded — 0 se não houver
             nenhuma linha de History no período
 ```
@@ -251,7 +251,7 @@ RedBase   = MAX(History.Quantity) nos últimos ThresholdDays dias corridos, term
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateDynamicMinMaxBufferZonesStep.cs` (nome no `calculation.config.json`: `"CalculateDynamicMinMaxBufferZones"`)
 
-**Campos envolvidos**: mesmos do MinMax, mais `History.Quantity`/`Date`/`DiscardStatus` (janela dinâmica, sem parâmetro de config — usa `CenterProduct.HistoryAduDays` diretamente).
+**Campos envolvidos**: mesmos do MinMax, mais `History.Consumption`/`Date`/`DiscardStatus` (janela dinâmica, sem parâmetro de config — usa `CenterProduct.HistoryAduDays` diretamente).
 
 **Escopo: só `CenterProduct.BufferType = 3` (DynamicMinMax)**. **Não usa DAF em nenhum lugar** — `Adu` puro, sem `AdjustedAdu`/lookup de `DemandAdjustmentFactor` (ver a nota importante na seção do Normal). **Não trata itens MTO** — mesma ressalva dos outros steps de zona.
 
@@ -271,13 +271,13 @@ O intervalo `[WindowStart, ontem]` automaticamente cobre `HistoryAduDays` dias v
 
 ### Maior Acumulado (`MaiorAcumulado`)
 
-Pra cada dia `d` dentro de `[WindowStart, ontem]`, soma `History.Quantity` não descartada entre `d - K` e `d` (ambos os extremos incluídos, `K+1` dias no total), onde `K = MAX(LeadTime, Frequency)`. `MaiorAcumulado` é o maior valor entre todas essas somas.
+Pra cada dia `d` dentro de `[WindowStart, ontem]`, soma `History.Consumption` não descartada entre `d - K` e `d` (ambos os extremos incluídos, `K+1` dias no total), onde `K = MAX(LeadTime, Frequency)`. `MaiorAcumulado` é o maior valor entre todas essas somas.
 
 ```
 K = MAX(LeadTime, Frequency)
 
 Para cada dia d em [WindowStart, ontem]:
-    RollingSum(d) = SOMA(History.Quantity não descartada) para History.Date em [d - K, d]
+    RollingSum(d) = SOMA(History.Consumption não descartada) para History.Date em [d - K, d]
 
 MaiorAcumulado = MAX(RollingSum(d)) para todo d em [WindowStart, ontem]
                  = 0, se não houver nenhum dia de History no período (sem WindowStart)
@@ -327,7 +327,7 @@ RedBase  = 0,                              se MaiorAcumulado = 0
 
 ### Execução
 
-- Implementação em T-SQL via CTE recursiva (`DateSpine`, gerando um dia de calendário por vez de `WindowStart` até ontem, por `CenterProduct`) + `CROSS APPLY` (subquery correlacionada por dia, somando `History.Quantity` na janela `[d-K,d]`) — **não dá pra usar `SUM() OVER (... ROWS BETWEEN N PRECEDING ...)`** porque o SQL Server exige que `N` seja uma constante no frame da window function, e aqui `K` varia por `CenterProduct` (`MAX(LeadTime, Frequency)`).
+- Implementação em T-SQL via CTE recursiva (`DateSpine`, gerando um dia de calendário por vez de `WindowStart` até ontem, por `CenterProduct`) + `CROSS APPLY` (subquery correlacionada por dia, somando `History.Consumption` na janela `[d-K,d]`) — **não dá pra usar `SUM() OVER (... ROWS BETWEEN N PRECEDING ...)`** porque o SQL Server exige que `N` seja uma constante no frame da window function, e aqui `K` varia por `CenterProduct` (`MAX(LeadTime, Frequency)`).
 - `OPTION (MAXRECURSION 0)` é obrigatório na `UPDATE` final — a CTE recursiva por padrão trava em 100 níveis, e a janela pode facilmente passar disso (`HistoryAduDays` grande + dias descartados).
 - **Antes de calcular**, roda um `UPDATE` zerando `YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase` de todo `CenterProduct` ativo com `BufferType = 3`. `RedZoneSafe` nunca é escrito de novo depois (fica sempre `0`, por fórmula).
 - Sem parâmetro externo — `HistoryAduDays` já é uma coluna por `CenterProduct` (mesma usada pelo Adu), não precisa de config.

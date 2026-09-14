@@ -165,5 +165,44 @@ namespace Service.Application.Services
 
             return await base.UpdateAsync(id, putDTO, cancellationToken);
         }
+
+        public async Task<CenterProductGetDto> SetAllocationGroupAsync(int id, int? idAllocationGroup, CancellationToken cancellationToken = default)
+        {
+            if (idAllocationGroup.HasValue && !await _allocationGroupRepository.Exists(idAllocationGroup.Value, cancellationToken))
+                throw new BadRequestException("Allocation group not found.");
+
+            var entity = await _repository.GetByIdAsync(id, cancellationToken)
+                ?? throw new NotFoundException("Not found");
+
+            entity.IdAllocationGroup = idAllocationGroup;
+            var updated = await _repository.UpdateAsync(entity, cancellationToken);
+            return ToGetDTO(updated);
+        }
+
+        public async Task<CenterProductGetDto> SetTagAsync(int id, int? idTag, CancellationToken cancellationToken = default)
+        {
+            if (idTag.HasValue && !await _tagRepository.Exists(idTag.Value, cancellationToken))
+                throw new BadRequestException("Tag not found.");
+
+            var entity = await _repository.GetByIdAsync(id, cancellationToken)
+                ?? throw new NotFoundException("Not found");
+
+            entity.IdTag = idTag;
+            var updated = await _repository.UpdateAsync(entity, cancellationToken);
+            return ToGetDTO(updated);
+        }
+
+        public async Task<CenterProductGetDto> SetReasonAsync(int id, int? idReason, CancellationToken cancellationToken = default)
+        {
+            if (idReason.HasValue && !await _reasonRepository.Exists(idReason.Value, cancellationToken))
+                throw new BadRequestException("Reason not found.");
+
+            var entity = await _repository.GetByIdAsync(id, cancellationToken)
+                ?? throw new NotFoundException("Not found");
+
+            entity.IdReason = idReason;
+            var updated = await _repository.UpdateAsync(entity, cancellationToken);
+            return ToGetDTO(updated);
+        }
     }
 }

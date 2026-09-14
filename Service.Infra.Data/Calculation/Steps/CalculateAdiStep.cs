@@ -51,9 +51,9 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        // Adi = (total de linhas de History no período) / (linhas com Quantity > 0) — sem filtro de
+        // Adi = (total de linhas de History no período) / (linhas com Consumption > 0) — sem filtro de
         // DiscardStatus (todas as linhas contam) e sem denominador zero: sem nenhuma linha com
-        // Quantity > 0 no período, Adi = 0. Zera a coluna antes de calcular (mesma convenção usada
+        // Consumption > 0 no período, Adi = 0. Zera a coluna antes de calcular (mesma convenção usada
         // por todo step de cálculo, ver CalculateAduStandardDesvAndCvStep).
         private static FormattableString BuildSql(int thresholdDays) => $"""
             UPDATE dbo.CenterProducts
@@ -64,7 +64,7 @@ namespace Service.Infra.Data.Calculation.Steps
             DECLARE @WindowStart DATE = DATEADD(DAY, -{thresholdDays}, @Today);
 
             ;WITH HistoryWindow AS (
-                SELECT h.IdProduct, h.IdCenter, h.Quantity
+                SELECT h.IdProduct, h.IdCenter, h.Consumption
                 FROM dbo.Histories h
                 WHERE h.deletedAt IS NULL
                   AND h.Date >= @WindowStart
@@ -75,7 +75,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     IdProduct,
                     IdCenter,
                     COUNT(*) AS TotalRecords,
-                    SUM(CASE WHEN Quantity > 0 THEN 1 ELSE 0 END) AS PositiveRecords
+                    SUM(CASE WHEN Consumption > 0 THEN 1 ELSE 0 END) AS PositiveRecords
                 FROM HistoryWindow
                 GROUP BY IdProduct, IdCenter
             )

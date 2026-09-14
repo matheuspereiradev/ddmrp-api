@@ -33,7 +33,6 @@
         { "source": "Pallet", "target": "Pallet" },
         { "source": "Line", "target": "Line" },
         { "source": "SubLine", "target": "Subline" },
-        { "source": "ABC Class", "target": "ABC" },
         { "source": "Brand", "target": "Brand" },
         { "source": "WorkCenter", "target": "WorkCenter" }
       ]
@@ -79,7 +78,7 @@
       "fieldMappings": [
         { "source": "MaterialCode", "target": "IdProduct", "lookup": { "entity": "Product", "by": "Reference" } },
         { "source": "CenterCode", "target": "IdCenter", "lookup": { "entity": "Center", "by": "Code" } },
-        { "source": "Quantity", "target": "Quantity" },
+        { "source": "Quantity", "target": "Consumption" },
         { "source": "Date", "target": "Date" }
       ]
     },

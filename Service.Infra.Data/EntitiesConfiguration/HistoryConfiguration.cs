@@ -15,7 +15,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
 
             builder.Property(h => h.IdProduct).IsRequired();
             builder.Property(h => h.IdCenter).IsRequired();
-            builder.Property(h => h.Quantity).IsRequired().HasPrecision(18, 4);
+            builder.Property(h => h.Consumption).IsRequired().HasPrecision(18, 4);
             builder.Property(h => h.Date).IsRequired();
             builder.Property(h => h.DiscardStatus).IsRequired().HasDefaultValue(DiscardStatus.NotReviewed);
 

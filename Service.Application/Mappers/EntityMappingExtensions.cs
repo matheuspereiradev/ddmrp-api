@@ -54,7 +54,6 @@ namespace Service.Application.Mappers
             Pallet = product.Pallet,
             Line = product.Line,
             Subline = product.Subline,
-            ABC = product.ABC,
             Brand = product.Brand,
             WorkCenter = product.WorkCenter
         };

@@ -80,7 +80,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 WHERE cp.deletedAt IS NULL AND cp.BufferType = 2
             ),
             MaxOutflow AS (
-                SELECT h.IdProduct, h.IdCenter, MAX(h.Quantity) AS Value
+                SELECT h.IdProduct, h.IdCenter, MAX(h.Consumption) AS Value
                 FROM dbo.Histories h
                 WHERE h.deletedAt IS NULL
                   AND h.DiscardStatus <> 2

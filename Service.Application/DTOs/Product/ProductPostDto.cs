@@ -46,9 +46,6 @@ namespace Service.Application.DTOs.Product
         [MaxLength(100, ErrorMessage = "The field {0} has the maxlength 100")]
         public string? Subline { get; set; }
 
-        [MaxLength(5, ErrorMessage = "The field {0} has the maxlength 5")]
-        public string? ABC { get; set; }
-
         [MaxLength(100, ErrorMessage = "The field {0} has the maxlength 100")]
         public string? Brand { get; set; }
 

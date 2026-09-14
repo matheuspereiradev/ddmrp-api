@@ -16,7 +16,6 @@ namespace Service.Application.DTOs.Product
         public decimal? Pallet { get; set; }
         public string? Line { get; set; }
         public string? Subline { get; set; }
-        public string? ABC { get; set; }
         public string? Brand { get; set; }
         public string? WorkCenter { get; set; }
     }

@@ -32,7 +32,6 @@ public class ProductServiceTests
         Pallet = 100m,
         Line = "Linha A",
         Subline = "Sublinha A",
-        ABC = "A",
         Brand = "Marca A",
         WorkCenter = "WC01"
     };
@@ -105,7 +104,6 @@ public class ProductServiceTests
         Pallet = 100m,
         Line = "Linha A",
         Subline = "Sublinha A",
-        ABC = "A",
         Brand = "Marca A",
         WorkCenter = "WC01"
     };
