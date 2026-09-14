@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Service.Domain.Interfaces;
 using Service.Domain.Report.Results;
+using Service.Domain.Utils;
 using Service.Infra.Data.Context;
 
 namespace Service.Infra.Data.Repositories
@@ -16,7 +17,7 @@ namespace Service.Infra.Data.Repositories
 
         public async Task<List<InventoryBufferManagementRow>> GetInventoryBufferManagementAsync(CancellationToken cancellationToken = default)
         {
-            return await _context.CenterProduct
+            var rows = await _context.CenterProduct
                 .Where(cp => cp.deletedAt == null && cp.Center.deletedAt == null && cp.Product.deletedAt == null)
                 .Select(cp => new InventoryBufferManagementRow
                 {
@@ -50,6 +51,9 @@ namespace Service.Infra.Data.Repositories
                     RedZone = cp.RedZone,
                     YellowZone = cp.YellowZone,
                     GreenZone = cp.GreenZone,
+                    TopOfRed = cp.TopOfRed,
+                    TopOfYellow = cp.TopOfYellow,
+                    TopOfGreen = cp.TopOfGreen,
                     UseDafOnGreenZone = cp.UseDafOnGreenZone,
                     CustomLeadTimeFactor = cp.CustomLeadTimeFactor,
                     CustomVariabilityFactor = cp.CustomVariabilityFactor,
@@ -91,6 +95,9 @@ namespace Service.Infra.Data.Repositories
                     ProviderDescription = cp.Provider != null && cp.Provider.deletedAt == null ? cp.Provider.Description : null,
 
                     BufferProfileName = cp.BufferProfile != null && cp.BufferProfile.deletedAt == null ? cp.BufferProfile.ProfileName : null,
+                    TagName = cp.Tag != null && cp.Tag.deletedAt == null ? cp.Tag.Name : null,
+                    ReasonName = cp.Reason != null && cp.Reason.deletedAt == null ? cp.Reason.Name : null,
+                    AllocationGroupName = cp.AllocationGroup != null && cp.AllocationGroup.deletedAt == null ? cp.AllocationGroup.Name : null,
 
                     Entradas = _context.Order
                         .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct)
@@ -106,6 +113,15 @@ namespace Service.Infra.Data.Repositories
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0
                 })
                 .ToListAsync(cancellationToken);
+
+            foreach (var row in rows)
+            {
+                row.Netflow = UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Entradas);
+                row.OrderQuantity = UtilsDdmrp.CalculateOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0);
+                row.OptimizedOrderQuantity = UtilsDdmrp.CalculateOptimizedOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0, row.Moq, row.PackQuantity);
+            }
+
+            return rows;
         }
     }
 }

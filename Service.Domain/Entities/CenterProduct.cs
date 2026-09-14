@@ -41,6 +41,9 @@ namespace Service.Domain.Entities
         public decimal? RedZone => RedZoneBase + RedZoneSafe;
         public decimal? YellowZone { get; set; }
         public decimal? GreenZone { get; set; }
+        public decimal? TopOfRed => RedZoneBase + RedZoneSafe;
+        public decimal? TopOfYellow => RedZoneBase + RedZoneSafe + YellowZone;
+        public decimal? TopOfGreen => RedZoneBase + RedZoneSafe + YellowZone + GreenZone;
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; } = 1;
         public decimal CustomVariabilityFactor { get; set; } = 1;

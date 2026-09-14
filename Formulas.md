@@ -425,3 +425,37 @@ QualifiedDemand = soma dos valores de todos os dias qualificados dentro do horiz
 ```
 
 Não é o maior dia nem um valor por dia — é a soma total.
+
+## NetFlow
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateNetflow(decimal stock, decimal qualifiedDemand, decimal inbounds)`. Não é um calculation step (não escreve nenhuma coluna sozinho) — é um método estático compartilhado por toda a aplicação (`Service.Domain`, sem dependências, acessível de `Application`/`Infra.Data`/`API`), pra ser chamado de onde quer que precise do NetFlow (ex.: um futuro step ou report).
+
+```
+NetFlow = Stock + Inbounds - QualifiedDemand
+```
+
+**Campos envolvidos**: `CenterProduct.Stock`, `CenterProduct.QualifiedDemand` (ver seção acima), `Inbounds` (soma de entradas pendentes — não é uma coluna própria, passado como parâmetro por quem chama o método).
+
+## OrderQuantity
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateOrderQuantity(decimal netflow, decimal topOfYellow, decimal topOfGreen)`. Mesmo status do NetFlow: método estático compartilhado, não é um calculation step, não escreve nenhuma coluna sozinho.
+
+```
+OrderQuantity = TopOfGreen - Netflow,   se Netflow < TopOfYellow
+              = 0,                      caso contrário
+```
+
+**Campos envolvidos**: `Netflow` (resultado de `CalculateNetflow`, ver seção acima), `CenterProduct.TopOfYellow`/`TopOfGreen` (ver seção "Colunas calculadas" de `CenterProduct` em `CLAUDE.md`) — todos passados como parâmetro, nenhum lido diretamente do banco pelo método.
+
+## OptimizedOrderQuantity
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateOptimizedOrderQuantity(decimal netflow, decimal topOfYellow, decimal topOfGreen, decimal moq, decimal packQuantity)`. Mesmo status do NetFlow/OrderQuantity: método estático compartilhado, não é um calculation step.
+
+```
+Quantity = OrderQuantity(Netflow, TopOfYellow, TopOfGreen)
+
+OptimizedOrderQuantity = 0,                                         se Quantity < Moq (pedido menor que o mínimo, não vale a pena gerar)
+                        = CEILING(Quantity / PackQuantity) * PackQuantity,   caso contrário (arredonda pra cima pro múltiplo de PackQuantity)
+```
+
+**Campos envolvidos**: `Netflow`/`TopOfYellow`/`TopOfGreen` (mesmos do `OrderQuantity`, ver seção acima), `CenterProduct.Moq`, `CenterProduct.PackQuantity` — todos passados como parâmetro. Chama `CalculateOrderQuantity` internamente (não duplica a lógica).

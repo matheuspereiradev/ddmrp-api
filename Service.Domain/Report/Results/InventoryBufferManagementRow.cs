@@ -34,6 +34,9 @@ namespace Service.Domain.Report.Results
         public decimal? RedZone { get; set; }
         public decimal? YellowZone { get; set; }
         public decimal? GreenZone { get; set; }
+        public decimal? TopOfRed { get; set; }
+        public decimal? TopOfYellow { get; set; }
+        public decimal? TopOfGreen { get; set; }
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; }
         public decimal CustomVariabilityFactor { get; set; }
@@ -75,10 +78,17 @@ namespace Service.Domain.Report.Results
         public string? ProviderDescription { get; set; }
 
         public string? BufferProfileName { get; set; }
+        public string? TagName { get; set; }
+        public string? ReasonName { get; set; }
+        public string? AllocationGroupName { get; set; }
 
         public decimal Entradas { get; set; }
         public decimal EntradasFicticias { get; set; }
         public decimal Saidas { get; set; }
         public decimal SaidasFicticias { get; set; }
+
+        public decimal Netflow { get; set; }
+        public decimal OrderQuantity { get; set; }
+        public decimal OptimizedOrderQuantity { get; set; }
     }
 }

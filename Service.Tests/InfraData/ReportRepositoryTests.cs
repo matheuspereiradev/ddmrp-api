@@ -33,7 +33,10 @@ public class ReportRepositoryTests
             IdProduct = product.Id,
             IdCenter = center.Id,
             IdProvider = provider.Id,
-            IdBufferProfile = bufferProfile.Id
+            IdBufferProfile = bufferProfile.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 100m
         };
 
         context.AddRange(center, otherCenter, product, otherProduct, provider, bufferProfile, centerProduct);
@@ -75,7 +78,7 @@ public class ReportRepositoryTests
 
         var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
         var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
-        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id };
+        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 100m };
 
         context.AddRange(center, product, centerProduct);
         await context.SaveChangesAsync();
