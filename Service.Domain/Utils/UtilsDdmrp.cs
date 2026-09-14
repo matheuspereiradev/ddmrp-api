@@ -21,7 +21,7 @@ namespace Service.Domain.Utils
 
             var quantity = CalculateOrderQuantity(netflow, topOfYellow, topOfGreen);
 
-            return quantity < moq ? 0 : Math.Ceiling(quantity / packQuantity) * packQuantity;
+            return quantity < moq ? 0 : Math.Floor(quantity / packQuantity) * packQuantity;
         }
 
         public static decimal CalculateBufferPercentage(decimal topOfGreen, decimal delta)
