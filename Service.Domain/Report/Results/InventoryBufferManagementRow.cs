@@ -100,9 +100,14 @@ namespace Service.Domain.Report.Results
 
         public decimal Netflow { get; set; }
         public decimal OrderQuantity { get; set; }
+        public decimal SystemOptimizedOrderQuantity { get; set; }
+        public bool HasSuggestion { get; set; }
         public decimal OptimizedOrderQuantity { get; set; }
+        public bool Approved { get; set; }
         public decimal NetflowBufferPercentage { get; set; }
+        public decimal SimulatedNetflowBufferPercentage { get; set; }
         public BufferColor NetflowBufferColor { get; set; }
+        public BufferColor SimulatedNetflowBufferColor { get; set; }
         public decimal CoverageDays { get; set; }
         public decimal ExecutionBufferPercentage { get; set; }
         public BufferColor ExecutionBufferColor { get; set; }

@@ -31,6 +31,7 @@ namespace Service.Infra.Data.Context
         public DbSet<BufferProfile> BufferProfile { get; set; }
         public DbSet<Note> Note { get; set; }
         public DbSet<Order> Order { get; set; }
+        public DbSet<Workspace> Workspace { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

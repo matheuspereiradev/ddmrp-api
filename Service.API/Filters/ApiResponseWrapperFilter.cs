@@ -8,6 +8,16 @@ namespace Service.API.Filters
     {
         public Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
         {
+            // OData routes (e.g. ReportController.InventoryBufferManagement) return their own
+            // value/@odata.count shape for TanStack Table + odata-query on the frontend — never
+            // wrap those in ApiResponseDto<T>. Marked explicitly with [SkipApiResponseWrapper]
+            // rather than detecting OData by attribute, since that route builds its response
+            // manually via ODataQueryOptions<T> instead of [EnableQuery] (see ReportController —
+            // [EnableQuery] alone doesn't produce the {value, @odata.count} envelope outside
+            // conventional OData routing with a registered EDM model).
+            if (context.ActionDescriptor.EndpointMetadata.Any(m => m is SkipApiResponseWrapperAttribute))
+                return next();
+
             switch (context.Result)
             {
                 case ObjectResult objectResult:

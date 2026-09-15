@@ -16,12 +16,12 @@ public class ReportServiceTests
     }
 
     [Fact]
-    public async Task GetInventoryBufferManagementAsync_ReturnsWhatTheRepositoryReturns()
+    public void GetInventoryBufferManagementQueryable_ReturnsWhatTheRepositoryReturns()
     {
-        var rows = new List<InventoryBufferManagementRow> { new() { CenterCode = "C1" } };
-        _reportRepository.GetInventoryBufferManagementAsync(Arg.Any<CancellationToken>()).Returns(rows);
+        var rows = new List<InventoryBufferManagementRow> { new() { CenterCode = "C1" } }.AsQueryable();
+        _reportRepository.GetInventoryBufferManagementQueryable().Returns(rows);
 
-        var result = await _sut.GetInventoryBufferManagementAsync();
+        var result = _sut.GetInventoryBufferManagementQueryable();
 
         Assert.Same(rows, result);
     }

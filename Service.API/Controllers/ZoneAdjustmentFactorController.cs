@@ -29,9 +29,13 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllZoneAdjustmentFactors([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllZoneAdjustmentFactors(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var zoneAdjustmentFactors = await _zoneAdjustmentFactorService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var zoneAdjustmentFactors = await _zoneAdjustmentFactorService.GetFilteredAsync(idProduct, idCenter, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, zoneAdjustmentFactors.TotalCount, zoneAdjustmentFactors.TotalPages));

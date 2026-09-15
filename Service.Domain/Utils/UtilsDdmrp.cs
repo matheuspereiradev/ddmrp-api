@@ -9,6 +9,11 @@ namespace Service.Domain.Utils
             return stock + inbounds - qualifiedDemand;
         }
 
+        public static decimal CalculateSimulatedNetflow(decimal netflow, bool approved, decimal workspaceOptimizedQuantity)
+        {
+            return netflow + (approved ? workspaceOptimizedQuantity : 0);
+        }
+
         public static decimal CalculateOrderQuantity(decimal netflow, decimal topOfYellow, decimal topOfGreen)
         {
             return netflow < topOfYellow ? topOfGreen - netflow : 0;

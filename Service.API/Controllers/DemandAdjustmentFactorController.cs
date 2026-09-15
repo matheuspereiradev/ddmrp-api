@@ -29,9 +29,13 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllDemandAdjustmentFactors([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllDemandAdjustmentFactors(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var demandAdjustmentFactors = await _demandAdjustmentFactorService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var demandAdjustmentFactors = await _demandAdjustmentFactorService.GetFilteredAsync(idProduct, idCenter, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, demandAdjustmentFactors.TotalCount, demandAdjustmentFactors.TotalPages));

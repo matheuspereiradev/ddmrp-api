@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Service.Domain.Account;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 using Service.Infra.Data.Context;
+using Service.Infra.Data.Helpers;
 
 namespace Service.Infra.Data.Repositories
 {
@@ -25,6 +27,19 @@ namespace Service.Infra.Data.Repositories
                 && d.EffectiveFrom <= effectiveTo
                 && d.EffectiveTo >= effectiveFrom,
                 cancellationToken);
+        }
+
+        public async Task<PagedList<DemandAdjustmentFactor>> GetFilteredAsync(int? idProduct, int? idCenter, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var query = ApplyIncludes(_dbSet.AsQueryable()).Where(d => d.deletedAt == null);
+
+            if (idProduct.HasValue)
+                query = query.Where(d => d.IdProduct == idProduct.Value);
+
+            if (idCenter.HasValue)
+                query = query.Where(d => d.IdCenter == idCenter.Value);
+
+            return await PaginationHelper.CreateAsync(query, pageNumber, pageSize, cancellationToken);
         }
     }
 }

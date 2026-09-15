@@ -5,17 +5,20 @@ using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
     public class HistoryService : BaseService<History, HistoryGetDto, HistoryPostDto, HistoryPutDto>, IHistoryService
     {
+        private readonly IHistoryRepository _historyRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
 
         public HistoryService(IHistoryRepository repository, IProductRepository productRepository, ICenterRepository centerRepository)
             : base(repository)
         {
+            _historyRepository = repository;
             _productRepository = productRepository;
             _centerRepository = centerRepository;
         }
@@ -62,6 +65,24 @@ namespace Service.Application.Services
                 throw new BadRequestException("Center not found.");
 
             return await base.AddAsync(postDTO, cancellationToken);
+        }
+
+        public async Task<PagedList<HistoryGetDto>> GetFilteredAsync(int? idProduct, int? idCenter, DateTime? dateStart, DateTime? dateEnd, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var paged = await _historyRepository.GetFilteredAsync(idProduct, idCenter, dateStart, dateEnd, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<HistoryGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
+        }
+
+        public async Task<HistoryGetDto> SetDiscardStatusAsync(int id, DiscardStatus discardStatus, CancellationToken cancellationToken = default)
+        {
+            var entity = await _repository.GetByIdAsync(id, cancellationToken);
+            if (entity == null)
+                throw new NotFoundException("Not found");
+
+            entity.DiscardStatus = discardStatus;
+            var updated = await _repository.UpdateAsync(entity, cancellationToken);
+            return ToGetDTO(updated);
         }
     }
 }

@@ -5,6 +5,7 @@ using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Tests.Application;
 
@@ -178,5 +179,21 @@ public class ZoneAdjustmentFactorServiceTests
         _zoneAdjustmentFactorRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((ZoneAdjustmentFactor)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetActiveAsync(1, true));
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    {
+        var entities = new List<ZoneAdjustmentFactor>
+        {
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, TargetZone = TargetZone.RedZone }
+        };
+        _zoneAdjustmentFactorRepository.GetFilteredAsync(2, 3, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<ZoneAdjustmentFactor>(entities, 1, 10, 1));
+
+        var result = await _sut.GetFilteredAsync(idProduct: 2, idCenter: 3, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(2, Assert.Single(result).IdProduct);
     }
 }

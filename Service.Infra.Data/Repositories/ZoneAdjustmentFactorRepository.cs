@@ -3,7 +3,9 @@ using Service.Domain.Account;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 using Service.Infra.Data.Context;
+using Service.Infra.Data.Helpers;
 
 namespace Service.Infra.Data.Repositories
 {
@@ -27,6 +29,19 @@ namespace Service.Infra.Data.Repositories
                 && z.EffectiveFrom <= effectiveTo
                 && z.EffectiveTo >= effectiveFrom,
                 cancellationToken);
+        }
+
+        public async Task<PagedList<ZoneAdjustmentFactor>> GetFilteredAsync(int? idProduct, int? idCenter, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var query = ApplyIncludes(_dbSet.AsQueryable()).Where(z => z.deletedAt == null);
+
+            if (idProduct.HasValue)
+                query = query.Where(z => z.IdProduct == idProduct.Value);
+
+            if (idCenter.HasValue)
+                query = query.Where(z => z.IdCenter == idCenter.Value);
+
+            return await PaginationHelper.CreateAsync(query, pageNumber, pageSize, cancellationToken);
         }
     }
 }

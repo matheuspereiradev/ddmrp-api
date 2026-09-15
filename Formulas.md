@@ -498,6 +498,8 @@ OptimizedOrderQuantity = 0,                                         se Quantity 
 
 **Campos envolvidos**: `Netflow`/`TopOfYellow`/`TopOfGreen` (mesmos do `OrderQuantity`, ver seção acima), `CenterProduct.Moq`, `CenterProduct.PackQuantity` — todos passados como parâmetro. Chama `CalculateOrderQuantity` internamente (não duplica a lógica). `PackQuantity = 0` retorna `0` (guarda adicionada 2026-09-14 — antes disparava `DivideByZeroException`, mesma "se não tiver base pra calcular, retorne 0" convenção já usada em `CalculateBufferPercentage`/`CalculateBufferColor` pro caso `TopOfGreen = 0`).
 
+**Report `inventoryBufferManagement`: override por `Workspace` (2026-09-15)** — o valor acima (`CalculateOptimizedOrderQuantity`) é exposto no report como `SystemOptimizedOrderQuantity` (renomeado, era `OptimizedOrderQuantity`). `HasSuggestion = SystemOptimizedOrderQuantity > 0`. O report faz um left join com `Workspace` (`Service.Domain.Entities.Workspace`, chave `IdCenter`+`IdProduct`+`IdUser`, escopado ao usuário autenticado da requisição) e expõe um novo campo `OptimizedOrderQuantity = Workspace.OptimizedQuantity` quando existir uma linha de `Workspace` pro usuário atual, senão `SystemOptimizedOrderQuantity`. `Approved = Workspace.Approved`, `false` quando não existe linha de `Workspace`. Implementado em `ReportRepository.GetInventoryBufferManagementQueryable` como subquery correlacionada (`FirstOrDefault`) — mesmo padrão dos outros lookups opcionais (`ProviderCode`/`BufferProfileName`), não um `GroupJoin`.
+
 ## BufferPercentage
 
 Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateBufferPercentage(decimal topOfGreen, decimal delta)` (parâmetro renomeado de `netflow` pra `delta` 2026-09-14, quando passou a ser usado também com `Stock` no lugar de `Netflow` — ver `NetflowBufferPercentage`/`ExecutionBufferPercentage` no report). Mesmo status dos outros: método estático compartilhado, não é um calculation step.
@@ -508,6 +510,22 @@ BufferPercentage = Delta / TopOfGreen,   se TopOfGreen <> 0
 ```
 
 **Campos envolvidos**: `TopOfGreen`, `Delta` — ambos passados como parâmetro; qual "topo" e qual "delta" dependem de quem chama (ver report, abaixo). `TopOfGreen = 0` é o caso comum de um item que ainda não teve as zonas calculadas pelo Robot — tratado como "sem buffer" e retorna `0`, não uma exceção.
+
+## SimulatedNetflow / SimulatedNetflowBufferPercentage / SimulatedNetflowBufferColor
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateSimulatedNetflow(decimal netflow, bool approved, decimal workspaceOptimizedQuantity)` (adicionado 2026-09-15). Mesmo status dos outros: método estático compartilhado, não é um calculation step, não escreve nenhuma coluna sozinho.
+
+```
+SimulatedNetflow = Netflow + WorkspaceOptimizedQuantity,   se Workspace.Approved = true
+                  = Netflow,                                se Workspace.Approved = false ou não existe linha de Workspace
+
+SimulatedNetflowBufferPercentage = BufferPercentage(TopOfGreen, SimulatedNetflow)
+SimulatedNetflowBufferColor = BufferColor(SimulatedNetflow, TopOfRed, TopOfYellow, TopOfGreen)
+```
+
+**Campos envolvidos**: `Netflow` (ver seção acima), `Workspace.Approved`/`Workspace.OptimizedQuantity` (ver "Report `inventoryBufferManagement`: override por `Workspace`" na seção `OptimizedOrderQuantity` acima — mesmo left join, escopado ao usuário autenticado da requisição), `TopOfGreen`/`TopOfRed`/`TopOfYellow`. Reaproveita `CalculateBufferPercentage`/`CalculateBufferColor` internamente (não duplica a lógica de divisão/classificação, só o termo `SimulatedNetflow`). Não usa `OptimizedOrderQuantity`/`SystemOptimizedOrderQuantity` (que já faz o fallback pro valor do sistema quando não há `Workspace`) — quando não aprovado, o termo simplesmente some da soma, não vira `SystemOptimizedOrderQuantity`.
+
+**Report `inventoryBufferManagement`**: exposto como `SimulatedNetflowBufferPercentage`/`SimulatedNetflowBufferColor`, calculados inline em `ReportRepository.GetInventoryBufferManagementQueryable` a partir de um `SimulatedNetflow` intermediário calculado uma vez e reaproveitado pelos dois (mesma convenção de expressão SQL-translatável das outras métricas derivadas do report, não uma chamada a `UtilsDdmrp` pós-materialização — ver o comentário no topo do método).
 
 ## BufferColor
 

@@ -4,6 +4,7 @@ using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
@@ -110,6 +111,13 @@ namespace Service.Application.Services
 
             var created = await _repository.AddAsync(entity, cancellationToken);
             return ToGetDTO(created);
+        }
+
+        public async Task<PagedList<BufferAdjustmentFactorGetDto>> GetFilteredAsync(int? idProduct, int? idCenter, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var paged = await _bufferAdjustmentFactorRepository.GetFilteredAsync(idProduct, idCenter, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<BufferAdjustmentFactorGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
 
         public async Task<BufferAdjustmentFactorGetDto> SetActiveAsync(int id, bool isActive, CancellationToken cancellationToken = default)

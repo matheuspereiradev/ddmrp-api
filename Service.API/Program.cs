@@ -6,6 +6,7 @@ using Service.API.Swagger;
 using Service.Infra.Ioc;
 using DotNetEnv;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.OData;
 using Microsoft.OpenApi;
 using System.Text.Json.Serialization;
 
@@ -18,6 +19,7 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiResponseWrapperFilter>();
 })
+.AddOData(options => options.EnableQueryFeatures(maxTopValue: 500))
 .AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());

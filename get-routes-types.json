@@ -18,6 +18,16 @@
       "items": "T[] (the array itself — PagedList<T> extends List<T>, so in JSON it's a plain array with currentPage/totalPages/pageSize/totalCount as extra properties on it)"
     }
   },
+  "odataEnvelope": {
+    "description": "Exception to the ApiResponseDto<T> envelope above: GET /api/report/inventoryBufferManagement is OData ([EnableQuery]), not wrapped. Built for TanStack Table + odata-query — $filter/$orderby/$top/$skip/$count run in SQL, not in-memory, since the underlying table can hold up to ~1M rows.",
+    "shape": {
+      "value": "T[]",
+      "@odata.count": "number (present only when $count=true was sent)"
+    },
+    "supportedQueryOptions": ["$filter", "$orderby", "$top", "$skip", "$count"],
+    "notSupported": "$apply (groupby/aggregate), $select, $expand — not enabled on this route",
+    "maxTop": 500
+  },
   "enums": {
     "TargetZone": ["RedZone", "YellowZone", "GreenZone"],
     "AdjustmentType": ["FlatValue", "Percentage"],
@@ -100,7 +110,14 @@
       "method": "GET",
       "route": "/api/forecast",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "dateStart": "string (ISO date) | null (optional filter)",
+        "dateEnd": "string (ISO date) | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<ForecastGetDto>",
       "itemShape": {
         "id": "number",
@@ -116,7 +133,14 @@
       "method": "GET",
       "route": "/api/history",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "dateStart": "string (ISO date) | null (optional filter)",
+        "dateEnd": "string (ISO date) | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<HistoryGetDto>",
       "itemShape": {
         "id": "number",
@@ -278,7 +302,12 @@
       "method": "GET",
       "route": "/api/zoneAdjustmentFactor",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<ZoneAdjustmentFactorGetDto>",
       "itemShape": {
         "id": "number",
@@ -299,7 +328,12 @@
       "method": "GET",
       "route": "/api/bufferAdjustmentFactor",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<BufferAdjustmentFactorGetDto>",
       "itemShape": {
         "id": "number",
@@ -327,7 +361,12 @@
       "method": "GET",
       "route": "/api/demandAdjustmentFactor",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<DemandAdjustmentFactorGetDto>",
       "itemShape": {
         "id": "number",
@@ -435,8 +474,15 @@
       "method": "GET",
       "route": "/api/report/inventoryBufferManagement",
       "auth": true,
-      "queryParams": {},
-      "responseData": "InventoryBufferManagementRow[] (plain array, NOT a PagedList — no pagination)",
+      "odata": true,
+      "queryParams": {
+        "$filter": "string (optional, OData filter expression, e.g. $filter=stock gt 100 and centerCode eq 'C1')",
+        "$orderby": "string (optional, e.g. $orderby=stock desc)",
+        "$top": "number (optional, max 500)",
+        "$skip": "number (optional)",
+        "$count": "boolean (optional, adds @odata.count to the response)"
+      },
+      "responseData": "See 'odataEnvelope' above — NOT ApiResponseDto<T>, NOT a PagedList. { value: InventoryBufferManagementRow[], '@odata.count'?: number }",
       "itemShape": {
         "id": "number",
         "idProduct": "number",
@@ -528,9 +574,14 @@
         "fictionalOutbounds": "number",
         "netflow": "number",
         "orderQuantity": "number",
-        "optimizedOrderQuantity": "number",
+        "systemOptimizedOrderQuantity": "number (the system-suggested optimized order quantity, before any Workspace override)",
+        "hasSuggestion": "boolean (systemOptimizedOrderQuantity > 0)",
+        "optimizedOrderQuantity": "number (Workspace.optimizedQuantity for the current user when set, else systemOptimizedOrderQuantity)",
+        "approved": "boolean (Workspace.approved for the current user; false when no Workspace row exists)",
         "netflowBufferPercentage": "number",
+        "simulatedNetflowBufferPercentage": "number ((Netflow + (Workspace.approved ? Workspace.optimizedQuantity : 0)) / TopOfGreen, for the current user; 0 when TopOfGreen = 0)",
         "netflowBufferColor": "BufferColor (enum string)",
+        "simulatedNetflowBufferColor": "BufferColor (enum string) (same zone classification as netflowBufferColor, but against SimulatedNetflow instead of Netflow)",
         "coverageDays": "number",
         "executionBufferPercentage": "number",
         "executionBufferColor": "BufferColor (enum string)"

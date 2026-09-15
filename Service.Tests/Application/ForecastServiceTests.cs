@@ -4,6 +4,7 @@ using Service.Application.Exceptions;
 using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Tests.Application;
 
@@ -134,5 +135,23 @@ public class ForecastServiceTests
         _forecastRepository.DeleteAsync(1, Arg.Any<CancellationToken>()).Returns((Forecast)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.DeleteAsync(1));
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    {
+        var entities = new List<Forecast>
+        {
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, Quantity = 10m, Date = new DateTime(2026, 1, 1) }
+        };
+        var dateStart = new DateTime(2026, 1, 1);
+        var dateEnd = new DateTime(2026, 12, 31);
+        _forecastRepository.GetFilteredAsync(2, 3, dateStart, dateEnd, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<Forecast>(entities, 1, 10, 1));
+
+        var result = await _sut.GetFilteredAsync(idProduct: 2, idCenter: 3, dateStart: dateStart, dateEnd: dateEnd, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(2, Assert.Single(result).IdProduct);
     }
 }

@@ -13,8 +13,8 @@ namespace Service.Application.Services
             _reportRepository = reportRepository;
         }
 
-        public Task<List<InventoryBufferManagementRow>> GetInventoryBufferManagementAsync(CancellationToken cancellationToken = default) =>
-            _reportRepository.GetInventoryBufferManagementAsync(cancellationToken);
+        public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable() =>
+            _reportRepository.GetInventoryBufferManagementQueryable();
 
         public Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default) =>
             _reportRepository.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);

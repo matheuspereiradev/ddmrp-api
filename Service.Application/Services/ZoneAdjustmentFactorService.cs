@@ -4,6 +4,7 @@ using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
@@ -80,6 +81,13 @@ namespace Service.Application.Services
                 throw new BadRequestException("There is already an active zone adjustment factor for this product/center/zone in the given period.");
 
             return await base.AddAsync(postDTO, cancellationToken);
+        }
+
+        public async Task<PagedList<ZoneAdjustmentFactorGetDto>> GetFilteredAsync(int? idProduct, int? idCenter, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var paged = await _zoneAdjustmentFactorRepository.GetFilteredAsync(idProduct, idCenter, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<ZoneAdjustmentFactorGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
 
         public async Task<ZoneAdjustmentFactorGetDto> SetActiveAsync(int id, bool isActive, CancellationToken cancellationToken = default)

@@ -17,6 +17,17 @@ public class UtilsDdmrpTests
     }
 
     [Theory]
+    [InlineData(80, true, 42, 122)]
+    [InlineData(80, false, 42, 80)]
+    [InlineData(-30, true, 0, -30)]
+    public void CalculateSimulatedNetflow_AddsWorkspaceOptimizedQuantity_OnlyWhenApproved(decimal netflow, bool approved, decimal workspaceOptimizedQuantity, decimal expected)
+    {
+        var result = UtilsDdmrp.CalculateSimulatedNetflow(netflow, approved, workspaceOptimizedQuantity);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
     [InlineData(50, 100, 200, 150)]
     [InlineData(100, 100, 200, 0)]
     [InlineData(150, 100, 200, 0)]

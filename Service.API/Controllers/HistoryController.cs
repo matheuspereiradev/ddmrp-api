@@ -28,9 +28,15 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllHistories([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllHistories(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] DateTime? dateStart,
+            [FromQuery] DateTime? dateEnd,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var histories = await _historyService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var histories = await _historyService.GetFilteredAsync(idProduct, idCenter, dateStart, dateEnd, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, histories.TotalCount, histories.TotalPages));
@@ -51,6 +57,14 @@ namespace Service.API.Controllers
         public async Task<ActionResult> DeleteHistory(int id, CancellationToken cancellationToken)
         {
             var history = await _historyService.DeleteAsync(id, cancellationToken);
+            return Ok(history);
+        }
+
+        [HttpPatch("{id}/discard-status")]
+        [Authorize]
+        public async Task<ActionResult> SetDiscardStatus(int id, SetDiscardStatusDto setDiscardStatusDto, CancellationToken cancellationToken)
+        {
+            var history = await _historyService.SetDiscardStatusAsync(id, setDiscardStatusDto.DiscardStatus, cancellationToken);
             return Ok(history);
         }
     }

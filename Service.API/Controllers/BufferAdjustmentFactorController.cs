@@ -29,9 +29,13 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllBufferAdjustmentFactors([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllBufferAdjustmentFactors(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var bufferAdjustmentFactors = await _bufferAdjustmentFactorService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var bufferAdjustmentFactors = await _bufferAdjustmentFactorService.GetFilteredAsync(idProduct, idCenter, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, bufferAdjustmentFactors.TotalCount, bufferAdjustmentFactors.TotalPages));

@@ -28,9 +28,15 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllForecasts([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllForecasts(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] DateTime? dateStart,
+            [FromQuery] DateTime? dateEnd,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var forecasts = await _forecastService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var forecasts = await _forecastService.GetFilteredAsync(idProduct, idCenter, dateStart, dateEnd, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, forecasts.TotalCount, forecasts.TotalPages));

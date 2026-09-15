@@ -4,7 +4,8 @@ namespace Service.Domain.Interfaces
 {
     public interface IReportRepository
     {
-        Task<List<InventoryBufferManagementRow>> GetInventoryBufferManagementAsync(CancellationToken cancellationToken = default);
+        IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable();
+        Task<InventoryBufferManagementRow?> GetInventoryBufferManagementRowAsync(int idCenter, int idProduct, CancellationToken cancellationToken = default);
         Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default);
     }
 }

@@ -5,6 +5,7 @@ using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Tests.Application;
 
@@ -303,6 +304,22 @@ public class BufferAdjustmentFactorServiceTests
         Assert.True(result.AlreadyReverted);
         Assert.Equal(BufferType.Normal, centerProduct.BufferType);
         await _centerProductRepository.Received(1).UpdateAsync(centerProduct, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    {
+        var entities = new List<BufferAdjustmentFactor>
+        {
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, BufferType = BufferType.Normal }
+        };
+        _bufferAdjustmentFactorRepository.GetFilteredAsync(2, 3, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<BufferAdjustmentFactor>(entities, 1, 10, 1));
+
+        var result = await _sut.GetFilteredAsync(idProduct: 2, idCenter: 3, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(2, Assert.Single(result).IdProduct);
     }
 
     [Fact]

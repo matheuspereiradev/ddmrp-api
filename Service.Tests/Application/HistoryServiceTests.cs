@@ -5,6 +5,7 @@ using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Tests.Application;
 
@@ -137,5 +138,45 @@ public class HistoryServiceTests
         _historyRepository.DeleteAsync(1, Arg.Any<CancellationToken>()).Returns((History)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.DeleteAsync(1));
+    }
+
+    [Fact]
+    public async Task SetDiscardStatusAsync_UpdatesOnlyDiscardStatus_WhenHistoryExists()
+    {
+        var existing = new History { Id = 1, IdProduct = 1, IdCenter = 1, Consumption = 10m, Date = new DateTime(2026, 9, 11), DiscardStatus = DiscardStatus.NotReviewed };
+        _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
+        _historyRepository.UpdateAsync(Arg.Any<History>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<History>());
+
+        var result = await _sut.SetDiscardStatusAsync(1, DiscardStatus.Discarded);
+
+        Assert.Equal(DiscardStatus.Discarded, result.DiscardStatus);
+        Assert.Equal(10m, result.Consumption);
+    }
+
+    [Fact]
+    public async Task SetDiscardStatusAsync_ThrowsNotFoundException_WhenHistoryDoesNotExist()
+    {
+        _historyRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns((History)null!);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.SetDiscardStatusAsync(1, DiscardStatus.Discarded));
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    {
+        var entities = new List<History>
+        {
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, Consumption = 10m, Date = new DateTime(2026, 1, 1) }
+        };
+        var dateStart = new DateTime(2026, 1, 1);
+        var dateEnd = new DateTime(2026, 12, 31);
+        _historyRepository.GetFilteredAsync(2, 3, dateStart, dateEnd, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<History>(entities, 1, 10, 1));
+
+        var result = await _sut.GetFilteredAsync(idProduct: 2, idCenter: 3, dateStart: dateStart, dateEnd: dateEnd, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(2, Assert.Single(result).IdProduct);
     }
 }

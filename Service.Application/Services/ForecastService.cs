@@ -4,17 +4,20 @@ using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
     public class ForecastService : BaseService<Forecast, ForecastGetDto, ForecastPostDto, ForecastPutDto>, IForecastService
     {
+        private readonly IForecastRepository _forecastRepository;
         private readonly IProductRepository _productRepository;
         private readonly ICenterRepository _centerRepository;
 
         public ForecastService(IForecastRepository repository, IProductRepository productRepository, ICenterRepository centerRepository)
             : base(repository)
         {
+            _forecastRepository = repository;
             _productRepository = productRepository;
             _centerRepository = centerRepository;
         }
@@ -58,6 +61,13 @@ namespace Service.Application.Services
                 throw new BadRequestException("Center not found.");
 
             return await base.AddAsync(postDTO, cancellationToken);
+        }
+
+        public async Task<PagedList<ForecastGetDto>> GetFilteredAsync(int? idProduct, int? idCenter, DateTime? dateStart, DateTime? dateEnd, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var paged = await _forecastRepository.GetFilteredAsync(idProduct, idCenter, dateStart, dateEnd, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<ForecastGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
     }
 }

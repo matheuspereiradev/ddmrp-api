@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using Service.Domain.Account;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Utils;
@@ -17,8 +19,15 @@ public class ReportRepositoryTests
         return new ApplicationDbContext(options);
     }
 
+    private static ReportRepository CreateRepository(ApplicationDbContext context, int currentUserId = 1)
+    {
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns(currentUserId);
+        return new ReportRepository(context, currentUser);
+    }
+
     [Fact]
-    public async Task GetInventoryBufferManagementAsync_JoinsRelatedDataAndSumsOrdersScopedByProductAndCenter()
+    public async Task GetInventoryBufferManagementQueryable_JoinsRelatedDataAndSumsOrdersScopedByProductAndCenter()
     {
         await using var context = CreateContext();
 
@@ -58,9 +67,9 @@ public class ReportRepositoryTests
 
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
-        var rows = await repository.GetInventoryBufferManagementAsync();
+        var rows = await repository.GetInventoryBufferManagementQueryable().ToListAsync();
 
         var row = Assert.Single(rows);
 
@@ -78,7 +87,59 @@ public class ReportRepositoryTests
     }
 
     [Fact]
-    public async Task GetInventoryBufferManagementAsync_ReturnsNullOptionalRelations_WhenNotSet()
+    public async Task GetInventoryBufferManagementQueryable_OptimizedOrderQuantity_UsesWorkspaceOverride_ForCurrentUserOnly()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var user1 = new User { Id = 1, Name = "User 1", Email = "user1@test.com", Password = "hash", IdRole = 1 };
+        var user2 = new User { Id = 2, Name = "User 2", Email = "user2@test.com", Password = "hash", IdRole = 1 };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 0m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
+        };
+
+        context.AddRange(center, product, user1, user2, centerProduct);
+        context.Workspace.Add(new Workspace { IdCenter = center.Id, IdProduct = product.Id, IdUser = user1.Id, OptimizedQuantity = 42m, Approved = true });
+        context.Workspace.Add(new Workspace { IdCenter = center.Id, IdProduct = product.Id, IdUser = user2.Id, OptimizedQuantity = 999m, Approved = true });
+        await context.SaveChangesAsync();
+
+        var rowForUser1 = Assert.Single(await CreateRepository(context, user1.Id).GetInventoryBufferManagementQueryable().ToListAsync());
+        Assert.True(rowForUser1.SystemOptimizedOrderQuantity > 0);
+        Assert.True(rowForUser1.HasSuggestion);
+        Assert.Equal(42m, rowForUser1.OptimizedOrderQuantity);
+        Assert.True(rowForUser1.Approved);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferPercentage(rowForUser1.TopOfGreen ?? 0, rowForUser1.Netflow + 42m),
+            rowForUser1.SimulatedNetflowBufferPercentage);
+        // Netflow (0) is Red on its own, but simulated (0 + 42 approved) crosses into Yellow.
+        Assert.Equal(BufferColor.Red, rowForUser1.NetflowBufferColor);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(rowForUser1.Netflow + 42m, rowForUser1.TopOfRed ?? 0, rowForUser1.TopOfYellow ?? 0, rowForUser1.TopOfGreen ?? 0),
+            rowForUser1.SimulatedNetflowBufferColor);
+        Assert.Equal(BufferColor.Yellow, rowForUser1.SimulatedNetflowBufferColor);
+
+        var rowForOtherUser = Assert.Single(await CreateRepository(context, 999).GetInventoryBufferManagementQueryable().ToListAsync());
+        Assert.Equal(rowForOtherUser.SystemOptimizedOrderQuantity, rowForOtherUser.OptimizedOrderQuantity);
+        Assert.False(rowForOtherUser.Approved);
+        // No Workspace row for this user, so the simulated color falls back to the plain NetflowBufferColor.
+        Assert.Equal(rowForOtherUser.NetflowBufferColor, rowForOtherUser.SimulatedNetflowBufferColor);
+        // No Workspace row for this user, so the simulated buffer falls back to the plain NetflowBufferPercentage.
+        Assert.Equal(rowForOtherUser.NetflowBufferPercentage, rowForOtherUser.SimulatedNetflowBufferPercentage);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementQueryable_ReturnsNullOptionalRelations_WhenNotSet()
     {
         await using var context = CreateContext();
 
@@ -101,9 +162,9 @@ public class ReportRepositoryTests
         context.AddRange(center, product, centerProduct);
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
-        var rows = await repository.GetInventoryBufferManagementAsync();
+        var rows = await repository.GetInventoryBufferManagementQueryable().ToListAsync();
 
         var row = Assert.Single(rows);
         Assert.Null(row.ProviderCode);
@@ -113,7 +174,7 @@ public class ReportRepositoryTests
     }
 
     [Fact]
-    public async Task GetInventoryBufferManagementAsync_RoundsDerivedZonesUp()
+    public async Task GetInventoryBufferManagementQueryable_RoundsDerivedZonesUp()
     {
         await using var context = CreateContext();
 
@@ -136,9 +197,9 @@ public class ReportRepositoryTests
         context.AddRange(center, product, centerProduct);
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
-        var row = Assert.Single(await repository.GetInventoryBufferManagementAsync());
+        var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
 
         Assert.Equal(21m, row.TopOfRed);
         Assert.Equal(36m, row.TopOfYellow);
@@ -146,6 +207,198 @@ public class ReportRepositoryTests
         Assert.Equal(11m, row.RedZoneExecution);
         Assert.Equal(11m, row.YellowZoneExecution);
         Assert.Equal(16m, row.GreenZoneExecution);
+    }
+
+    // Parity coverage: GetInventoryBufferManagementQueryable now computes Netflow/OrderQuantity/
+    // OptimizedOrderQuantity/NetflowBufferPercentage/NetflowBufferColor/CoverageDays/ExecutionBufferPercentage/
+    // ExecutionBufferColor as inline, SQL-translatable expressions (so OData's $filter/$orderby can run in SQL)
+    // instead of calling UtilsDdmrp in a post-materialization loop. These theories seed each buffer-zone branch
+    // and assert the repository's result equals UtilsDdmrp called with the row's own inputs — catching any drift
+    // between the two implementations of the same formulas (see the comment above GetInventoryBufferManagementQueryable
+    // and Formulas.md).
+    [Theory]
+    [InlineData("Green", 100, 0, 20, 20, 30, 30, 5, 10, 10)]
+    [InlineData("Yellow", 50, 0, 20, 20, 30, 30, 5, 10, 10)]
+    [InlineData("Red", 10, 0, 20, 20, 30, 30, 5, 10, 10)]
+    [InlineData("Black-Stockout", 10, 50, 20, 20, 30, 30, 5, 10, 10)]
+    [InlineData("Blue-Overstock", 150, 0, 20, 20, 30, 30, 5, 10, 10)]
+    [InlineData("Red-PackQuantityZero", 10, 0, 20, 20, 30, 30, 5, 0, 10)]
+    public async Task GetInventoryBufferManagementQueryable_DerivedMetrics_MatchUtilsDdmrp(
+        string scenario, int stock, int qualifiedDemand, int redZoneBase, int redZoneSafe,
+        int yellowZone, int greenZone, int moq, int packQuantity, int adu)
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = packQuantity,
+            Moq = moq,
+            Stock = stock,
+            QualifiedDemand = qualifiedDemand,
+            Adu = adu,
+            RedZoneBase = redZoneBase,
+            RedZoneSafe = redZoneSafe,
+            YellowZone = yellowZone,
+            GreenZone = greenZone
+        };
+
+        context.AddRange(center, product, centerProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
+
+        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
+        Assert.Equal(UtilsDdmrp.CalculateOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0), row.OrderQuantity);
+        Assert.Equal(
+            UtilsDdmrp.CalculateOptimizedOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0, row.Moq, row.PackQuantity),
+            row.SystemOptimizedOrderQuantity);
+        // No Workspace row exists for this CenterProduct, so OptimizedOrderQuantity falls back to the system value.
+        Assert.Equal(row.SystemOptimizedOrderQuantity, row.OptimizedOrderQuantity);
+        Assert.Equal(row.SystemOptimizedOrderQuantity > 0, row.HasSuggestion);
+        Assert.False(row.Approved);
+        Assert.Equal(UtilsDdmrp.CalculateBufferPercentage(row.TopOfGreen ?? 0, row.Netflow), row.NetflowBufferPercentage);
+        // No Workspace row exists for this CenterProduct, so the simulated netflow equals the plain Netflow.
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferPercentage(row.TopOfGreen ?? 0, UtilsDdmrp.CalculateSimulatedNetflow(row.Netflow, row.Approved, 0)),
+            row.SimulatedNetflowBufferPercentage);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(row.Netflow, row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0),
+            row.NetflowBufferColor);
+        // No Workspace row exists for this CenterProduct, so the simulated color equals the plain NetflowBufferColor.
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(
+                UtilsDdmrp.CalculateSimulatedNetflow(row.Netflow, row.Approved, 0),
+                row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0),
+            row.SimulatedNetflowBufferColor);
+        Assert.Equal(row.NetflowBufferColor, row.SimulatedNetflowBufferColor);
+        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.Stock, row.Adu ?? 0), row.CoverageDays);
+        Assert.Equal(UtilsDdmrp.CalculateBufferPercentage(row.GreenZoneExecution ?? 0, row.Stock), row.ExecutionBufferPercentage);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0),
+            row.ExecutionBufferColor);
+
+        var expectedColor = scenario switch
+        {
+            "Green" => BufferColor.Green,
+            "Yellow" => BufferColor.Yellow,
+            "Red" or "Red-PackQuantityZero" => BufferColor.Red,
+            "Black-Stockout" => BufferColor.Black,
+            "Blue-Overstock" => BufferColor.Blue,
+            _ => throw new InvalidOperationException($"Unmapped scenario {scenario}")
+        };
+        Assert.Equal(expectedColor, row.NetflowBufferColor);
+
+        if (scenario == "Red-PackQuantityZero")
+            Assert.Equal(0m, row.OptimizedOrderQuantity);
+    }
+
+    // Regression coverage for the 2026-09-15 OData bug: [EnableQuery] composes an extra `.Where(...)` on top of
+    // GetInventoryBufferManagementQueryable()'s result (exactly what `$filter=netflowBufferColor eq 'Red'` does).
+    // Before the fix, EF Core threw "Translation of member 'TopOfGreen' ... failed" trying to re-derive
+    // CenterProduct's Ignore()'d computed properties a second time for the WHERE clause — reproduced here by
+    // composing .Where() directly instead of going through the OData pipeline (InMemory throws the same
+    // "could not be translated" exception the real SQL Server provider did). Covers both a zone-top field
+    // (topOfGreen) and a field built on top of it (netflowBufferColor) since both shared the same root cause.
+    [Fact]
+    public async Task GetInventoryBufferManagementQueryable_ComposesWithAnExternalWhere_LikeODataDoes()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        // Red on both axes: low stock relative to a big buffer (netflow inside the red zone) and a big TopOfGreen.
+        var redCenterProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 10m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
+        };
+        // Excluded by both filters for different reasons: overstocked relative to a tiny buffer (Blue, not Red)
+        // and a small TopOfGreen (not > 90).
+        var blueCenterProduct = new CenterProduct
+        {
+            Id = 2,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 150m,
+            RedZoneBase = 5m,
+            RedZoneSafe = 5m,
+            YellowZone = 5m,
+            GreenZone = 5m
+        };
+
+        context.AddRange(center, product, redCenterProduct, blueCenterProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var byColor = await repository.GetInventoryBufferManagementQueryable()
+            .Where(r => r.NetflowBufferColor == BufferColor.Red)
+            .ToListAsync();
+        Assert.Equal(10m, Assert.Single(byColor).Stock);
+
+        var byZoneTop = await repository.GetInventoryBufferManagementQueryable()
+            .Where(r => r.TopOfGreen > 90)
+            .ToListAsync();
+        Assert.Equal(10m, Assert.Single(byZoneTop).Stock);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementQueryable_DerivedMetrics_MatchUtilsDdmrp_WhenBufferNotYetComputed()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 100m
+        };
+
+        context.AddRange(center, product, centerProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
+
+        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(row.Netflow, row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0),
+            row.NetflowBufferColor);
+        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.Stock, row.Adu ?? 0), row.CoverageDays);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0),
+            row.ExecutionBufferColor);
+
+        Assert.Equal(BufferColor.NoColor, row.NetflowBufferColor);
+        Assert.Equal(BufferColor.NoColor, row.SimulatedNetflowBufferColor);
+        Assert.Equal(BufferColor.NoColor, row.ExecutionBufferColor);
+        Assert.Equal(0m, row.NetflowBufferPercentage);
+        Assert.Equal(0m, row.SimulatedNetflowBufferPercentage);
+        Assert.Equal(0m, row.ExecutionBufferPercentage);
+        Assert.Equal(0m, row.CoverageDays);
     }
 
     [Fact]
@@ -168,7 +421,7 @@ public class ReportRepositoryTests
 
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
         var rows = await repository.GetOpenOrdersAsync(idCenter: center.Id, idProduct: null);
 
@@ -203,7 +456,7 @@ public class ReportRepositoryTests
 
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
         var byProduct = await repository.GetOpenOrdersAsync(idCenter: center.Id, idProduct: product.Id);
         Assert.Equal("IN", Assert.Single(byProduct).OrderNumber);
@@ -243,7 +496,7 @@ public class ReportRepositoryTests
 
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
         var rows = await repository.GetOpenOrdersAsync(idCenter: center.Id, idProduct: product.Id);
 
@@ -268,7 +521,7 @@ public class ReportRepositoryTests
 
         await context.SaveChangesAsync();
 
-        var repository = new ReportRepository(context);
+        var repository = CreateRepository(context);
 
         var rows = await repository.GetOpenOrdersAsync(idCenter: center.Id, idProduct: product.Id);
 
