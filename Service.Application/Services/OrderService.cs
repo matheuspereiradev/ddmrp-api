@@ -29,9 +29,9 @@ namespace Service.Application.Services
             _centerRepository = centerRepository;
         }
 
-        public async Task<PagedList<OrderGetDto>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        public async Task<PagedList<OrderGetDto>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, int? idProduct, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
-            var paged = await _orderRepository.GetFilteredAsync(idDestinyCenter, idOriginCenter, fictional, isInbound, isOutbound, pageNumber, pageSize, cancellationToken);
+            var paged = await _orderRepository.GetFilteredAsync(idDestinyCenter, idOriginCenter, idProduct, fictional, isInbound, isOutbound, pageNumber, pageSize, cancellationToken);
             var items = paged.Select(ToGetDTO).ToList();
             return new PagedList<OrderGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }

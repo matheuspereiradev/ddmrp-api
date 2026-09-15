@@ -245,10 +245,10 @@ public class OrderServiceTests
         {
             new() { Id = 1, OrderNumber = "OP-001", IdProduct = 1, MeasurementUnit = "UN", CreationDate = DateTime.UtcNow, Type = OrderType.SaleOrder }
         };
-        _orderRepository.GetFilteredAsync(2, null, false, true, null, 1, 10, Arg.Any<CancellationToken>())
+        _orderRepository.GetFilteredAsync(2, null, null, false, true, null, 1, 10, Arg.Any<CancellationToken>())
             .Returns(new PagedList<Order>(orders, 1, 10, 1));
 
-        var result = await _sut.GetFilteredAsync(idDestinyCenter: 2, idOriginCenter: null, fictional: false, isInbound: true, isOutbound: null, pageNumber: 1, pageSize: 10);
+        var result = await _sut.GetFilteredAsync(idDestinyCenter: 2, idOriginCenter: null, idProduct: null, fictional: false, isInbound: true, isOutbound: null, pageNumber: 1, pageSize: 10);
 
         Assert.Equal(1, result.TotalCount);
         Assert.Equal("OP-001", Assert.Single(result).OrderNumber);

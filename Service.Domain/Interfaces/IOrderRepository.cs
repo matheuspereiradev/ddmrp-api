@@ -5,6 +5,6 @@ namespace Service.Domain.Interfaces
 {
     public interface IOrderRepository : IBaseRepository<Order>
     {
-        Task<PagedList<Order>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+        Task<PagedList<Order>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, int? idProduct, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     }
 }

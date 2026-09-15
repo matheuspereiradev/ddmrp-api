@@ -395,6 +395,7 @@
       "queryParams": {
         "idDestinyCenter": "number | null (optional filter)",
         "idOriginCenter": "number | null (optional filter)",
+        "idProduct": "number | null (optional filter)",
         "fictional": "boolean | null (optional filter)",
         "isInbound": "boolean | null (optional filter)",
         "isOutbound": "boolean | null (optional filter)",

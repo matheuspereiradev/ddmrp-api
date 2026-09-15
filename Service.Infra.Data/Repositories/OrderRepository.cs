@@ -21,7 +21,7 @@ namespace Service.Infra.Data.Repositories
                 .Include(o => o.DestinyCenter)
                 .Include(o => o.OriginCenter);
 
-        public async Task<PagedList<Order>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        public async Task<PagedList<Order>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, int? idProduct, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
             var query = ApplyIncludes(_dbSet.AsQueryable()).Where(o => o.deletedAt == null);
 
@@ -30,6 +30,9 @@ namespace Service.Infra.Data.Repositories
 
             if (idOriginCenter.HasValue)
                 query = query.Where(o => o.IdOriginCenter == idOriginCenter.Value);
+
+            if (idProduct.HasValue)
+                query = query.Where(o => o.IdProduct == idProduct.Value);
 
             if (fictional.HasValue)
                 query = query.Where(o => o.IsFictional == fictional.Value);
