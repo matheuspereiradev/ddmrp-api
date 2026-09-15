@@ -57,6 +57,9 @@ namespace Service.Infra.Data.Repositories
                     RedZoneExecution = cp.RedZoneExecution,
                     YellowZoneExecution = cp.YellowZoneExecution,
                     GreenZoneExecution = cp.GreenZoneExecution,
+                    TopOfRedExecution = cp.TopOfRedExecution,
+                    TopOfYellowExecution = cp.TopOfYellowExecution,
+                    TopOfGreenExecution = cp.TopOfGreenExecution,
                     RedSafeAnalytical = cp.RedSafeAnalytical,
                     YellowSafeAnalytical = cp.YellowSafeAnalytical,
                     GreenAnalytical = cp.GreenAnalytical,
@@ -135,6 +138,119 @@ namespace Service.Infra.Data.Repositories
             }
 
             return rows;
+        }
+
+        public async Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default)
+        {
+            var query = _context.Order
+                .Where(o => o.deletedAt == null && o.Quantity > o.DeliveredQuantity && o.IsInbound && !o.IsFictional);
+
+            if (idCenter.HasValue)
+                query = query.Where(o => o.IdDestinyCenter == idCenter.Value);
+
+            if (idProduct.HasValue)
+                query = query.Where(o => o.IdProduct == idProduct.Value);
+
+            var rows = await query
+                .Select(o => new OpenOrderRow
+                {
+                    Id = o.Id,
+                    OrderNumber = o.OrderNumber,
+
+                    IdPartner = o.IdPartner,
+                    PartnerCode = o.Partner != null && o.Partner.deletedAt == null ? o.Partner.Code : null,
+                    PartnerDescription = o.Partner != null && o.Partner.deletedAt == null ? o.Partner.Description : null,
+
+                    IdDestinyCenter = o.IdDestinyCenter,
+                    DestinyCenterCode = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null ? o.DestinyCenter.Code : null,
+                    DestinyCenterDescription = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null ? o.DestinyCenter.Description : null,
+
+                    IdOriginCenter = o.IdOriginCenter,
+                    OriginCenterCode = o.OriginCenter != null && o.OriginCenter.deletedAt == null ? o.OriginCenter.Code : null,
+                    OriginCenterDescription = o.OriginCenter != null && o.OriginCenter.deletedAt == null ? o.OriginCenter.Description : null,
+
+                    IdProduct = o.IdProduct,
+                    ProductReference = o.Product.Reference,
+                    ProductDescription = o.Product.Description,
+
+                    Quantity = o.Quantity,
+                    DeliveredQuantity = o.DeliveredQuantity,
+                    PendingQuantity = o.PendingQuantity,
+                    MeasurementUnit = o.MeasurementUnit,
+                    Position = o.Position,
+                    CreationDate = o.CreationDate,
+                    DeliveryDate = o.DeliveryDate,
+                    OrderLeadtime = o.OrderLeadtime,
+                    Notes = o.Notes,
+                    Type = o.Type,
+                    IsInbound = o.IsInbound,
+                    IsOutbound = o.IsOutbound,
+                    IsFictional = o.IsFictional
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var row in rows)
+            {
+                if (row.DeliveryDate.HasValue && row.OrderLeadtime.HasValue)
+                {
+                    row.TimeBuffer = UtilsDdmrp.CalculateTimeBuffer(row.DeliveryDate.Value, row.OrderLeadtime.Value);
+                    row.TimeBufferColor = UtilsDdmrp.CalculateTimeBufferColor(row.TimeBuffer.Value);
+                }
+
+                row.DaysToReceive = UtilsDdmrp.CalculateDaysToReceive(row.DeliveryDate);
+                row.DaysLate = UtilsDdmrp.CalculateDaysLate(row.DeliveryDate);
+            }
+
+            await ApplyExecutionBufferAsync(rows, cancellationToken);
+
+            return rows;
+        }
+
+        private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)
+        {
+            var idProducts = rows.Select(r => r.IdProduct).Distinct().ToList();
+            var idCenters = rows.Where(r => r.IdDestinyCenter.HasValue).Select(r => r.IdDestinyCenter!.Value).Distinct().ToList();
+
+            if (idProducts.Count == 0 || idCenters.Count == 0)
+                return;
+
+            var referenceOrders = await _context.Order
+                .Where(o => o.deletedAt == null && o.Quantity > o.DeliveredQuantity && o.IsInbound && !o.IsFictional
+                    && o.IdDestinyCenter.HasValue && idProducts.Contains(o.IdProduct) && idCenters.Contains(o.IdDestinyCenter!.Value))
+                .Select(o => new { o.Id, o.IdProduct, o.IdDestinyCenter, o.DeliveryDate, o.PendingQuantity })
+                .ToListAsync(cancellationToken);
+
+            var centerProducts = await _context.CenterProduct
+                .Where(cp => cp.deletedAt == null && idProducts.Contains(cp.IdProduct) && idCenters.Contains(cp.IdCenter))
+                .Select(cp => new { cp.IdProduct, cp.IdCenter, cp.Stock, cp.TopOfRedExecution, cp.TopOfYellowExecution, cp.TopOfGreenExecution })
+                .ToListAsync(cancellationToken);
+
+            var centerProductLookup = centerProducts.ToDictionary(cp => (cp.IdProduct, cp.IdCenter));
+
+            foreach (var row in rows)
+            {
+                if (!row.IdDestinyCenter.HasValue || !row.DeliveryDate.HasValue)
+                    continue;
+
+                if (!centerProductLookup.TryGetValue((row.IdProduct, row.IdDestinyCenter.Value), out var centerProduct))
+                    continue;
+
+                if (!centerProduct.TopOfYellowExecution.HasValue || centerProduct.TopOfYellowExecution.Value == 0)
+                    continue;
+
+                var pendingFromEarlierOrders = referenceOrders
+                    .Where(o => o.IdProduct == row.IdProduct && o.IdDestinyCenter == row.IdDestinyCenter
+                        && o.Id < row.Id && o.DeliveryDate.HasValue && o.DeliveryDate.Value <= row.DeliveryDate.Value)
+                    .Sum(o => o.PendingQuantity);
+
+                var quantity = centerProduct.Stock + pendingFromEarlierOrders;
+                row.ExecutionBuffer = quantity / centerProduct.TopOfYellowExecution.Value;
+                row.ExecutionBufferColor = UtilsDdmrp.CalculateBufferColor(
+                    quantity,
+                    centerProduct.TopOfRedExecution ?? 0,
+                    centerProduct.TopOfYellowExecution.Value,
+                    centerProduct.TopOfGreenExecution ?? 0);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using Service.API.Filters;
 using Service.API.HealthChecks;
+using Service.API.Json;
 using Service.API.Middleware;
 using Service.API.Swagger;
 using Service.Infra.Ioc;
@@ -20,6 +21,7 @@ builder.Services.AddControllers(options =>
 .AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    options.JsonSerializerOptions.Converters.Add(new DecimalRoundingJsonConverter());
 });
 builder.Services.AddInfrastructure(builder.Configuration);
 

@@ -105,8 +105,8 @@ namespace Service.Infra.Data.Calculation.Steps
             )
             UPDATE cp
             SET
-                cp.GreenZone = IIF(z.Green < 0, 0, z.Green),
-                cp.RedZoneBase = IIF(z.RedBase < 0, 0, z.RedBase)
+                cp.GreenZone = CEILING(IIF(z.Green < 0, 0, z.Green)),
+                cp.RedZoneBase = CEILING(IIF(z.RedBase < 0, 0, z.RedBase))
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType = 2;

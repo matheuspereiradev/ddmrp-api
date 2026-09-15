@@ -28,9 +28,16 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllOrders([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllOrders(
+            [FromQuery] int? idDestinyCenter,
+            [FromQuery] int? idOriginCenter,
+            [FromQuery] bool? fictional,
+            [FromQuery] bool? isInbound,
+            [FromQuery] bool? isOutbound,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
         {
-            var orders = await _orderService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var orders = await _orderService.GetFilteredAsync(idDestinyCenter, idOriginCenter, fictional, isInbound, isOutbound, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, orders.TotalCount, orders.TotalPages));

@@ -25,4 +25,15 @@ public class ReportServiceTests
 
         Assert.Same(rows, result);
     }
+
+    [Fact]
+    public async Task GetOpenOrdersAsync_ReturnsWhatTheRepositoryReturns()
+    {
+        var rows = new List<OpenOrderRow> { new() { OrderNumber = "OR1" } };
+        _reportRepository.GetOpenOrdersAsync(1, 2, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.GetOpenOrdersAsync(1, 2);
+
+        Assert.Same(rows, result);
+    }
 }

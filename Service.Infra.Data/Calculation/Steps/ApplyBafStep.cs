@@ -72,8 +72,8 @@ namespace Service.Infra.Data.Calculation.Steps
             SET
                 cp.YellowZone = baf.BufferDdmrpYellow,
                 cp.GreenZone = baf.BufferDdmrpGreen,
-                cp.RedZoneSafe = baf.BufferDdmrpRed / 2,
-                cp.RedZoneBase = baf.BufferDdmrpRed / 2
+                cp.RedZoneSafe = CEILING(baf.BufferDdmrpRed / 2),
+                cp.RedZoneBase = CEILING(baf.BufferDdmrpRed / 2)
             FROM dbo.CenterProducts cp
             JOIN dbo.BufferAdjustmentFactors baf
                 ON baf.IdProduct = cp.IdProduct AND baf.IdCenter = cp.IdCenter

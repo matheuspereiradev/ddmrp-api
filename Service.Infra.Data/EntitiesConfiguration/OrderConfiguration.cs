@@ -24,6 +24,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(o => o.IsOutbound).IsRequired();
             builder.Property(o => o.IsFictional).IsRequired().HasDefaultValue(false);
 
+            builder.Ignore(o => o.PendingQuantity);
+            builder.Ignore(o => o.OrderLeadtime);
+
             builder.HasOne(o => o.Product)
                 .WithMany()
                 .HasForeignKey(o => o.IdProduct)

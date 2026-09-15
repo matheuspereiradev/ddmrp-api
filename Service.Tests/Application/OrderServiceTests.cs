@@ -5,6 +5,8 @@ using Service.Application.Services;
 using Service.Domain.Entities;
 using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
+using Service.Domain.Utils;
 
 namespace Service.Tests.Application;
 
@@ -82,6 +84,7 @@ public class OrderServiceTests
         Assert.Equal("C001", result.DestinyCenter!.Code);
         Assert.NotNull(result.OriginCenter);
         Assert.Equal("C002", result.OriginCenter!.Code);
+        Assert.Null(result.OrderLeadtime);
     }
 
     [Fact]
@@ -196,10 +199,14 @@ public class OrderServiceTests
         Assert.Equal(5, result.IdPartner);
         Assert.Equal(20m, result.Quantity);
         Assert.Equal(15m, result.DeliveredQuantity);
+        Assert.Equal(5m, result.PendingQuantity);
         Assert.Equal("KG", result.MeasurementUnit);
         Assert.Equal(2, result.Position);
         Assert.Equal(new DateTime(2026, 9, 14), result.CreationDate);
         Assert.Equal(new DateTime(2026, 9, 20), result.DeliveryDate);
+        Assert.Equal(6, result.OrderLeadtime);
+        Assert.Equal(0, result.DaysLate);
+        Assert.Equal(UtilsDdmrp.CalculateDaysToReceive(result.DeliveryDate), result.DaysToReceive);
         Assert.Equal("Updated", result.Notes);
         Assert.Equal("OP-001", result.OrderNumber);
         Assert.Equal(1, result.IdProduct);
@@ -229,5 +236,21 @@ public class OrderServiceTests
         _orderRepository.DeleteAsync(1, Arg.Any<CancellationToken>()).Returns((Order)null!);
 
         await Assert.ThrowsAsync<NotFoundException>(() => _sut.DeleteAsync(1));
+    }
+
+    [Fact]
+    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    {
+        var orders = new List<Order>
+        {
+            new() { Id = 1, OrderNumber = "OP-001", IdProduct = 1, MeasurementUnit = "UN", CreationDate = DateTime.UtcNow, Type = OrderType.SaleOrder }
+        };
+        _orderRepository.GetFilteredAsync(2, null, false, true, null, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<Order>(orders, 1, 10, 1));
+
+        var result = await _sut.GetFilteredAsync(idDestinyCenter: 2, idOriginCenter: null, fictional: false, isInbound: true, isOutbound: null, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal("OP-001", Assert.Single(result).OrderNumber);
     }
 }

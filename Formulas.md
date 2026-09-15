@@ -211,7 +211,9 @@ RedZoneBase = AdjustedAdu * LeadTime * LeadTimeFactor * VariabilityFactor
 - `VariabilityFactor`: `BufferProfile.VariabilityFactor` se `UseSuggestedVariabilityFactor = true`, senão `CenterProduct.CustomVariabilityFactor`.
 - `RedZone` (a propriedade calculada) = `RedZoneSafe + RedZoneBase`.
 
-> **Importante (2026-09-13)**: nenhuma zona pode ficar negativa — toda zona é sempre `MAX(valor calculado, 0)`. Vale pros 4 valores (`YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase`) nos **3 steps** de cálculo de zona (`Normal`, `MinMax`, `DynamicMinMax`) — cada um clampa seu próprio resultado antes de gravar. Não vale (ainda) pro delta do ZAF (`ApplyZafStep`) — só foi pedido pras zonas base.
+> **Importante (2026-09-13)**: nenhuma zona pode ficar negativa — toda zona é sempre `MAX(valor calculado, 0)`. Vale pros 4 valores (`YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase`) nos **3 steps** de cálculo de zona (`Normal`, `MinMax`, `DynamicMinMax`) — cada um clampa seu próprio resultado antes de gravar.
+>
+> **Importante (2026-09-14)**: todo cálculo de zona **sempre arredonda pra cima** ("arredondamento para cima sempre") — o valor final (já clampado em `0` se negativo) passa por `CEILING()` antes de ser gravado, nos mesmos 3 steps de zona-base, em `ApplyBafStep` (o split `RedZoneSafe`/`RedZoneBase = CEILING(BufferDdmrpRed / 2)` de `ManualFixed`) e em `ApplyZafStep` (a zona final depois de somar o delta: `GreenZone = CEILING(GreenZone + Delta)`, mesma coisa pra `YellowZone`/`RedZoneBase`). **Não** se aplica a cópias diretas de valor já informado pelo usuário (`ApplyBafStep`'s `YellowZone`/`GreenZone = baf.BufferDdmrpYellow`/`BufferDdmrpGreen`, ou o reverter `ISNULL(*Old, atual)`) — só arredonda o que é de fato uma conta feita pelo robô.
 
 ### Execução
 
@@ -332,6 +334,36 @@ RedBase  = 0,                              se MaiorAcumulado = 0
 - **Antes de calcular**, roda um `UPDATE` zerando `YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase` de todo `CenterProduct` ativo com `BufferType = 3`. `RedZoneSafe` nunca é escrito de novo depois (fica sempre `0`, por fórmula).
 - Sem parâmetro externo — `HistoryAduDays` já é uma coluna por `CenterProduct` (mesma usada pelo Adu), não precisa de config.
 
+## CenterProduct — zonas derivadas (Top/Execução/Analítica)
+
+Nenhuma dessas é um calculation step — todas são propriedades C# computadas (`get`-only, `Ignore()`'d no EF em `CenterProductConfiguration`, nunca uma coluna física, sempre nullable-lifted: ficam `null` a menos que **todas** as parcelas envolvidas estejam setadas, nunca `0` por padrão). Nenhum step escreve essas colunas diretamente — elas só leem `RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (essas sim escritas pelos steps de zona/ZAF, ver seções acima) e são lidas onde precisar (`CenterProductGetDto`, `InventoryBufferManagementRow`, `ExecutionBuffer` acima).
+
+```
+RedZone               = CEILING(RedZoneBase + RedZoneSafe)
+
+TopOfRed              = CEILING(RedZoneBase + RedZoneSafe)                            (= RedZone, nome DDMRP-padrão separado por clareza)
+TopOfYellow           = CEILING(RedZoneBase + RedZoneSafe + YellowZone)
+TopOfGreen            = CEILING(RedZoneBase + RedZoneSafe + YellowZone + GreenZone)      (ponto de reordem — topo do buffer inteiro)
+
+RedZoneExecution      = CEILING(TopOfRed / 2)
+YellowZoneExecution   = CEILING(TopOfRed / 2)                                         (idêntico a RedZoneExecution — é a especificação dada, não é erro)
+GreenZoneExecution    = CEILING(YellowZone)                                           (igual à coluna YellowZone pura, não a TopOfYellow)
+
+TopOfRedExecution     = CEILING(RedZoneExecution)
+TopOfYellowExecution  = CEILING(RedZoneExecution + YellowZoneExecution)
+TopOfGreenExecution   = CEILING(RedZoneExecution + YellowZoneExecution + GreenZoneExecution)
+
+RedSafeAnalytical       = CEILING(RedZone / 2)
+YellowSafeAnalytical    = CEILING(RedZone)
+GreenAnalytical         = CEILING(RedZone + GreenZone)
+YellowExcessAnalytical  = CEILING(RedZone + YellowZone)
+RedSafeExcessAnalytical = CEILING(RedZone / 2)                                        (idêntico a RedSafeAnalytical — mesmo padrão de valor duplicado)
+```
+
+**Arredondamento pra cima sempre** (2026-09-14, "arredondamento para cima sempre" — mesma regra das zonas-base acima, aplicada aqui via `Math.Ceiling` em C#, não `CEILING()` SQL, já que são propriedades computadas em memória — mas `Math.Ceiling(decimal)` é traduzido pelo EF Core/SqlServer da mesma forma quando a propriedade é referenciada dentro de um `Select`, então o efeito final é o mesmo). Nullable-safe: cada `CEILING(...)` acima só roda se todas as parcelas envolvidas tiverem valor — senão a propriedade inteira fica `null`, mesmo comportamento de antes (só ganhou o arredondamento por cima).
+
+**Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (as únicas colunas físicas da cadeia — tudo mais deriva delas, e essas 4 já chegam arredondadas pra cima dos steps/ZAF/BAF, ver seções acima). `TopOfYellowExecution` é o denominador de `ExecutionBuffer` (acima). As colunas `*Analytical` ainda não alimentam nenhum relatório/cálculo além de aparecerem cruas em `CenterProductGetDto`/`InventoryBufferManagementRow` — reservadas pra leitura "Buffer Analítica" ainda não escopada (ver `TODO.md`).
+
 ## ZAF — ajuste de zona (`CenterProduct.ZafRedZone`/`ZafYellowZone`/`ZafGreenZone`)
 
 Step: `Service.Infra.Data/Calculation/Steps/ApplyZafStep.cs` (nome no `calculation.config.json`: `"ApplyZAF"`)
@@ -361,10 +393,12 @@ ZafRedZone    = 0,                                                              
 ### Aplicação (soma o delta na zona de verdade)
 
 ```
-GreenZone     = GreenZone + ZafGreenZone
-YellowZone    = YellowZone + ZafYellowZone
-RedZoneBase   = RedZoneBase + ZafRedZone
+GreenZone     = CEILING(GreenZone + ZafGreenZone)
+YellowZone    = CEILING(YellowZone + ZafYellowZone)
+RedZoneBase   = CEILING(RedZoneBase + ZafRedZone)
 ```
+
+- Arredondamento pra cima aplicado no valor final (depois de somar o delta), não no delta guardado em `ZafRedZone`/`ZafYellowZone`/`ZafGreenZone` (esse continua cru — ver "Importante" acima). Mesma regra "sempre arredonda pra cima" das seções de zona-base, ver a nota importante 2026-09-14 lá.
 
 - O delta do vermelho é somado em `RedZoneBase`, não em `RedZoneSafe` — decisão explícita, não inferida.
 - `RedZone` (propriedade calculada `RedZoneSafe + RedZoneBase`) reflete o ajuste automaticamente, já que `RedZoneBase` foi incrementado.
@@ -500,3 +534,85 @@ CoverageDays = AvailableStock / Adu,   se Adu > 0
 ```
 
 **Campos envolvidos**: `CenterProduct.Stock` (passado como `availableStock`), `CenterProduct.Adu` — ambos passados como parâmetro. Guarda contra `Adu <= 0` (item sem consumo médio calculado ainda, ou item genuinamente sem consumo) retornando `0` em vez de dividir por zero.
+
+## Order — colunas calculadas (`PendingQuantity`/`OrderLeadtime`)
+
+Não são calculation steps — propriedades C# computadas na entidade `Order` (`get`-only, `Ignore()`'d no EF em `OrderConfiguration`, nunca uma coluna física). Presentes em `OrderGetDto`/`OpenOrderRow`, ausentes de `PostDto`/`PutDto`, sem setter.
+
+```
+PendingQuantity = 0,                          se DeliveredQuantity > Quantity
+                = Quantity - DeliveredQuantity, caso contrário
+
+OrderLeadtime   = null,                              se DeliveryDate não estiver setado
+                = (DeliveryDate - CreationDate).Days, caso contrário
+```
+
+**Campos envolvidos**: `Order.Quantity`/`DeliveredQuantity` (`PendingQuantity` — nunca fica negativo mesmo se a ordem foi entregue a mais); `Order.CreationDate`/`DeliveryDate` (`OrderLeadtime` — `int?`, `null` sempre que não houver `DeliveryDate`). Ambas alimentam `TimeBuffer`/`ExecutionBuffer` abaixo.
+
+## TimeBuffer
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateTimeBuffer(DateTime deliveryDate, int orderLeadtime)`. Mesmo status dos outros: método estático compartilhado, não é um calculation step. **Diferente dos outros**: depende de "hoje" (`DateTime.Now`), lido internamente pelo método — não é passado como parâmetro. Por isso não é traduzível pra SQL (não pode ir direto num `Select` do EF) — quem usa (`ReportRepository.GetOpenOrdersAsync`) materializa a query primeiro e decora `OpenOrderRow.TimeBuffer` num loop depois, mesmo padrão do `Netflow`/`OrderQuantity`.
+
+```
+TimeBuffer = (Hoje - ((DeliveryDate + 1) - OrderLeadtime)) / MaiorEntre(1, OrderLeadtime)
+```
+
+**Campos envolvidos**: `Order.DeliveryDate`, `Order.OrderLeadtime` (ver `CLAUDE.md` — já é uma coluna calculada, `null` quando `DeliveryDate` não está setado). O denominador nunca é menor que `1` (`MaiorEntre(1, OrderLeadtime)`), mesmo se `OrderLeadtime = 0`. `ReportRepository.GetOpenOrdersAsync` só calcula `TimeBuffer` quando `DeliveryDate` e `OrderLeadtime` estão ambos presentes na linha; caso contrário fica `null`.
+
+## TimeBufferColor
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateTimeBufferColor(decimal timeBufferPercentage)`. **Diferente do `TimeBuffer`**: não depende de "hoje" — é uma função pura do percentual já calculado, reutiliza `Service.Domain.Enums.BufferColor` (mesmo enum de `CalculateBufferColor`, sem enum novo).
+
+```
+TimeBufferColor = Black,    se TimeBuffer > 100%
+                = Red,      se TimeBuffer > 66%
+                = Yellow,   se TimeBuffer > 33%
+                = Green,    se TimeBuffer > 0%
+                = NoColor,  caso contrário (TimeBuffer <= 0%)
+```
+
+- `TimeBuffer` aqui é a fração já produzida por `CalculateTimeBuffer` (ex.: `0.8m` = 80%, não `80`) — os limites (`1`/`0.66`/`0.33`/`0`) são comparados na mesma escala fracionária.
+- `ReportRepository.GetOpenOrdersAsync` seta `OpenOrderRow.TimeBufferColor` (`BufferColor?`) logo depois de calcular `TimeBuffer`, dentro do mesmo guard (`DeliveryDate`/`OrderLeadtime` presentes) — fica `null` sempre que `TimeBuffer` também fica `null`.
+
+## DaysToReceive / DaysLate
+
+Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateDaysToReceive(DateTime? deliveryDate)`/`CalculateDaysLate(DateTime? deliveryDate)`. Mesmo status do `TimeBuffer`: depende de "hoje" (`DateTime.Now`, lido internamente, não passado como parâmetro).
+
+```
+DaysToReceive = 0,                        se DeliveryDate for nulo ou já passou (DeliveryDate < Hoje)
+              = DeliveryDate - Hoje,       caso contrário
+
+DaysLate      = 0,                        se DeliveryDate for nulo, hoje, ou no futuro
+              = Hoje - DeliveryDate,       se DeliveryDate já passou
+```
+
+- Os dois retornam `int` (nunca `null`) — `0` já é o valor "não aplicável", tanto pra ordem sem `DeliveryDate` quanto pra ordem que não está adiantada/atrasada.
+- **Diferente de `TimeBuffer`/`ExecutionBuffer`, isso não fica restrito ao relatório**: `OrderService.ToGetDTO` chama os dois direto em cima da entidade já materializada (o mapeamento `Order → OrderGetDto` roda depois da consulta ao banco, não dentro de uma expressão LINQ-to-entities — sem problema de tradução pra SQL) — então `GET /api/order` já devolve `daysToReceive`/`daysLate` em toda linha, não só no report. `ReportRepository.GetOpenOrdersAsync` decora `OpenOrderRow.DaysToReceive`/`DaysLate` no mesmo loop pós-materialização do `TimeBuffer`.
+- **Campos envolvidos**: `Order.DeliveryDate` — único parâmetro, `null`-safe internamente (o próprio método trata `deliveryDate == null` sem precisar de guarda no chamador, diferente de `CalculateTimeBuffer`).
+
+## ExecutionBuffer (por ordem, `OpenOrderRow.ExecutionBuffer`)
+
+Não é um método de `UtilsDdmrp` — calculado diretamente em `ReportRepository.GetOpenOrdersAsync`/`ApplyExecutionBufferAsync`, já que depende de somar outras ordens (não é uma função pura de parâmetros passados por quem chama). Relatório `GET /api/report/openOrders/inbounds` — escopo apenas de ordens **inbound** (outbound é outro relatório, ver `CLAUDE.md`).
+
+```
+ExecutionBuffer = (CenterProduct.Stock + Σ PendingQuantity das ordens anteriores) / CenterProduct.TopOfYellowExecution
+```
+
+Onde "ordens anteriores" = toda ordem aberta (`deletedAt IS NULL`, `Quantity > DeliveredQuantity`), **inbound**, **não fictícia** (o relatório inteiro nunca considera ordens fictícias — não existe parâmetro pra isso), do mesmo `IdProduct` + `IdDestinyCenter` da ordem atual, com `Id < Id da ordem atual` **e** `DeliveryDate <= DeliveryDate da ordem atual` (duas condições independentes, não uma única chave de ordenação). `CenterProduct` é casado por `(IdProduct, IdCenter = IdDestinyCenter da ordem)`.
+
+**Retorna `null`** quando `TopOfYellowExecution` é `0` ou não existe (`CenterProduct` não encontrado, ou zonas ainda não calculadas pelo Robot) — mesma guarda de divisão-por-zero das outras fórmulas. Também fica `null` quando a própria ordem não tem `DeliveryDate` ou não tem `CenterProduct` casado (não dá pra posicioná-la na sequência).
+
+**Campos envolvidos**: `CenterProduct.Stock`, `CenterProduct.TopOfYellowExecution` (ver `CLAUDE.md`), `Order.PendingQuantity`, `Order.DeliveryDate`, `Order.Id`, `Order.IdProduct`, `Order.IdDestinyCenter`.
+
+## ExecutionBufferColor (por ordem, `OpenOrderRow.ExecutionBufferColor`)
+
+Reaproveita `UtilsDdmrp.CalculateBufferColor` (a mesma classificação usada em `NetflowBufferColor`/`ExecutionBufferColor` do report de `inventoryBufferManagement`), aplicada em cima da mesma quantidade calculada pra `ExecutionBuffer` — calculado no mesmo loop pós-materialização de `ApplyExecutionBufferAsync`, logo depois de `ExecutionBuffer`.
+
+```
+qt = CenterProduct.Stock + Σ PendingQuantity das ordens anteriores   (mesmo "qt" do numerador de ExecutionBuffer, sem dividir)
+ExecutionBufferColor = CalculateBufferColor(qt, CenterProduct.TopOfRedExecution, CenterProduct.TopOfYellowExecution, CenterProduct.TopOfGreenExecution)
+```
+
+"Ordens anteriores" é a mesma definição de `ExecutionBuffer` acima. Fica `null` exatamente nos mesmos casos em que `ExecutionBuffer` fica `null` (mesma guarda de `TopOfYellowExecution` ausente/zero, mesmo pré-requisito de `DeliveryDate`/`CenterProduct` casado) — as duas colunas são sempre `null`/não-`null` juntas.
+
+**Campos envolvidos**: os mesmos de `ExecutionBuffer`, mais `CenterProduct.TopOfRedExecution`/`TopOfGreenExecution` (ver `CLAUDE.md`).

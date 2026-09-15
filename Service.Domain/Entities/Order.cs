@@ -24,5 +24,8 @@ namespace Service.Domain.Entities
         public bool IsInbound { get; set; }
         public bool IsOutbound { get; set; }
         public bool IsFictional { get; set; } = false;
+
+        public decimal PendingQuantity => DeliveredQuantity > Quantity ? 0 : Quantity - DeliveredQuantity;
+        public int? OrderLeadtime => DeliveryDate.HasValue ? (DeliveryDate.Value - CreationDate).Days : null;
     }
 }

@@ -47,6 +47,9 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal? RedZoneExecution { get; set; }
         public decimal? YellowZoneExecution { get; set; }
         public decimal? GreenZoneExecution { get; set; }
+        public decimal? TopOfRedExecution { get; set; }
+        public decimal? TopOfYellowExecution { get; set; }
+        public decimal? TopOfGreenExecution { get; set; }
         public decimal? RedSafeAnalytical { get; set; }
         public decimal? YellowSafeAnalytical { get; set; }
         public decimal? GreenAnalytical { get; set; }

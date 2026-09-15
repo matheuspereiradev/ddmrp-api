@@ -22,5 +22,13 @@ namespace Service.API.Controllers
             var result = await _reportService.GetInventoryBufferManagementAsync(cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("openOrders/inbounds")]
+        [Authorize]
+        public async Task<ActionResult> OpenOrders([FromQuery] int? idCenter, [FromQuery] int? idProduct, CancellationToken cancellationToken)
+        {
+            var result = await _reportService.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
+            return Ok(result);
+        }
     }
 }

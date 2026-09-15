@@ -4,11 +4,14 @@ using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
+using Service.Domain.Utils;
 
 namespace Service.Application.Services
 {
     public class OrderService : BaseService<Order, OrderGetDto, OrderPostDto, OrderPutDto>, IOrderService
     {
+        private readonly IOrderRepository _orderRepository;
         private readonly IProductRepository _productRepository;
         private readonly IPartnerRepository _partnerRepository;
         private readonly ICenterRepository _centerRepository;
@@ -20,9 +23,17 @@ namespace Service.Application.Services
             ICenterRepository centerRepository)
             : base(repository)
         {
+            _orderRepository = repository;
             _productRepository = productRepository;
             _partnerRepository = partnerRepository;
             _centerRepository = centerRepository;
+        }
+
+        public async Task<PagedList<OrderGetDto>> GetFilteredAsync(int? idDestinyCenter, int? idOriginCenter, bool? fictional, bool? isInbound, bool? isOutbound, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var paged = await _orderRepository.GetFilteredAsync(idDestinyCenter, idOriginCenter, fictional, isInbound, isOutbound, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<OrderGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
 
         protected override OrderGetDto ToGetDTO(Order entity)
@@ -37,10 +48,14 @@ namespace Service.Application.Services
                 IdProduct = entity.IdProduct,
                 Quantity = entity.Quantity,
                 DeliveredQuantity = entity.DeliveredQuantity,
+                PendingQuantity = entity.PendingQuantity,
                 MeasurementUnit = entity.MeasurementUnit,
                 Position = entity.Position,
                 CreationDate = entity.CreationDate,
                 DeliveryDate = entity.DeliveryDate,
+                OrderLeadtime = entity.OrderLeadtime,
+                DaysToReceive = UtilsDdmrp.CalculateDaysToReceive(entity.DeliveryDate),
+                DaysLate = UtilsDdmrp.CalculateDaysLate(entity.DeliveryDate),
                 Notes = entity.Notes,
                 Type = entity.Type,
                 IsInbound = entity.IsInbound,

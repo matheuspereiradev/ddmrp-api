@@ -40,6 +40,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Ignore(cp => cp.RedZoneExecution);
             builder.Ignore(cp => cp.YellowZoneExecution);
             builder.Ignore(cp => cp.GreenZoneExecution);
+            builder.Ignore(cp => cp.TopOfRedExecution);
+            builder.Ignore(cp => cp.TopOfYellowExecution);
+            builder.Ignore(cp => cp.TopOfGreenExecution);
             builder.Ignore(cp => cp.RedSafeAnalytical);
             builder.Ignore(cp => cp.YellowSafeAnalytical);
             builder.Ignore(cp => cp.GreenAnalytical);

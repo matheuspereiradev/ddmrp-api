@@ -103,4 +103,91 @@ public class UtilsDdmrpTests
 
         Assert.Equal(expected, result);
     }
+
+    [Fact]
+    public void CalculateTimeBuffer_ReturnsDaysSinceReferenceDateDividedByLeadtime()
+    {
+        var deliveryDate = DateTime.Now.Date;
+
+        var result = UtilsDdmrp.CalculateTimeBuffer(deliveryDate, orderLeadtime: 5);
+
+        Assert.Equal(0.8m, result);
+    }
+
+    [Fact]
+    public void CalculateTimeBuffer_DividesByOneMinimum_WhenOrderLeadtimeIsZero()
+    {
+        var deliveryDate = DateTime.Now.Date.AddDays(-10);
+
+        var result = UtilsDdmrp.CalculateTimeBuffer(deliveryDate, orderLeadtime: 0);
+
+        Assert.Equal(9m, result);
+    }
+
+    [Theory]
+    [InlineData(1.01, BufferColor.Black)]
+    [InlineData(2, BufferColor.Black)]
+    [InlineData(1, BufferColor.Red)]
+    [InlineData(0.67, BufferColor.Red)]
+    [InlineData(0.66, BufferColor.Yellow)]
+    [InlineData(0.34, BufferColor.Yellow)]
+    [InlineData(0.33, BufferColor.Green)]
+    [InlineData(0.01, BufferColor.Green)]
+    [InlineData(0, BufferColor.NoColor)]
+    [InlineData(-0.5, BufferColor.NoColor)]
+    public void CalculateTimeBufferColor_ReturnsExpectedColor(decimal timeBufferPercentage, BufferColor expected)
+    {
+        var result = UtilsDdmrp.CalculateTimeBufferColor(timeBufferPercentage);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void CalculateDaysToReceive_ReturnsZero_WhenDeliveryDateIsNull()
+    {
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysToReceive(null));
+    }
+
+    [Fact]
+    public void CalculateDaysToReceive_ReturnsZero_WhenDeliveryDateIsInThePast()
+    {
+        var deliveryDate = DateTime.Now.Date.AddDays(-3);
+
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysToReceive(deliveryDate));
+    }
+
+    [Fact]
+    public void CalculateDaysToReceive_ReturnsZero_WhenDeliveryDateIsToday()
+    {
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysToReceive(DateTime.Now.Date));
+    }
+
+    [Fact]
+    public void CalculateDaysToReceive_ReturnsDaysUntilDelivery_WhenInTheFuture()
+    {
+        var deliveryDate = DateTime.Now.Date.AddDays(7);
+
+        Assert.Equal(7, UtilsDdmrp.CalculateDaysToReceive(deliveryDate));
+    }
+
+    [Fact]
+    public void CalculateDaysLate_ReturnsZero_WhenDeliveryDateIsNull()
+    {
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysLate(null));
+    }
+
+    [Fact]
+    public void CalculateDaysLate_ReturnsZero_WhenDeliveryDateIsTodayOrFuture()
+    {
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysLate(DateTime.Now.Date));
+        Assert.Equal(0, UtilsDdmrp.CalculateDaysLate(DateTime.Now.Date.AddDays(5)));
+    }
+
+    [Fact]
+    public void CalculateDaysLate_ReturnsDaysSinceDelivery_WhenInThePast()
+    {
+        var deliveryDate = DateTime.Now.Date.AddDays(-4);
+
+        Assert.Equal(4, UtilsDdmrp.CalculateDaysLate(deliveryDate));
+    }
 }

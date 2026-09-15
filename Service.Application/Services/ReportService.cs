@@ -15,5 +15,8 @@ namespace Service.Application.Services
 
         public Task<List<InventoryBufferManagementRow>> GetInventoryBufferManagementAsync(CancellationToken cancellationToken = default) =>
             _reportRepository.GetInventoryBufferManagementAsync(cancellationToken);
+
+        public Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default) =>
+            _reportRepository.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
     }
 }

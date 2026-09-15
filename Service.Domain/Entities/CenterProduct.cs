@@ -38,20 +38,23 @@ namespace Service.Domain.Entities
         public bool UseSuggestedVariabilityFactor { get; set; } = true;
         public decimal? RedZoneBase { get; set; }
         public decimal? RedZoneSafe { get; set; }
-        public decimal? RedZone => RedZoneBase + RedZoneSafe;
+        public decimal? RedZone => RedZoneBase.HasValue && RedZoneSafe.HasValue ? Math.Ceiling(RedZoneBase.Value + RedZoneSafe.Value) : (decimal?)null;
         public decimal? YellowZone { get; set; }
         public decimal? GreenZone { get; set; }
-        public decimal? TopOfRed => RedZoneBase + RedZoneSafe;
-        public decimal? TopOfYellow => RedZoneBase + RedZoneSafe + YellowZone;
-        public decimal? TopOfGreen => RedZoneBase + RedZoneSafe + YellowZone + GreenZone;
-        public decimal? RedZoneExecution => TopOfRed / 2;
-        public decimal? YellowZoneExecution => TopOfRed / 2;
-        public decimal? GreenZoneExecution => YellowZone;
-        public decimal? RedSafeAnalytical => RedZone / 2;
-        public decimal? YellowSafeAnalytical => RedZone;
-        public decimal? GreenAnalytical => RedZone + GreenZone;
-        public decimal? YellowExcessAnalytical => RedZone + YellowZone;
-        public decimal? RedSafeExcessAnalytical => RedZone / 2;
+        public decimal? TopOfRed => RedZoneBase.HasValue && RedZoneSafe.HasValue ? Math.Ceiling(RedZoneBase.Value + RedZoneSafe.Value) : (decimal?)null;
+        public decimal? TopOfYellow => RedZoneBase.HasValue && RedZoneSafe.HasValue && YellowZone.HasValue ? Math.Ceiling(RedZoneBase.Value + RedZoneSafe.Value + YellowZone.Value) : (decimal?)null;
+        public decimal? TopOfGreen => RedZoneBase.HasValue && RedZoneSafe.HasValue && YellowZone.HasValue && GreenZone.HasValue ? Math.Ceiling(RedZoneBase.Value + RedZoneSafe.Value + YellowZone.Value + GreenZone.Value) : (decimal?)null;
+        public decimal? RedZoneExecution => TopOfRed.HasValue ? Math.Ceiling(TopOfRed.Value / 2) : (decimal?)null;
+        public decimal? YellowZoneExecution => TopOfRed.HasValue ? Math.Ceiling(TopOfRed.Value / 2) : (decimal?)null;
+        public decimal? GreenZoneExecution => YellowZone.HasValue ? Math.Ceiling(YellowZone.Value) : (decimal?)null;
+        public decimal? TopOfRedExecution => RedZoneExecution.HasValue ? Math.Ceiling(RedZoneExecution.Value) : (decimal?)null;
+        public decimal? TopOfYellowExecution => RedZoneExecution.HasValue && YellowZoneExecution.HasValue ? Math.Ceiling(RedZoneExecution.Value + YellowZoneExecution.Value) : (decimal?)null;
+        public decimal? TopOfGreenExecution => RedZoneExecution.HasValue && YellowZoneExecution.HasValue && GreenZoneExecution.HasValue ? Math.Ceiling(RedZoneExecution.Value + YellowZoneExecution.Value + GreenZoneExecution.Value) : (decimal?)null;
+        public decimal? RedSafeAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value / 2) : (decimal?)null;
+        public decimal? YellowSafeAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value) : (decimal?)null;
+        public decimal? GreenAnalytical => RedZone.HasValue && GreenZone.HasValue ? Math.Ceiling(RedZone.Value + GreenZone.Value) : (decimal?)null;
+        public decimal? YellowExcessAnalytical => RedZone.HasValue && YellowZone.HasValue ? Math.Ceiling(RedZone.Value + YellowZone.Value) : (decimal?)null;
+        public decimal? RedSafeExcessAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value / 2) : (decimal?)null;
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; } = 1;
         public decimal CustomVariabilityFactor { get; set; } = 1;
