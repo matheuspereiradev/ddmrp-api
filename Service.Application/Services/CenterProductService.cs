@@ -3,6 +3,7 @@ using Service.Application.Exceptions;
 using Service.Application.Interfaces;
 using Service.Application.Mappers;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
 
 namespace Service.Application.Services
@@ -63,6 +64,7 @@ namespace Service.Application.Services
                 HistoryAduDays = postDTO.HistoryAduDays,
                 UseSuggestedLTFactor = postDTO.UseSuggestedLTFactor,
                 UseSuggestedVariabilityFactor = postDTO.UseSuggestedVariabilityFactor,
+                FixedBufferProfile = postDTO.FixedBufferProfile,
                 UseDafOnGreenZone = postDTO.UseDafOnGreenZone,
                 CustomLeadTimeFactor = postDTO.CustomLeadTimeFactor,
                 CustomVariabilityFactor = postDTO.CustomVariabilityFactor,
@@ -99,6 +101,7 @@ namespace Service.Application.Services
             entity.HistoryAduDays = putDTO.HistoryAduDays;
             entity.UseSuggestedLTFactor = putDTO.UseSuggestedLTFactor;
             entity.UseSuggestedVariabilityFactor = putDTO.UseSuggestedVariabilityFactor;
+            entity.FixedBufferProfile = putDTO.FixedBufferProfile;
             entity.UseDafOnGreenZone = putDTO.UseDafOnGreenZone;
             entity.CustomLeadTimeFactor = putDTO.CustomLeadTimeFactor;
             entity.CustomVariabilityFactor = putDTO.CustomVariabilityFactor;
@@ -106,6 +109,19 @@ namespace Service.Application.Services
             entity.GreenZoneParametrizationUseAduXFrequency = putDTO.GreenZoneParametrizationUseAduXFrequency;
             entity.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = putDTO.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime;
             entity.BufferType = putDTO.BufferType;
+
+            if (putDTO.BufferType == BufferType.ManualFixed)
+            {
+                entity.RedZoneBase = putDTO.RedZoneBase;
+                entity.RedZoneSafe = putDTO.RedZoneSafe;
+                entity.YellowZone = putDTO.YellowZone;
+                entity.GreenZone = putDTO.GreenZone;
+            }
+            else if (putDTO.RedZoneBase.HasValue || putDTO.RedZoneSafe.HasValue || putDTO.YellowZone.HasValue || putDTO.GreenZone.HasValue)
+            {
+                throw new BadRequestException("RedZoneBase, RedZoneSafe, YellowZone and GreenZone can only be edited when BufferType is ManualFixed.");
+            }
+
             entity.SpikeHorizonType = putDTO.SpikeHorizonType;
             entity.SpikeHorizonValue = putDTO.SpikeHorizonValue;
             entity.SpikeHorizonLTDays = putDTO.SpikeHorizonLTDays;

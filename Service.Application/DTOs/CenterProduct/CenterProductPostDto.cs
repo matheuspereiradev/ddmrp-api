@@ -49,6 +49,7 @@ namespace Service.Application.DTOs.CenterProduct
         public int? HistoryAduDays { get; set; }
         public bool UseSuggestedLTFactor { get; set; } = true;
         public bool UseSuggestedVariabilityFactor { get; set; } = true;
+        public bool FixedBufferProfile { get; set; } = false;
         public bool UseDafOnGreenZone { get; set; }
 
         [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]

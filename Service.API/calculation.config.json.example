@@ -35,6 +35,10 @@
     {
       "name": "CalculateQualifiedDemand",
       "parameters": []
+    },
+    {
+      "name": "SaveCenterProductConfigToHistory",
+      "parameters": []
     }
   ]
 }

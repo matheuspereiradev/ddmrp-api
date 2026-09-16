@@ -122,6 +122,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICalculationStep, CalculateDynamicMinMaxBufferZonesStep>();
             services.AddScoped<ICalculationStep, ApplyZafStep>();
             services.AddScoped<ICalculationStep, CalculateQualifiedDemandStep>();
+            services.AddScoped<ICalculationStep, SaveCenterProductConfigToHistoryStep>();
             services.AddScoped<ICalculationService, CalculationService>();
 
             services.AddScoped<IReportService, ReportService>();

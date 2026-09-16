@@ -18,5 +18,8 @@ namespace Service.Application.Services
 
         public Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default) =>
             _reportRepository.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
+
+        public Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct, DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default) =>
+            _reportRepository.GetInventoryHistoryAsync(idCenter, idProduct, dateStart, dateEnd, cancellationToken);
     }
 }

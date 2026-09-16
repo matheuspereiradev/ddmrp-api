@@ -43,6 +43,7 @@ namespace Service.Application.DTOs.CenterProduct
         public int? HistoryAduDays { get; set; }
         public bool UseSuggestedLTFactor { get; set; } = true;
         public bool UseSuggestedVariabilityFactor { get; set; } = true;
+        public bool FixedBufferProfile { get; set; } = false;
         public bool UseDafOnGreenZone { get; set; }
 
         [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
@@ -57,6 +58,18 @@ namespace Service.Application.DTOs.CenterProduct
 
         [EnumDataType(typeof(BufferType), ErrorMessage = "Invalid value for field {0}.")]
         public BufferType BufferType { get; set; } = BufferType.Normal;
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal? RedZoneBase { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal? RedZoneSafe { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal? YellowZone { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal? GreenZone { get; set; }
 
         [EnumDataType(typeof(SpikeHorizonType), ErrorMessage = "Invalid value for field {0}.")]
         public SpikeHorizonType SpikeHorizonType { get; set; }

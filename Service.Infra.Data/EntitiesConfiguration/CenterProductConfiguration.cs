@@ -29,6 +29,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(cp => cp.Cv).HasPrecision(18, 4);
             builder.Property(cp => cp.UseSuggestedLTFactor).IsRequired().HasDefaultValue(true);
             builder.Property(cp => cp.UseSuggestedVariabilityFactor).IsRequired().HasDefaultValue(true);
+            builder.Property(cp => cp.FixedBufferProfile).IsRequired().HasDefaultValue(false);
             builder.Property(cp => cp.RedZoneBase).HasPrecision(18, 4);
             builder.Property(cp => cp.RedZoneSafe).HasPrecision(18, 4);
             builder.Ignore(cp => cp.RedZone);

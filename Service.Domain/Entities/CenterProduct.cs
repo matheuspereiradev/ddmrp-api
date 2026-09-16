@@ -36,6 +36,7 @@ namespace Service.Domain.Entities
         public decimal? Cv { get; set; }
         public bool UseSuggestedLTFactor { get; set; } = true;
         public bool UseSuggestedVariabilityFactor { get; set; } = true;
+        public bool FixedBufferProfile { get; set; } = false;
         public decimal? RedZoneBase { get; set; }
         public decimal? RedZoneSafe { get; set; }
         public decimal? RedZone => RedZoneBase.HasValue && RedZoneSafe.HasValue ? Math.Ceiling(RedZoneBase.Value + RedZoneSafe.Value) : (decimal?)null;

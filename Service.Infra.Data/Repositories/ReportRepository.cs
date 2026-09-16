@@ -305,6 +305,7 @@ namespace Service.Infra.Data.Repositories
                 Cv = x.Cp.Cv,
                 UseSuggestedLTFactor = x.Cp.UseSuggestedLTFactor,
                 UseSuggestedVariabilityFactor = x.Cp.UseSuggestedVariabilityFactor,
+                FixedBufferProfile = x.Cp.FixedBufferProfile,
                 RedZoneBase = x.Cp.RedZoneBase,
                 RedZoneSafe = x.Cp.RedZoneSafe,
                 RedZone = x.RedZone,
@@ -464,6 +465,77 @@ namespace Service.Infra.Data.Repositories
             await ApplyExecutionBufferAsync(rows, cancellationToken);
 
             return rows;
+        }
+
+        // History rows for the requested period (robot-written daily snapshot columns, see CLAUDE.md/Formulas.md)
+        // unioned with one "today" row built live from CenterProduct + Order — History only gets a row once the
+        // Robot has run for that day, so "today" (before that day's run) has no History row yet and is filled
+        // in from the current CenterProduct state instead.
+        public async Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct, DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default)
+        {
+            var rows = await _context.History
+                .Where(h => h.deletedAt == null && h.IdCenter == idCenter && h.IdProduct == idProduct && h.Date >= dateStart && h.Date <= dateEnd)
+                .Select(h => new InventoryHistoryRow
+                {
+                    Date = h.Date,
+                    Stock = h.Stock,
+                    QualifiedDemand = h.QualifiedDemand,
+                    OrdersInTransit = h.OpenInbounds,
+                    Consumption = h.Consumption,
+                    StockTotal = h.Stock.HasValue && h.OpenInbounds.HasValue ? h.Stock.Value + h.OpenInbounds.Value : (decimal?)null,
+                    Adu = h.Adu,
+                    RedSafeZone = h.RedSafeZone,
+                    RedBaseZone = h.RedBaseZone,
+                    RedZone = h.RedSafeZone.HasValue && h.RedBaseZone.HasValue ? h.RedSafeZone.Value + h.RedBaseZone.Value : (decimal?)null,
+                    YellowZone = h.YellowZone,
+                    GreenZone = h.GreenZone,
+                    InventoryDays = h.Stock.HasValue && h.Adu.HasValue && h.Adu.Value != 0 ? h.Stock.Value / h.Adu.Value : (decimal?)null
+                })
+                .ToListAsync(cancellationToken);
+
+            foreach (var row in rows)
+                row.Netflow = UtilsDdmrp.CalculateNetflow(row.Stock ?? 0, row.QualifiedDemand ?? 0, row.OrdersInTransit ?? 0);
+
+            var centerProduct = await _context.CenterProduct
+                .Where(cp => cp.deletedAt == null && cp.IdCenter == idCenter && cp.IdProduct == idProduct)
+                .Select(cp => new { cp.Stock, cp.QualifiedDemand, cp.Adu, cp.RedZoneBase, cp.RedZoneSafe, cp.YellowZone, cp.GreenZone })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (centerProduct != null)
+            {
+                var ordersInTransit = await _context.Order
+                    .Where(o => o.deletedAt == null && o.IsInbound && !o.IsFictional && o.IdDestinyCenter == idCenter && o.IdProduct == idProduct)
+                    .SumAsync(o => (decimal?)(o.Quantity - o.DeliveredQuantity), cancellationToken) ?? 0;
+
+                var outbounds = await _context.Order
+                    .Where(o => o.deletedAt == null && o.IsOutbound && !o.IsFictional && o.IdOriginCenter == idCenter && o.IdProduct == idProduct)
+                    .SumAsync(o => (decimal?)(o.Quantity - o.DeliveredQuantity), cancellationToken) ?? 0;
+
+                var stock = centerProduct.Stock;
+                var stockTotal = stock + ordersInTransit;
+
+                rows.Add(new InventoryHistoryRow
+                {
+                    Date = DateTime.Today,
+                    Stock = stock,
+                    QualifiedDemand = centerProduct.QualifiedDemand,
+                    OrdersInTransit = ordersInTransit,
+                    Consumption = Math.Max(outbounds, centerProduct.Adu ?? 0),
+                    StockTotal = stockTotal,
+                    Adu = centerProduct.Adu,
+                    RedSafeZone = centerProduct.RedZoneSafe,
+                    RedBaseZone = centerProduct.RedZoneBase,
+                    RedZone = centerProduct.RedZoneSafe.HasValue && centerProduct.RedZoneBase.HasValue
+                        ? centerProduct.RedZoneSafe.Value + centerProduct.RedZoneBase.Value
+                        : (decimal?)null,
+                    YellowZone = centerProduct.YellowZone,
+                    GreenZone = centerProduct.GreenZone,
+                    InventoryDays = centerProduct.Adu.HasValue && centerProduct.Adu.Value != 0 ? stock / centerProduct.Adu.Value : null,
+                    Netflow = UtilsDdmrp.CalculateNetflow(stock, centerProduct.QualifiedDemand ?? 0, ordersInTransit)
+                });
+            }
+
+            return rows.OrderBy(r => r.Date).ToList();
         }
 
         private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)

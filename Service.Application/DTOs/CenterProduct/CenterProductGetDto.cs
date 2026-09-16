@@ -36,6 +36,7 @@ namespace Service.Application.DTOs.CenterProduct
         public decimal? Cv { get; set; }
         public bool UseSuggestedLTFactor { get; set; }
         public bool UseSuggestedVariabilityFactor { get; set; }
+        public bool FixedBufferProfile { get; set; }
         public decimal? RedZoneBase { get; set; }
         public decimal? RedZoneSafe { get; set; }
         public decimal? RedZone { get; set; }

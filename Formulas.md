@@ -634,3 +634,84 @@ ExecutionBufferColor = CalculateBufferColor(qt, CenterProduct.TopOfRedExecution,
 "Ordens anteriores" é a mesma definição de `ExecutionBuffer` acima. Fica `null` exatamente nos mesmos casos em que `ExecutionBuffer` fica `null` (mesma guarda de `TopOfYellowExecution` ausente/zero, mesmo pré-requisito de `DeliveryDate`/`CenterProduct` casado) — as duas colunas são sempre `null`/não-`null` juntas.
 
 **Campos envolvidos**: os mesmos de `ExecutionBuffer`, mais `CenterProduct.TopOfRedExecution`/`TopOfGreenExecution` (ver `CLAUDE.md`).
+
+## History — colunas derivadas (`StockDays`/`StockTotal`)
+
+Não são calculation steps — propriedades C# computadas na entidade `History` (`get`-only, `Ignore()`'d no EF em `HistoryConfiguration`, nunca uma coluna física, nullable-lifted: ficam `null` a menos que todas as parcelas envolvidas estejam setadas). Presentes em `HistoryGetDto`, ausentes de `PostDto`/`PutDto`, sem setter. Nenhum step escreve essas colunas diretamente — elas só leem `History.Stock`/`Adu`/`OpenInbounds` (essas sim gravadas pelo robô como colunas físicas, ver `CLAUDE.md`).
+
+```
+StockDays  = Stock / Adu,            se Stock e Adu estiverem setados e Adu <> 0
+           = null,                    caso contrário
+
+StockTotal = Stock + OpenInbounds,   se Stock e OpenInbounds estiverem setados
+           = null,                    caso contrário
+```
+
+**Campos envolvidos**: `History.Stock`, `History.Adu` (`StockDays`); `History.Stock`, `History.OpenInbounds` (`StockTotal`). `StockDays` guarda contra `Adu = 0`/`null` (item sem consumo médio calculado ainda) retornando `null` em vez de dividir por zero — mesma convenção de guarda das fórmulas de `CenterProduct`/`UtilsDdmrp` acima, só que `null` em vez de `0` (segue o padrão nullable-lifted das zonas derivadas de `CenterProduct`, não o padrão `0`-sentinela dos métodos de `UtilsDdmrp`).
+
+## SaveCenterProductConfigToHistory (`History` — colunas robô, snapshot de `CenterProduct`)
+
+Step: `Service.Infra.Data/Calculation/Steps/SaveCenterProductConfigToHistoryStep.cs` (nome no `calculation.config.json`: `"SaveCenterProductConfigToHistory"`) — **deve rodar por último**, depois de `CalculateQualifiedDemand`, já que grava o estado final (pós-ZAF, pós-QualifiedDemand) do `CenterProduct`.
+
+**Campos envolvidos**: `History.Adi`/`Adu`/`Cv`/`Frequency`/`FutureAduDays`/`GreenZone`/`HistoryAduDays`/`IdBufferProfile`/`IdReason`/`IdTag`/`LeadTime`/`Moq`/`OpenInbounds`/`OpenOutbound`/`PackQuantity`/`QualifiedDemand`/`RedBaseZone`/`RedSafeZone`/`StandardDeviation`/`Stock`/`YellowZone`/`ZafGreenZone`/`ZafRedZone`/`ZafYellowZone` (resultado), `CenterProduct` (mesmos campos, lidos), `Order.Quantity`/`DeliveredQuantity`/`IsInbound`/`IsOutbound`/`IsFictional`/`IdOriginCenter`/`IdDestinyCenter`/`IdProduct` (`OpenInbounds`/`OpenOutbound`, que não existem como coluna em `CenterProduct` — ver abaixo).
+
+Faz um **upsert** (SQL Server `MERGE`) da linha de `History` de **hoje** por `CenterProduct` ativo, casando por `(IdProduct, IdCenter, Date = hoje)`:
+
+```
+Se já existir uma linha de History pra (IdProduct, IdCenter, hoje):
+    atualiza só as colunas acima (nunca toca em Consumption/DiscardStatus — são da ingestão, não deste step)
+
+Senão:
+    insere uma nova linha, com Consumption = 0 e DiscardStatus = NotReviewed (valores default,
+    já que não existe consumo do dia vindo da ingestão pra essa linha nova)
+
+OpenInbounds = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsInbound = true,
+               IsFictional = false, IdProduct = CenterProduct.IdProduct, IdDestinyCenter = CenterProduct.IdCenter
+
+OpenOutbound = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsOutbound = true,
+               IsFictional = false, IdProduct = CenterProduct.IdProduct, IdOriginCenter = CenterProduct.IdCenter
+
+RedBaseZone = CenterProduct.RedZoneBase   (nomes na ordem trocada entre as duas tabelas — não é erro)
+RedSafeZone = CenterProduct.RedZoneSafe
+```
+
+- **`OpenInbounds`/`OpenOutbound` não são uma cópia direta de coluna** — `CenterProduct` não tem essas colunas (só existem calculadas a partir de `Order`, mesma fórmula já usada pela linha de "hoje" do report `inventoryHistory`, ver seção acima). Calculadas via subquery correlacionada dentro do próprio `MERGE`.
+- Escopo: todo `CenterProduct` ativo (`deletedAt IS NULL`) — sem filtro de `BufferType`.
+- "Hoje" é `CAST(GETDATE() AS DATE)`, usado tanto na chave de casamento (`Date`) quanto nas somas de `Order`.
+- Só uma linha por `(IdProduct, IdCenter, Date)` é afetada por execução — não é um "reset depois recompute" como as colunas de `CenterProduct` (não faz sentido zerar linhas de dias passados de `History`, já que cada dia é seu próprio registro imutável depois de escrito).
+
+## Report `inventoryHistory` (`GET /api/report/inventoryHistory`)
+
+Repositório: `ReportRepository.GetInventoryHistoryAsync(idCenter, idProduct, dateStart, dateEnd, cancellationToken)`. Não é `IQueryable` (materializa direto, `Task<List<InventoryHistoryRow>>`) — diferente do `inventoryBufferManagement`, não precisa compor `$filter`/`$orderby` do OData por cima.
+
+Uma linha por dia de `History` no período `[dateStart, dateEnd]` pra aquele `(IdProduct, IdCenter)` — usando as colunas físicas gravadas pelo robô (`Stock`/`QualifiedDemand`/`OpenInbounds`/`Consumption`/`Adu`/`RedSafeZone`/`RedBaseZone`/`YellowZone`/`GreenZone`, ver `CLAUDE.md`) mais `StockTotal`/`InventoryDays` (mesmas fórmulas de `History.StockTotal`/`StockDays` acima, duplicadas aqui como expressão em vez de referenciar a propriedade `Ignore()`'d da entidade, mesma convenção de segurança de tradução do `inventoryBufferManagement`) — **UNIDA a uma linha extra de "hoje"**, montada ao vivo a partir de `CenterProduct`/`Order` em vez de `History`:
+
+```
+Date            = hoje
+
+Stock           = CenterProduct.Stock
+QualifiedDemand = CenterProduct.QualifiedDemand
+Adu             = CenterProduct.Adu
+RedSafeZone     = CenterProduct.RedZoneSafe
+RedBaseZone     = CenterProduct.RedZoneBase
+RedZone         = RedSafeZone + RedBaseZone
+YellowZone      = CenterProduct.YellowZone
+GreenZone       = CenterProduct.GreenZone
+
+OrdersInTransit = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsInbound = true,
+                  IsFictional = false, IdProduct = idProduct, IdDestinyCenter = idCenter
+
+OpenOutbounds   = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsOutbound = true,
+                  IsFictional = false, IdProduct = idProduct, IdOriginCenter = idCenter
+
+Consumption     = MAX(OpenOutbounds, Adu)                      (Adu tratado como 0 se null)
+StockTotal      = Stock + OrdersInTransit
+InventoryDays   = Stock / Adu,   se Adu <> 0 e <> null
+                = null,           caso contrário
+Netflow         = UtilsDdmrp.CalculateNetflow(Stock, QualifiedDemand, OrdersInTransit)   (ver seção "NetFlow" acima; campos null tratados como 0)
+```
+
+- **Por quê a linha de "hoje" existe**: `History` só ganha uma linha do dia depois que o Robot roda naquele dia (ver o pipeline de cálculo em `CLAUDE.md`) — antes disso, "hoje" simplesmente não aparece em `History`. A linha extra preenche essa lacuna com o estado atual do `CenterProduct`, pra o gráfico de tendência não ter um buraco no dia corrente.
+- A linha de "hoje" é **omitida por completo** se não existir `CenterProduct` pra aquele `(IdProduct, IdCenter)` — sem dado nenhum pra construir a linha.
+- `Consumption` na linha de "hoje" não é o mesmo conceito de `History.Consumption` (que é o consumo realizado, gravado pelo robô) — é uma estimativa: o maior entre a demanda de saída já pendente (`OpenOutbounds`) e o consumo médio diário (`Adu`), usada como proxy de "quanto ainda deve sair hoje".
+- Resultado final ordenado por `Date` ascendente (dias de `History` primeiro, "hoje" sempre por último, já que nenhuma linha de `History` pode ter data futura).

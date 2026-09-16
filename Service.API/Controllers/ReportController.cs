@@ -83,5 +83,18 @@ namespace Service.API.Controllers
             var result = await _reportService.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("inventoryHistory")]
+        [Authorize]
+        public async Task<ActionResult> InventoryHistory(
+            [FromQuery] int idCenter,
+            [FromQuery] int idProduct,
+            [FromQuery] DateTime dateStart,
+            [FromQuery] DateTime dateEnd,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reportService.GetInventoryHistoryAsync(idCenter, idProduct, dateStart, dateEnd, cancellationToken);
+            return Ok(result);
+        }
     }
 }

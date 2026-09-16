@@ -15,7 +15,7 @@ namespace Service.Infra.Data.Repositories
         }
 
         protected override IQueryable<History> ApplyIncludes(IQueryable<History> query) =>
-            query.Include(h => h.Product).Include(h => h.Center);
+            query.Include(h => h.Product).Include(h => h.Center).Include(h => h.BufferProfile);
 
         public async Task<PagedList<History>> GetFilteredAsync(int? idProduct, int? idCenter, DateTime? dateStart, DateTime? dateEnd, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {

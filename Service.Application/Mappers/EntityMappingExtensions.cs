@@ -138,6 +138,7 @@ namespace Service.Application.Mappers
             Cv = centerProduct.Cv,
             UseSuggestedLTFactor = centerProduct.UseSuggestedLTFactor,
             UseSuggestedVariabilityFactor = centerProduct.UseSuggestedVariabilityFactor,
+            FixedBufferProfile = centerProduct.FixedBufferProfile,
             RedZoneBase = centerProduct.RedZoneBase,
             RedZoneSafe = centerProduct.RedZoneSafe,
             RedZone = centerProduct.RedZone,
