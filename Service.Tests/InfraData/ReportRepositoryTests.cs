@@ -529,4 +529,203 @@ public class ReportRepositoryTests
         Assert.Null(row.ExecutionBuffer);
         Assert.Null(row.ExecutionBufferColor);
     }
+
+    [Fact]
+    public async Task GetProjectedStockAlertAsync_SimulatesDailyStock_CarryingClosingStockForwardAsNextOpeningStock()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            Adu = 5m,
+            Stock = 100m,
+            RedZoneBase = 10m,
+            RedZoneSafe = 10m,
+            YellowZone = 20m,
+            GreenZone = 20m
+        };
+
+        context.AddRange(center, product, centerProduct);
+
+        context.Calendar.AddRange(
+            new Calendar { Date = new DateTime(2026, 9, 1), DayOfWeekNumber = 2, IsWorkingDay = true },
+            new Calendar { Date = new DateTime(2026, 9, 2), DayOfWeekNumber = 3, IsWorkingDay = true },
+            new Calendar { Date = new DateTime(2026, 9, 3), DayOfWeekNumber = 4, IsWorkingDay = true });
+
+        context.Forecast.Add(new Forecast { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Value = 30m, StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 3) });
+
+        context.Order.AddRange(
+            new Order { Id = 1, OrderNumber = "IN1", IdProduct = product.Id, IdDestinyCenter = center.Id, Quantity = 50, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 2), IsInbound = true, IsOutbound = false, IsFictional = false },
+            new Order { Id = 2, OrderNumber = "OUT1", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 8, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = false, IsOutbound = true, IsFictional = false },
+            new Order { Id = 3, OrderNumber = "FICTIONAL-OUT-EXCLUDED-VIA-FLAG", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 999, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = false, IsOutbound = true, IsFictional = true });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 3), useFictionalOrders: false);
+
+        Assert.Equal(3, rows.Count);
+
+        var day1 = rows[0];
+        Assert.Equal(new DateTime(2026, 9, 1), day1.Date);
+        Assert.Equal("REF1", day1.ProductReference);
+        Assert.Equal("C1", day1.CenterCode);
+        Assert.Equal(5m, day1.Adu);
+        Assert.Equal(10m, day1.RedZoneExecution);
+        Assert.Equal(10m, day1.YellowZoneExecution);
+        Assert.Equal(20m, day1.GreenZoneExecution);
+        Assert.Equal(10m, day1.ProjectedConsumption);
+        Assert.Equal(0m, day1.Inbound);
+        Assert.Equal(8m, day1.OutboundOrders);
+        Assert.Equal(10m, day1.Outbound); // MAX(Adu 5, OutboundOrders 8, ProjectedConsumption 10)
+        Assert.Equal(100m, day1.OpeningStock);
+        Assert.Equal(90m, day1.ClosingStock);
+
+        var day2 = rows[1];
+        Assert.Equal(day1.ClosingStock, day2.OpeningStock);
+        Assert.Equal(10m, day2.ProjectedConsumption);
+        Assert.Equal(50m, day2.Inbound);
+        Assert.Equal(0m, day2.OutboundOrders);
+        Assert.Equal(10m, day2.Outbound);
+        Assert.Equal(130m, day2.ClosingStock);
+
+        var day3 = rows[2];
+        Assert.Equal(day2.ClosingStock, day3.OpeningStock);
+        Assert.Equal(0m, day3.Inbound);
+        Assert.Equal(0m, day3.OutboundOrders);
+        Assert.Equal(10m, day3.Outbound);
+        Assert.Equal(120m, day3.ClosingStock);
+
+        // TopOfRedExecution/TopOfYellowExecution/TopOfGreenExecution = 10/20/40, from RedZoneBase 10 + RedZoneSafe 10 + YellowZone 20
+        foreach (var row in rows)
+            Assert.Equal(UtilsDdmrp.CalculateBufferColor(row.ClosingStock, 10m, 20m, 40m), row.ExecutionBufferColor);
+    }
+
+    [Fact]
+    public async Task GetProjectedStockAlertAsync_UseFictionalOrdersTogglesWhetherFictionalOrdersCount()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Stock = 100m };
+
+        context.AddRange(center, product, centerProduct);
+        context.Calendar.Add(new Calendar { Date = new DateTime(2026, 9, 1), DayOfWeekNumber = 2, IsWorkingDay = true });
+        context.Order.AddRange(
+            new Order { Id = 1, OrderNumber = "IN-REAL", IdProduct = product.Id, IdDestinyCenter = center.Id, Quantity = 20, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = true, IsOutbound = false, IsFictional = false },
+            new Order { Id = 2, OrderNumber = "IN-FICTIONAL", IdProduct = product.Id, IdDestinyCenter = center.Id, Quantity = 30, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = true, IsOutbound = false, IsFictional = true },
+            new Order { Id = 3, OrderNumber = "OUT-REAL", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 5, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = false, IsOutbound = true, IsFictional = false },
+            new Order { Id = 4, OrderNumber = "OUT-FICTIONAL", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 7, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = false, IsOutbound = true, IsFictional = true });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var withFictional = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1)));
+        Assert.Equal(50m, withFictional.Inbound); // 20 + 30, useFictionalOrders defaults to true
+        Assert.Equal(12m, withFictional.OutboundOrders); // 5 + 7
+
+        var withoutFictional = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1), useFictionalOrders: false));
+        Assert.Equal(20m, withoutFictional.Inbound);
+        Assert.Equal(5m, withoutFictional.OutboundOrders);
+    }
+
+    [Fact]
+    public async Task GetProjectedStockAlertAsync_ReturnsEmptyList_WhenCenterProductDoesNotExist()
+    {
+        await using var context = CreateContext();
+
+        context.Calendar.Add(new Calendar { Date = new DateTime(2026, 9, 1), DayOfWeekNumber = 2, IsWorkingDay = true });
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetProjectedStockAlertAsync(idCenter: 1, idProduct: 1, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1));
+
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public async Task GetProjectedStockAlertAsync_OutboundCandidateTogglesControlTheDailyMax_AndUseInboundsControlsClosingStock()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Adu = 5m, Stock = 100m };
+
+        context.AddRange(center, product, centerProduct);
+        context.Calendar.Add(new Calendar { Date = new DateTime(2026, 9, 1), DayOfWeekNumber = 2, IsWorkingDay = true });
+        context.Forecast.Add(new Forecast { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Value = 20m, StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 1) });
+        context.Order.AddRange(
+            new Order { Id = 1, OrderNumber = "IN1", IdProduct = product.Id, IdDestinyCenter = center.Id, Quantity = 50, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = true, IsOutbound = false, IsFictional = false },
+            new Order { Id = 2, OrderNumber = "OUT1", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 8, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = new DateTime(2026, 9, 1), IsInbound = false, IsOutbound = true, IsFictional = false });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var defaultRow = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1)));
+        Assert.Equal(20m, defaultRow.Outbound); // MAX(Adu 5, OutboundOrders 8, ProjectedConsumption 20)
+        Assert.Equal(130m, defaultRow.ClosingStock); // 100 - 20 + 50
+
+        var noCandidatesRow = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1),
+            useAdu: false, useForecast: false, useOutbounds: false));
+        Assert.Equal(0m, noCandidatesRow.Outbound);
+        Assert.Equal(150m, noCandidatesRow.ClosingStock); // 100 - 0 + 50
+
+        var onlyAduRow = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1),
+            useForecast: false, useOutbounds: false));
+        Assert.Equal(5m, onlyAduRow.Outbound);
+
+        var noInboundsRow = Assert.Single(await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 1),
+            useInbounds: false));
+        Assert.Equal(50m, noInboundsRow.Inbound); // still reported on the row, just not added to closingStock
+        Assert.Equal(80m, noInboundsRow.ClosingStock); // 100 - 20 + 0
+    }
+
+    [Fact]
+    public async Task GetProjectedStockAlertAsync_AccumulateTodayToggles_MoveOverdueOrdersOntoToday()
+    {
+        await using var context = CreateContext();
+
+        var today = DateTime.Today;
+        var overdue = today.AddDays(-2);
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Stock = 100m };
+
+        context.AddRange(center, product, centerProduct);
+        context.Calendar.AddRange(
+            new Calendar { Date = overdue, DayOfWeekNumber = (int)overdue.DayOfWeek, IsWorkingDay = true },
+            new Calendar { Date = today, DayOfWeekNumber = (int)today.DayOfWeek, IsWorkingDay = true });
+        context.Order.AddRange(
+            new Order { Id = 1, OrderNumber = "IN-OVERDUE", IdProduct = product.Id, IdDestinyCenter = center.Id, Quantity = 30, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = overdue, IsInbound = true, IsOutbound = false, IsFictional = false },
+            new Order { Id = 2, OrderNumber = "OUT-OVERDUE", IdProduct = product.Id, IdOriginCenter = center.Id, Quantity = 12, DeliveredQuantity = 0, MeasurementUnit = "UN", DeliveryDate = overdue, IsInbound = false, IsOutbound = true, IsFictional = false });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var withoutAccumulation = await repository.GetProjectedStockAlertAsync(center.Id, product.Id, overdue, today);
+        Assert.Equal(30m, withoutAccumulation.Single(r => r.Date == overdue).Inbound);
+        Assert.Equal(0m, withoutAccumulation.Single(r => r.Date == today).Inbound);
+        Assert.Equal(12m, withoutAccumulation.Single(r => r.Date == overdue).OutboundOrders);
+        Assert.Equal(0m, withoutAccumulation.Single(r => r.Date == today).OutboundOrders);
+
+        var withAccumulation = await repository.GetProjectedStockAlertAsync(center.Id, product.Id, overdue, today,
+            accumulateInboundsToday: true, accumulateOutboundsToday: true);
+        Assert.Equal(0m, withAccumulation.Single(r => r.Date == overdue).Inbound);
+        Assert.Equal(30m, withAccumulation.Single(r => r.Date == today).Inbound);
+        Assert.Equal(0m, withAccumulation.Single(r => r.Date == overdue).OutboundOrders);
+        Assert.Equal(12m, withAccumulation.Single(r => r.Date == today).OutboundOrders);
+    }
 }

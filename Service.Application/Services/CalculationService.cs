@@ -9,15 +9,20 @@ namespace Service.Application.Services
     {
         private readonly ICalculationConfigProvider _configProvider;
         private readonly IEnumerable<ICalculationStep> _steps;
+        private readonly ICenterProductRepository _centerProductRepository;
 
-        public CalculationService(ICalculationConfigProvider configProvider, IEnumerable<ICalculationStep> steps)
+        public CalculationService(ICalculationConfigProvider configProvider, IEnumerable<ICalculationStep> steps, ICenterProductRepository centerProductRepository)
         {
             _configProvider = configProvider;
             _steps = steps;
+            _centerProductRepository = centerProductRepository;
         }
 
-        public async Task<List<CalculationStepResult>> RunAsync(CancellationToken cancellationToken = default)
+        public async Task<List<CalculationStepResult>> RunAsync(int? idCenterProduct = null, CancellationToken cancellationToken = default)
         {
+            if (idCenterProduct.HasValue && !await _centerProductRepository.Exists(idCenterProduct.Value, cancellationToken))
+                throw new NotFoundException("CenterProduct not found.");
+
             List<CalculationStepConfig> configuredSteps;
             try
             {
@@ -35,7 +40,7 @@ namespace Service.Application.Services
                 var step = _steps.FirstOrDefault(s => s.CanHandle(stepConfig.Name))
                     ?? throw new BadRequestException($"Unsupported calculation step '{stepConfig.Name}'.");
 
-                var result = await step.ExecuteAsync(stepConfig, cancellationToken);
+                var result = await step.ExecuteAsync(stepConfig, idCenterProduct, cancellationToken);
                 results.Add(result);
 
                 if (!result.Success)

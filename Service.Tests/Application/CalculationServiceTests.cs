@@ -10,12 +10,14 @@ public class CalculationServiceTests
 {
     private readonly ICalculationConfigProvider _configProvider = Substitute.For<ICalculationConfigProvider>();
     private readonly ICalculationStep _step = Substitute.For<ICalculationStep>();
+    private readonly ICenterProductRepository _centerProductRepository = Substitute.For<ICenterProductRepository>();
     private readonly CalculationService _sut;
 
     public CalculationServiceTests()
     {
         _step.CanHandle(Arg.Any<string>()).Returns(true);
-        _sut = new CalculationService(_configProvider, [_step]);
+        _centerProductRepository.Exists(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(true);
+        _sut = new CalculationService(_configProvider, [_step], _centerProductRepository);
     }
 
     [Fact]
@@ -28,7 +30,7 @@ public class CalculationServiceTests
             new() { Name = "Step3" }
         };
         _configProvider.GetStepsAsync(Arg.Any<CancellationToken>()).Returns(steps);
-        _step.ExecuteAsync(Arg.Any<CalculationStepConfig>(), Arg.Any<CancellationToken>())
+        _step.ExecuteAsync(Arg.Any<CalculationStepConfig>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => new CalculationStepResult { Name = callInfo.Arg<CalculationStepConfig>().Name, Success = true });
 
         var results = await _sut.RunAsync();
@@ -37,9 +39,9 @@ public class CalculationServiceTests
         Assert.Equal(["Step1", "Step2", "Step3"], results.Select(r => r.Name));
         Received.InOrder(() =>
         {
-            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step1"), Arg.Any<CancellationToken>());
-            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step2"), Arg.Any<CancellationToken>());
-            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step3"), Arg.Any<CancellationToken>());
+            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step1"), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step2"), Arg.Any<int?>(), Arg.Any<CancellationToken>());
+            _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step3"), Arg.Any<int?>(), Arg.Any<CancellationToken>());
         });
     }
 
@@ -53,9 +55,9 @@ public class CalculationServiceTests
             new() { Name = "Step3" }
         };
         _configProvider.GetStepsAsync(Arg.Any<CancellationToken>()).Returns(steps);
-        _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step1"), Arg.Any<CancellationToken>())
+        _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step1"), Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(new CalculationStepResult { Name = "Step1", Success = true });
-        _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step2"), Arg.Any<CancellationToken>())
+        _step.ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step2"), Arg.Any<int?>(), Arg.Any<CancellationToken>())
             .Returns(new CalculationStepResult { Name = "Step2", Success = false, Error = "boom" });
 
         var results = await _sut.RunAsync();
@@ -63,7 +65,7 @@ public class CalculationServiceTests
         Assert.Equal(2, results.Count);
         Assert.True(results[0].Success);
         Assert.False(results[1].Success);
-        await _step.DidNotReceive().ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step3"), Arg.Any<CancellationToken>());
+        await _step.DidNotReceive().ExecuteAsync(Arg.Is<CalculationStepConfig>(s => s.Name == "Step3"), Arg.Any<int?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -81,5 +83,29 @@ public class CalculationServiceTests
         _configProvider.GetStepsAsync(Arg.Any<CancellationToken>()).Returns([new CalculationStepConfig { Name = "Unknown" }]);
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.RunAsync());
+    }
+
+    [Fact]
+    public async Task RunAsync_PassesIdCenterProductToEveryStep_WhenProvided()
+    {
+        var steps = new List<CalculationStepConfig> { new() { Name = "Step1" } };
+        _configProvider.GetStepsAsync(Arg.Any<CancellationToken>()).Returns(steps);
+        _step.ExecuteAsync(Arg.Any<CalculationStepConfig>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(new CalculationStepResult { Name = "Step1", Success = true });
+
+        await _sut.RunAsync(idCenterProduct: 42);
+
+        await _centerProductRepository.Received(1).Exists(42, Arg.Any<CancellationToken>());
+        await _step.Received(1).ExecuteAsync(Arg.Any<CalculationStepConfig>(), 42, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_ThrowsNotFoundException_WhenIdCenterProductDoesNotExist()
+    {
+        _centerProductRepository.Exists(99, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.RunAsync(idCenterProduct: 99));
+
+        await _configProvider.DidNotReceive().GetStepsAsync(Arg.Any<CancellationToken>());
     }
 }

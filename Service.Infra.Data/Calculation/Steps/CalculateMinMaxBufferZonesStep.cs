@@ -19,7 +19,7 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateMinMaxBufferZones", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
@@ -39,7 +39,7 @@ namespace Service.Infra.Data.Calculation.Steps
 
             try
             {
-                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(thresholdDays), cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(thresholdDays, idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -50,11 +50,11 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        private static FormattableString BuildSql(int thresholdDays) => $"""
+        private static FormattableString BuildSql(int thresholdDays, int? idCenterProduct) => $"""
             UPDATE cp
             SET cp.YellowZone = 0, cp.GreenZone = 0, cp.RedZoneSafe = 0, cp.RedZoneBase = 0
             FROM dbo.CenterProducts cp
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 2;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 2 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             DECLARE @Today DATE = CAST(GETDATE() AS DATE);
             DECLARE @WindowStart DATE = DATEADD(DAY, -{thresholdDays}, @Today);
@@ -77,7 +77,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     END AS Value
                 FROM dbo.CenterProducts cp
                 LEFT JOIN ActiveDaf daf ON daf.IdProduct = cp.IdProduct AND daf.IdCenter = cp.IdCenter
-                WHERE cp.deletedAt IS NULL AND cp.BufferType = 2
+                WHERE cp.deletedAt IS NULL AND cp.BufferType = 2 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             ),
             MaxOutflow AS (
                 SELECT h.IdProduct, h.IdCenter, MAX(h.Consumption) AS Value
@@ -101,7 +101,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 LEFT JOIN dbo.BufferProfiles bp ON bp.Id = cp.IdBufferProfile
                 JOIN AdjustedAdu a ON a.CenterProductId = cp.Id
                 LEFT JOIN MaxOutflow mo ON mo.IdProduct = cp.IdProduct AND mo.IdCenter = cp.IdCenter
-                WHERE cp.deletedAt IS NULL AND cp.BufferType = 2
+                WHERE cp.deletedAt IS NULL AND cp.BufferType = 2 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             )
             UPDATE cp
             SET
@@ -109,7 +109,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 cp.RedZoneBase = CEILING(IIF(z.RedBase < 0, 0, z.RedBase))
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 2;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 2 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

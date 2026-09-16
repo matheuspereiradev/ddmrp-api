@@ -538,6 +538,165 @@ namespace Service.Infra.Data.Repositories
             return rows.OrderBy(r => r.Date).ToList();
         }
 
+        // Simulates future stock day by day for a single (IdProduct, IdCenter) pair. Per-day inputs (the
+        // Forecast daily breakdown, split across business days exactly like ForecastRepository.GetFilteredAsync;
+        // pending inbound/outbound Orders grouped by DeliveryDate, fictional orders included unless
+        // useFictionalOrders is false) are pulled with regular LINQ/GroupBy, bounded by the requested date
+        // range — but the carry-forward itself (each day's OpeningStock is the previous day's ClosingStock)
+        // is inherently sequential and stateful, so it can't be expressed as one SQL query; it runs as a
+        // plain C# loop over the already-materialized per-day data.
+        public async Task<List<ProjectedStockAlertRow>> GetProjectedStockAlertAsync(
+            int idCenter,
+            int idProduct,
+            DateTime dateStart,
+            DateTime dateEnd,
+            bool useAdu = true,
+            bool useForecast = true,
+            bool useInbounds = true,
+            bool useOutbounds = true,
+            bool accumulateInboundsToday = false,
+            bool accumulateOutboundsToday = false,
+            bool useFictionalOrders = true,
+            CancellationToken cancellationToken = default)
+        {
+            var centerProduct = await _context.CenterProduct
+                .Where(cp => cp.deletedAt == null && cp.IdCenter == idCenter && cp.IdProduct == idProduct)
+                .Select(cp => new
+                {
+                    cp.Adu,
+                    cp.Stock,
+                    cp.RedZoneExecution,
+                    cp.YellowZoneExecution,
+                    cp.GreenZoneExecution,
+                    cp.TopOfRedExecution,
+                    cp.TopOfYellowExecution,
+                    cp.TopOfGreenExecution
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (centerProduct == null)
+                return new List<ProjectedStockAlertRow>();
+
+            var productReference = await _context.Product
+                .Where(p => p.Id == idProduct)
+                .Select(p => p.Reference)
+                .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+            var centerCode = await _context.Center
+                .Where(c => c.Id == idCenter)
+                .Select(c => c.Code)
+                .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+            var dates = await _context.Calendar
+                .Where(c => c.Date >= dateStart && c.Date <= dateEnd)
+                .OrderBy(c => c.Date)
+                .Select(c => c.Date)
+                .ToListAsync(cancellationToken);
+
+            var forecasts = _context.Forecast.Where(f => f.deletedAt == null && f.IdProduct == idProduct && f.IdCenter == idCenter);
+            var workingDays = _context.Calendar.Where(c => c.IsWorkingDay);
+
+            var withBusinessDayCount = forecasts.Select(f => new
+            {
+                f.StartDate,
+                f.EndDate,
+                f.Value,
+                BusinessDayCount = workingDays.Count(c => c.Date >= f.StartDate && c.Date <= f.EndDate)
+            });
+
+            var forecastByDate = await (
+                from f in withBusinessDayCount
+                from d in _context.Calendar
+                where d.Date >= f.StartDate && d.Date <= f.EndDate && d.Date >= dateStart && d.Date <= dateEnd
+                select new
+                {
+                    d.Date,
+                    Value = d.IsWorkingDay && f.BusinessDayCount > 0 ? f.Value / f.BusinessDayCount : 0
+                })
+                .GroupBy(x => x.Date)
+                .Select(g => new { Date = g.Key, Value = g.Sum(x => x.Value) })
+                .ToDictionaryAsync(x => x.Date, x => x.Value, cancellationToken);
+
+            var today = DateTime.Today;
+
+            var inboundByDate = await _context.Order
+                .Where(o => o.deletedAt == null && o.IsInbound && (useFictionalOrders || !o.IsFictional) && o.IdProduct == idProduct
+                    && o.IdDestinyCenter == idCenter && o.DeliveryDate.HasValue)
+                .Select(o => new
+                {
+                    EffectiveDate = accumulateInboundsToday && o.DeliveryDate!.Value < today ? today : o.DeliveryDate!.Value,
+                    Pending = o.Quantity - o.DeliveredQuantity
+                })
+                .Where(x => x.EffectiveDate >= dateStart && x.EffectiveDate <= dateEnd)
+                .GroupBy(x => x.EffectiveDate)
+                .Select(g => new { Date = g.Key, Value = g.Sum(x => x.Pending) })
+                .ToDictionaryAsync(x => x.Date, x => x.Value, cancellationToken);
+
+            var outboundByDate = await _context.Order
+                .Where(o => o.deletedAt == null && o.IsOutbound && (useFictionalOrders || !o.IsFictional) && o.IdProduct == idProduct
+                    && o.IdOriginCenter == idCenter && o.DeliveryDate.HasValue)
+                .Select(o => new
+                {
+                    EffectiveDate = accumulateOutboundsToday && o.DeliveryDate!.Value < today ? today : o.DeliveryDate!.Value,
+                    Pending = o.Quantity - o.DeliveredQuantity
+                })
+                .Where(x => x.EffectiveDate >= dateStart && x.EffectiveDate <= dateEnd)
+                .GroupBy(x => x.EffectiveDate)
+                .Select(g => new { Date = g.Key, Value = g.Sum(x => x.Pending) })
+                .ToDictionaryAsync(x => x.Date, x => x.Value, cancellationToken);
+
+            var adu = centerProduct.Adu ?? 0;
+            var redZoneExecution = centerProduct.RedZoneExecution ?? 0;
+            var yellowZoneExecution = centerProduct.YellowZoneExecution ?? 0;
+            var greenZoneExecution = centerProduct.GreenZoneExecution ?? 0;
+            var topOfRedExecution = centerProduct.TopOfRedExecution ?? 0;
+            var topOfYellowExecution = centerProduct.TopOfYellowExecution ?? 0;
+            var topOfGreenExecution = centerProduct.TopOfGreenExecution ?? 0;
+
+            var rows = new List<ProjectedStockAlertRow>(dates.Count);
+            var stock = centerProduct.Stock;
+
+            foreach (var date in dates)
+            {
+                var projectedConsumption = forecastByDate.GetValueOrDefault(date, 0);
+                var inbound = inboundByDate.GetValueOrDefault(date, 0);
+                var outboundOrders = outboundByDate.GetValueOrDefault(date, 0);
+
+                var outboundCandidates = new List<decimal>();
+                if (useAdu) outboundCandidates.Add(adu);
+                if (useOutbounds) outboundCandidates.Add(outboundOrders);
+                if (useForecast) outboundCandidates.Add(projectedConsumption);
+                var outbound = outboundCandidates.Count > 0 ? outboundCandidates.Max() : 0m;
+
+                var openingStock = stock;
+                var closingStock = openingStock - outbound + (useInbounds ? inbound : 0);
+
+                rows.Add(new ProjectedStockAlertRow
+                {
+                    Date = date,
+                    IdProduct = idProduct,
+                    IdCenter = idCenter,
+                    ProductReference = productReference,
+                    CenterCode = centerCode,
+                    Adu = adu,
+                    RedZoneExecution = redZoneExecution,
+                    YellowZoneExecution = yellowZoneExecution,
+                    GreenZoneExecution = greenZoneExecution,
+                    ProjectedConsumption = projectedConsumption,
+                    Inbound = inbound,
+                    OutboundOrders = outboundOrders,
+                    Outbound = outbound,
+                    OpeningStock = openingStock,
+                    ClosingStock = closingStock,
+                    ExecutionBufferColor = UtilsDdmrp.CalculateBufferColor(closingStock, topOfRedExecution, topOfYellowExecution, topOfGreenExecution)
+                });
+
+                stock = closingStock;
+            }
+
+            return rows;
+        }
+
         private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)
         {
             var idProducts = rows.Select(r => r.IdProduct).Distinct().ToList();

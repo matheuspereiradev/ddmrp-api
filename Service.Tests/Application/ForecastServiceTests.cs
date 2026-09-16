@@ -3,6 +3,7 @@ using Service.Application.DTOs.Forecast;
 using Service.Application.Exceptions;
 using Service.Application.Services;
 using Service.Domain.Entities;
+using Service.Domain.Forecasts;
 using Service.Domain.Interfaces;
 using Service.Domain.Pagination;
 
@@ -26,14 +27,15 @@ public class ForecastServiceTests
     {
         IdProduct = 1,
         IdCenter = 1,
-        Quantity = 100.5m,
-        Date = new DateTime(2026, 9, 11)
+        Value = 100.5m,
+        StartDate = new DateTime(2026, 9, 1),
+        EndDate = new DateTime(2026, 9, 30)
     };
 
     [Fact]
     public async Task GetByIdAsync_ReturnsDto_WhenForecastExists()
     {
-        var forecast = new Forecast { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = DateTime.UtcNow };
+        var forecast = new Forecast { Id = 1, IdProduct = 1, IdCenter = 1, Value = 10m, StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 30) };
         _forecastRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(forecast);
 
         var result = await _sut.GetByIdAsync(1);
@@ -41,6 +43,8 @@ public class ForecastServiceTests
         Assert.Equal(forecast.Id, result.Id);
         Assert.Equal(forecast.IdProduct, result.IdProduct);
         Assert.Equal(forecast.IdCenter, result.IdCenter);
+        Assert.Equal(forecast.StartDate, result.StartDate);
+        Assert.Equal(forecast.EndDate, result.EndDate);
     }
 
     [Fact]
@@ -51,8 +55,9 @@ public class ForecastServiceTests
             Id = 1,
             IdProduct = 1,
             IdCenter = 2,
-            Quantity = 10m,
-            Date = DateTime.UtcNow,
+            Value = 10m,
+            StartDate = new DateTime(2026, 9, 1),
+            EndDate = new DateTime(2026, 9, 30),
             Product = new Product { Id = 1, Reference = "REF001", Description = "Produto Teste", UnitOfMeasure = "UN" },
             Center = new Center { Id = 2, Code = "C001", Description = "Centro Teste" }
         };
@@ -84,7 +89,7 @@ public class ForecastServiceTests
         var result = await _sut.AddAsync(postDto);
 
         Assert.Equal(postDto.IdProduct, result.IdProduct);
-        Assert.Equal(postDto.Quantity, result.Quantity);
+        Assert.Equal(postDto.Value, result.Value);
         await _forecastRepository.Received(1).AddAsync(
             Arg.Is<Forecast>(f => f.IdProduct == postDto.IdProduct && f.IdCenter == postDto.IdCenter),
             Arg.Any<CancellationToken>());
@@ -113,20 +118,32 @@ public class ForecastServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_UpdatesOnlyQuantity_WhenForecastExists()
+    public async Task AddAsync_ThrowsBadRequestException_WhenEndDateIsBeforeStartDate()
     {
-        var existing = new Forecast { Id = 1, IdProduct = 1, IdCenter = 1, Quantity = 10m, Date = new DateTime(2026, 9, 11) };
-        var putDto = new ForecastPutDto { Quantity = 200m };
+        var postDto = BuildPostDto();
+        postDto.EndDate = postDto.StartDate.AddDays(-1);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.AddAsync(postDto));
+
+        await _forecastRepository.DidNotReceive().AddAsync(Arg.Any<Forecast>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpdatesOnlyValue_WhenForecastExists()
+    {
+        var existing = new Forecast { Id = 1, IdProduct = 1, IdCenter = 1, Value = 10m, StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 30) };
+        var putDto = new ForecastPutDto { Value = 200m };
         _forecastRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
         _forecastRepository.UpdateAsync(Arg.Any<Forecast>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<Forecast>());
 
         var result = await _sut.UpdateAsync(1, putDto);
 
-        Assert.Equal(200m, result.Quantity);
+        Assert.Equal(200m, result.Value);
         Assert.Equal(1, result.IdProduct);
         Assert.Equal(1, result.IdCenter);
-        Assert.Equal(new DateTime(2026, 9, 11), result.Date);
+        Assert.Equal(new DateTime(2026, 9, 1), result.StartDate);
+        Assert.Equal(new DateTime(2026, 9, 30), result.EndDate);
     }
 
     [Fact]
@@ -138,20 +155,45 @@ public class ForecastServiceTests
     }
 
     [Fact]
-    public async Task GetFilteredAsync_ReturnsMappedPagedList()
+    public async Task GetFilteredAsync_ReturnsMappedPagedList_FromExplodedDailyRows()
     {
-        var entities = new List<Forecast>
+        var rows = new List<ForecastDailyRow>
         {
-            new() { Id = 1, IdProduct = 2, IdCenter = 3, Quantity = 10m, Date = new DateTime(2026, 1, 1) }
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, Value = 5m, Date = new DateTime(2026, 1, 2) }
         };
         var dateStart = new DateTime(2026, 1, 1);
-        var dateEnd = new DateTime(2026, 12, 31);
+        var dateEnd = new DateTime(2026, 1, 31);
         _forecastRepository.GetFilteredAsync(2, 3, dateStart, dateEnd, 1, 10, Arg.Any<CancellationToken>())
-            .Returns(new PagedList<Forecast>(entities, 1, 10, 1));
+            .Returns(new PagedList<ForecastDailyRow>(rows, 1, 10, 1));
 
         var result = await _sut.GetFilteredAsync(idProduct: 2, idCenter: 3, dateStart: dateStart, dateEnd: dateEnd, pageNumber: 1, pageSize: 10);
 
         Assert.Equal(1, result.TotalCount);
-        Assert.Equal(2, Assert.Single(result).IdProduct);
+        var item = Assert.Single(result);
+        Assert.Equal(2, item.IdProduct);
+        Assert.Equal(5m, item.Value);
+        Assert.Equal(new DateTime(2026, 1, 2), item.Date);
+    }
+
+    [Fact]
+    public async Task GetGroupedAsync_ReturnsMappedPagedList_FromRawForecastRecords()
+    {
+        var entities = new List<Forecast>
+        {
+            new() { Id = 1, IdProduct = 2, IdCenter = 3, Value = 100m, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 1, 31) }
+        };
+        var dateStart = new DateTime(2026, 1, 1);
+        var dateEnd = new DateTime(2026, 12, 31);
+        _forecastRepository.GetGroupedAsync(2, 3, dateStart, dateEnd, 1, 10, Arg.Any<CancellationToken>())
+            .Returns(new PagedList<Forecast>(entities, 1, 10, 1));
+
+        var result = await _sut.GetGroupedAsync(idProduct: 2, idCenter: 3, dateStart: dateStart, dateEnd: dateEnd, pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(1, result.TotalCount);
+        var item = Assert.Single(result);
+        Assert.Equal(2, item.IdProduct);
+        Assert.Equal(100m, item.Value);
+        Assert.Equal(new DateTime(2026, 1, 1), item.StartDate);
+        Assert.Equal(new DateTime(2026, 1, 31), item.EndDate);
     }
 }

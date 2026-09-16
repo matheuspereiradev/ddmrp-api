@@ -96,5 +96,30 @@ namespace Service.API.Controllers
             var result = await _reportService.GetInventoryHistoryAsync(idCenter, idProduct, dateStart, dateEnd, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("projectedStockAlert")]
+        [Authorize]
+        public async Task<ActionResult> ProjectedStockAlert(
+            [FromQuery] int idCenter,
+            [FromQuery] int idProduct,
+            [FromQuery] DateTime dateStart,
+            [FromQuery] DateTime dateEnd,
+            [FromQuery] bool useAdu = true,
+            [FromQuery] bool useForecast = true,
+            [FromQuery] bool useInbounds = true,
+            [FromQuery] bool useOutbounds = true,
+            [FromQuery] bool accumulateInboundsToday = false,
+            [FromQuery] bool accumulateOutboundsToday = false,
+            [FromQuery] bool useFictionalOrders = true,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reportService.GetProjectedStockAlertAsync(
+                idCenter, idProduct, dateStart, dateEnd,
+                useAdu, useForecast, useInbounds, useOutbounds,
+                accumulateInboundsToday, accumulateOutboundsToday,
+                useFictionalOrders,
+                cancellationToken);
+            return Ok(result);
+        }
     }
 }

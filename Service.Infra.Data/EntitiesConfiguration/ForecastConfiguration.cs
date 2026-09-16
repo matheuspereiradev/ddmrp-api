@@ -14,8 +14,9 @@ namespace Service.Infra.Data.EntitiesConfiguration
 
             builder.Property(f => f.IdProduct).IsRequired();
             builder.Property(f => f.IdCenter).IsRequired();
-            builder.Property(f => f.Quantity).IsRequired().HasPrecision(18, 4);
-            builder.Property(f => f.Date).IsRequired();
+            builder.Property(f => f.Value).IsRequired().HasPrecision(18, 4);
+            builder.Property(f => f.StartDate).IsRequired();
+            builder.Property(f => f.EndDate).IsRequired();
 
             builder.HasOne(f => f.Product)
                 .WithMany()

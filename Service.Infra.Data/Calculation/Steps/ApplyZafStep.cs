@@ -17,13 +17,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "ApplyZAF", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -34,11 +34,12 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        private const string Sql = """
+        // idCenterProduct: see CalculateAduStandardDesvAndCvStep.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE cp
             SET cp.ZafRedZone = 0, cp.ZafYellowZone = 0, cp.ZafGreenZone = 0
             FROM dbo.CenterProducts cp
-            WHERE cp.deletedAt IS NULL;
+            WHERE cp.deletedAt IS NULL AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             ;WITH ActiveZaf AS (
                 SELECT zaf.IdProduct, zaf.IdCenter, zaf.TargetZone, zaf.AdjustmentType, zaf.AdjustmentValue
@@ -70,7 +71,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 LEFT JOIN ActiveZaf zg ON zg.IdProduct = cp.IdProduct AND zg.IdCenter = cp.IdCenter AND zg.TargetZone = 2
                 LEFT JOIN ActiveZaf zy ON zy.IdProduct = cp.IdProduct AND zy.IdCenter = cp.IdCenter AND zy.TargetZone = 1
                 LEFT JOIN ActiveZaf zr ON zr.IdProduct = cp.IdProduct AND zr.IdCenter = cp.IdCenter AND zr.TargetZone = 0
-                WHERE cp.deletedAt IS NULL AND cp.BufferType <> 1
+                WHERE cp.deletedAt IS NULL AND cp.BufferType <> 1 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             )
             UPDATE cp
             SET
@@ -82,7 +83,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 cp.RedZoneBase = CEILING(cp.RedZoneBase + d.RedDelta)
             FROM dbo.CenterProducts cp
             JOIN Deltas d ON d.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL AND cp.BufferType <> 1;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType <> 1 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

@@ -1,3 +1,4 @@
+using Service.Application.Exceptions;
 using Service.Application.Interfaces;
 using Service.Domain.Interfaces;
 using Service.Domain.Report.Results;
@@ -7,10 +8,12 @@ namespace Service.Application.Services
     public class ReportService : IReportService
     {
         private readonly IReportRepository _reportRepository;
+        private readonly ICenterProductRepository _centerProductRepository;
 
-        public ReportService(IReportRepository reportRepository)
+        public ReportService(IReportRepository reportRepository, ICenterProductRepository centerProductRepository)
         {
             _reportRepository = reportRepository;
+            _centerProductRepository = centerProductRepository;
         }
 
         public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable() =>
@@ -21,5 +24,34 @@ namespace Service.Application.Services
 
         public Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct, DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default) =>
             _reportRepository.GetInventoryHistoryAsync(idCenter, idProduct, dateStart, dateEnd, cancellationToken);
+
+        public async Task<List<ProjectedStockAlertRow>> GetProjectedStockAlertAsync(
+            int idCenter,
+            int idProduct,
+            DateTime dateStart,
+            DateTime dateEnd,
+            bool useAdu = true,
+            bool useForecast = true,
+            bool useInbounds = true,
+            bool useOutbounds = true,
+            bool accumulateInboundsToday = false,
+            bool accumulateOutboundsToday = false,
+            bool useFictionalOrders = true,
+            CancellationToken cancellationToken = default)
+        {
+            if (dateEnd < dateStart)
+                throw new BadRequestException("dateEnd must not be earlier than dateStart.");
+
+            var centerProduct = await _centerProductRepository.GetByProductAndCenterAsync(idProduct, idCenter, cancellationToken);
+            if (centerProduct == null)
+                throw new NotFoundException("CenterProduct not found.");
+
+            return await _reportRepository.GetProjectedStockAlertAsync(
+                idCenter, idProduct, dateStart, dateEnd,
+                useAdu, useForecast, useInbounds, useOutbounds,
+                accumulateInboundsToday, accumulateOutboundsToday,
+                useFictionalOrders,
+                cancellationToken);
+        }
     }
 }

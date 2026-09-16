@@ -8,7 +8,8 @@ namespace Service.Domain.Entities
         public Product Product { get; set; }
         public int IdCenter { get; set; }
         public Center Center { get; set; }
-        public decimal Quantity { get; set; }
-        public DateTime Date { get; set; }
+        public decimal Value { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
     }
 }

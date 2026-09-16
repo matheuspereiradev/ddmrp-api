@@ -2,11 +2,13 @@
 
 Lista centralizada das fórmulas usadas pelos steps de cálculo do Robot (`POST /api/calculation/run` / `POST /api/robot/run`). Cada step é uma classe C# em `Service.Infra.Data/Calculation/Steps/*.cs` (implementa `ICalculationStep`, tem acesso ao `ApplicationDbContext`/EF Core) — não são stored procedures no banco, então não precisam de migration pra "instalar"; mudar a fórmula é só editar o código. Toda fórmula nova deve ser documentada aqui antes (ou junto) de o step correspondente ser implementado.
 
+**`POST /api/calculation/run` aceita um body opcional `{ "idCenterProduct": int }`** (2026-09-16) — quando enviado, todo step roda escopado a esse único `CenterProduct.Id` (reset + recálculo só daquela linha) em vez de todo `CenterProduct` ativo; sem body (ou `idCenterProduct` omitido/null), roda como sempre, pra todos. `CalculationService.RunAsync` valida que o id existe (`NotFoundException` se não) antes de rodar qualquer step. Cada `ICalculationStep.ExecuteAsync` recebe `idCenterProduct` como parâmetro e filtra sua própria SQL por `(@idCenterProduct IS NULL OR cp.Id = @idCenterProduct)` — nenhuma fórmula abaixo muda, só o escopo de linhas afetadas. `POST /api/robot/run` não aceita esse parâmetro (sempre roda ingestão completa + todos os steps sem escopo).
+
 ## Adu (`CenterProduct.Adu`)
 
 Step: `Service.Infra.Data/Calculation/Steps/CalculateAduStandardDesvAndCvStep.cs` (nome no `calculation.config.json`: `"CalculateAduStandardDesvAndCv"`)
 
-**Campos envolvidos**: `CenterProduct.Adu` (resultado), `CenterProduct.HistoryAduDays`, `CenterProduct.FutureAduDays`, `History.Consumption`/`Date`/`DiscardStatus`, `Forecast.Quantity`/`Date`.
+**Campos envolvidos**: `CenterProduct.Adu` (resultado), `CenterProduct.HistoryAduDays`, `CenterProduct.FutureAduDays`, `History.Consumption`/`Date`/`DiscardStatus`, `Forecast.Value`/`StartDate`/`EndDate`, `Calendar.Date`/`IsWorkingDay`.
 
 ### Qual fórmula usar (por `CenterProduct`)
 
@@ -40,13 +42,16 @@ Histórico = (Soma de History.Consumption dos últimos HistoryAduDays dias não 
 
 ### Futuro
 
+`Forecast` é cadastrado por intervalo (mensal, `StartDate`/`EndDate` + `Value` total), não um valor por dia — então primeiro ele é "aberto" dia a dia (ver [[project_forecast_daily_breakdown]] / `Service.Domain/Entities/Calendar.cs`): cada dia útil (conforme `Calendar.IsWorkingDay`, marcado diretamente por data) dentro do próprio `[StartDate, EndDate]` de um `Forecast` recebe uma fatia igual de `Value` — `Value / (quantidade de dias úteis nesse intervalo)`. Dias não úteis não recebem nada (não é um valor menor, é zero).
+
 ```
-Futuro = (Soma de Forecast.Quantity dos próximos FutureAduDays dias) / FutureAduDays
+Futuro = (Soma do valor diário aberto de cada dia útil dos próximos FutureAduDays dias corridos) / FutureAduDays
 ```
 
-- "Próximos N dias" = a partir de amanhã (hoje não entra), `FutureAduDays` dias corridos pra frente.
-- Não existe descarte no Forecast (`DiscardStatus` é só de `History`) — todo dia no intervalo entra, mesmo sem previsão cadastrada (conta como 0).
+- "Próximos N dias" = a partir de amanhã (hoje não entra), `FutureAduDays` dias **corridos** (incluindo dias não úteis, que apenas contribuem `0`) pra frente — o divisor continua sendo o total de dias corridos, não a quantidade de dias úteis na janela.
+- Não existe descarte no Forecast (`DiscardStatus` é só de `History`) — todo dia corrido no intervalo entra, mesmo sem previsão cadastrada ou sendo dia não útil (conta como 0).
 - Divisor sempre `FutureAduDays` (fixo).
+- Implementado em `CalculateAduStandardDesvAndCvStep`'s `ForecastBusinessDays`/`FutureAdu` CTEs, lendo `dbo.Calendar.IsWorkingDay` diretamente — `Calendar` é uma tabela de referência com datas pré-geradas (5 anos, 2026-2030, seed manual via script SQL, não `HasData`).
 
 ### Misto
 
@@ -649,9 +654,9 @@ StockTotal = Stock + OpenInbounds,   se Stock e OpenInbounds estiverem setados
 
 **Campos envolvidos**: `History.Stock`, `History.Adu` (`StockDays`); `History.Stock`, `History.OpenInbounds` (`StockTotal`). `StockDays` guarda contra `Adu = 0`/`null` (item sem consumo médio calculado ainda) retornando `null` em vez de dividir por zero — mesma convenção de guarda das fórmulas de `CenterProduct`/`UtilsDdmrp` acima, só que `null` em vez de `0` (segue o padrão nullable-lifted das zonas derivadas de `CenterProduct`, não o padrão `0`-sentinela dos métodos de `UtilsDdmrp`).
 
-## SaveCenterProductConfigToHistory (`History` — colunas robô, snapshot de `CenterProduct`)
+## ReplicateCenterProductToHistory (`History` — colunas robô, snapshot de `CenterProduct`)
 
-Step: `Service.Infra.Data/Calculation/Steps/SaveCenterProductConfigToHistoryStep.cs` (nome no `calculation.config.json`: `"SaveCenterProductConfigToHistory"`) — **deve rodar por último**, depois de `CalculateQualifiedDemand`, já que grava o estado final (pós-ZAF, pós-QualifiedDemand) do `CenterProduct`.
+Step: `Service.Infra.Data/Calculation/Steps/ReplicateCenterProductToHistoryStep.cs` (nome no `calculation.config.json`: `"ReplicateCenterProductToHistory"`) — **deve rodar por último**, depois de `CalculateQualifiedDemand`, já que grava o estado final (pós-ZAF, pós-QualifiedDemand) do `CenterProduct`.
 
 **Campos envolvidos**: `History.Adi`/`Adu`/`Cv`/`Frequency`/`FutureAduDays`/`GreenZone`/`HistoryAduDays`/`IdBufferProfile`/`IdReason`/`IdTag`/`LeadTime`/`Moq`/`OpenInbounds`/`OpenOutbound`/`PackQuantity`/`QualifiedDemand`/`RedBaseZone`/`RedSafeZone`/`StandardDeviation`/`Stock`/`YellowZone`/`ZafGreenZone`/`ZafRedZone`/`ZafYellowZone` (resultado), `CenterProduct` (mesmos campos, lidos), `Order.Quantity`/`DeliveredQuantity`/`IsInbound`/`IsOutbound`/`IsFictional`/`IdOriginCenter`/`IdDestinyCenter`/`IdProduct` (`OpenInbounds`/`OpenOutbound`, que não existem como coluna em `CenterProduct` — ver abaixo).
 
@@ -676,7 +681,7 @@ RedSafeZone = CenterProduct.RedZoneSafe
 ```
 
 - **`OpenInbounds`/`OpenOutbound` não são uma cópia direta de coluna** — `CenterProduct` não tem essas colunas (só existem calculadas a partir de `Order`, mesma fórmula já usada pela linha de "hoje" do report `inventoryHistory`, ver seção acima). Calculadas via subquery correlacionada dentro do próprio `MERGE`.
-- Escopo: todo `CenterProduct` ativo (`deletedAt IS NULL`) — sem filtro de `BufferType`.
+- Escopo: todo `CenterProduct` ativo (`deletedAt IS NULL`) — sem filtro de `BufferType` — ou, se `idCenterProduct` foi enviado no `POST /api/calculation/run`, só aquele (ver nota no topo deste arquivo).
 - "Hoje" é `CAST(GETDATE() AS DATE)`, usado tanto na chave de casamento (`Date`) quanto nas somas de `Order`.
 - Só uma linha por `(IdProduct, IdCenter, Date)` é afetada por execução — não é um "reset depois recompute" como as colunas de `CenterProduct` (não faz sentido zerar linhas de dias passados de `History`, já que cada dia é seu próprio registro imutável depois de escrito).
 
@@ -715,3 +720,71 @@ Netflow         = UtilsDdmrp.CalculateNetflow(Stock, QualifiedDemand, OrdersInTr
 - A linha de "hoje" é **omitida por completo** se não existir `CenterProduct` pra aquele `(IdProduct, IdCenter)` — sem dado nenhum pra construir a linha.
 - `Consumption` na linha de "hoje" não é o mesmo conceito de `History.Consumption` (que é o consumo realizado, gravado pelo robô) — é uma estimativa: o maior entre a demanda de saída já pendente (`OpenOutbounds`) e o consumo médio diário (`Adu`), usada como proxy de "quanto ainda deve sair hoje".
 - Resultado final ordenado por `Date` ascendente (dias de `History` primeiro, "hoje" sempre por último, já que nenhuma linha de `History` pode ter data futura).
+
+## Report `projectedStockAlert` (`GET /api/report/projectedStockAlert`)
+
+Repositório: `ReportRepository.GetProjectedStockAlertAsync(idCenter, idProduct, dateStart, dateEnd, useAdu, useForecast, useInbounds, useOutbounds, accumulateInboundsToday, accumulateOutboundsToday, useFictionalOrders, cancellationToken)`. Não é `IQueryable` (materializa direto, `Task<List<ProjectedStockAlertRow>>`, mesmo status do `inventoryHistory`) — e, diferente de todo outro report, não dá pra ser uma única query: cada dia depende do estoque final do dia anterior, então o `Service` valida (`CenterProduct` existe → senão `NotFoundException`; `dateEnd >= dateStart` → senão `BadRequestException`) e o repositório busca os dados de cada dia com LINQ e depois roda um **loop sequencial em C#** por cima da lista já materializada.
+
+Diferente do `inventoryHistory` (passado, lê colunas gravadas pelo robô), esse é **projeção futura** — simula, dia a dia, qual seria o estoque de um `(IdProduct, IdCenter)` se nada mudar além do que já está no calendário/forecast/pedidos abertos.
+
+**Parâmetros de simulação** (todos opcionais, com o comportamento original como default):
+
+```
+useAdu                   (bool, default true)  — inclui Adu na comparação de MAX que define Outbound
+useForecast               (bool, default true)  — inclui ProjectedConsumption na comparação de MAX
+useOutbounds              (bool, default true)  — inclui OutboundOrders na comparação de MAX
+useInbounds               (bool, default true)  — se false, Inbound deixa de ser somado no ClosingStock
+                                                    (a coluna Inbound da linha continua mostrando o valor bruto)
+accumulateInboundsToday   (bool, default false) — se true, Order inbound com DeliveryDate < hoje é tratada
+                                                    como se DeliveryDate = hoje (pedido atrasado "cai" em hoje)
+accumulateOutboundsToday  (bool, default false) — mesma ideia de accumulateInboundsToday, para Order outbound
+useFictionalOrders        (bool, default true)  — se true, Order com IsFictional = true entram nas somas de
+                                                    Inbound/OutboundOrders; se false, só Order reais contam
+```
+
+**Passo 1 — dados de entrada por dia**, um valor por `Date` no período `[dateStart, dateEnd]`:
+
+```
+ProjectedConsumption(dia) = Forecast do dia, explodido pelo Calendar exatamente como em
+                             ForecastRepository.GetFilteredAsync (ver CLAUDE.md/bullet do Forecast):
+                             dia útil, Forecast.Value / quantidade de dias úteis do intervalo do Forecast;
+                             dia não útil = 0. Somado entre todos os Forecast que cobrem aquele dia.
+
+EffectiveInboundDate(Order)  = hoje,               se accumulateInboundsToday = true e Order.DeliveryDate < hoje
+                              = Order.DeliveryDate,  caso contrário
+
+Inbound(dia)  = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsInbound = true,
+                (IsFictional = false OU useFictionalOrders = true), IdProduct = idProduct, IdDestinyCenter = idCenter,
+                EffectiveInboundDate = dia
+
+EffectiveOutboundDate(Order) = hoje,               se accumulateOutboundsToday = true e Order.DeliveryDate < hoje
+                              = Order.DeliveryDate,  caso contrário
+
+OutboundOrders(dia) = soma de (Quantity - DeliveredQuantity) das Order não excluídas, IsOutbound = true,
+                       (IsFictional = false OU useFictionalOrders = true), IdProduct = idProduct, IdOriginCenter = idCenter,
+                       EffectiveOutboundDate = dia
+```
+
+- "Hoje" = `DateTime.Today` (data, sem hora). O "acúmulo" considera **toda** Order atrasada, mesmo com `DeliveryDate` fora de `[dateStart, dateEnd]` — só não aparece na linha de "hoje" se "hoje" também estiver fora do período pedido.
+
+**Passo 2 — simulação sequencial**, do menor `Date` pro maior, com `Adu`/`RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`/`TopOfRedExecution`/`TopOfYellowExecution`/`TopOfGreenExecution` fixos (lidos uma vez do `CenterProduct`, tratados como `0` se `null` — `RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution` vão pra linha só como referência, não entram em nenhuma fórmula abaixo):
+
+```
+OpeningStock(dia) = CenterProduct.Stock,          se for o primeiro dia do período
+                   = ClosingStock(dia anterior),   caso contrário
+
+Candidatos(dia)   = { Adu se useAdu, OutboundOrders(dia) se useOutbounds, ProjectedConsumption(dia) se useForecast }
+Outbound(dia)     = MAX(Candidatos(dia)),   se Candidatos(dia) não for vazio
+                   = 0,                      caso contrário (os três desligados)
+
+ClosingStock(dia) = OpeningStock(dia) - Outbound(dia) + (Inbound(dia) se useInbounds, senão 0)
+
+ExecutionBufferColor(dia) = UtilsDdmrp.CalculateBufferColor(ClosingStock(dia),
+                                CenterProduct.TopOfRedExecution, CenterProduct.TopOfYellowExecution, CenterProduct.TopOfGreenExecution)
+```
+
+- `Outbound` é a saída realmente usada pra consumir o estoque no dia — o maior entre os candidatos habilitados (`useAdu`/`useOutbounds`/`useForecast`); `OutboundOrders`/`Inbound` continuam disponíveis na linha separadamente, com o valor bruto, mesmo quando desligados da fórmula.
+- Mesmas zonas de execução (`TopOfRedExecution`/`TopOfYellowExecution`/`TopOfGreenExecution`) e mesma função `UtilsDdmrp.CalculateBufferColor` já usadas em `ExecutionBufferColor` do `openOrders`/`inventoryBufferManagement`.
+- Escopo sempre um único `(IdProduct, IdCenter)` por chamada — não itera sobre todos os itens (diferente do `inventoryBufferManagement`), então materializar o período inteiro não tem o mesmo problema de volume que motivou o OData naquele report.
+- **Campos envolvidos**: `CenterProduct.Stock`/`Adu`/`RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`/`TopOfRedExecution`/`TopOfYellowExecution`/`TopOfGreenExecution`, `Forecast.Value`/`StartDate`/`EndDate`, `Calendar.Date`/`IsWorkingDay`, `Order.Quantity`/`DeliveredQuantity`/`DeliveryDate`/`IsInbound`/`IsOutbound`/`IsFictional`/`IdProduct`/`IdDestinyCenter`/`IdOriginCenter`, `Product.Reference`, `Center.Code`.
+- **`useFictionalOrders` é o único report que conta ordens fictícias por padrão** — `openOrders`/`inventoryBufferManagement`/`inventoryHistory` excluem `IsFictional = true` sempre, sem opção de ligar; aqui é o oposto, conta por padrão (`true`) e só exclui se `useFictionalOrders = false` for passado explicitamente.

@@ -6,24 +6,24 @@ using Service.Infra.Data.Context;
 
 namespace Service.Infra.Data.Calculation.Steps
 {
-    public class SaveCenterProductConfigToHistoryStep : ICalculationStep
+    public class ReplicateCenterProductToHistoryStep : ICalculationStep
     {
         private readonly ApplicationDbContext _context;
 
-        public SaveCenterProductConfigToHistoryStep(ApplicationDbContext context)
+        public ReplicateCenterProductToHistoryStep(ApplicationDbContext context)
         {
             _context = context;
         }
 
-        public bool CanHandle(string name) => string.Equals(name, "SaveCenterProductConfigToHistory", StringComparison.OrdinalIgnoreCase);
+        public bool CanHandle(string name) => string.Equals(name, "ReplicateCenterProductToHistory", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -38,7 +38,8 @@ namespace Service.Infra.Data.Calculation.Steps
         // (see CLAUDE.md/Formulas.md) — never touches Consumption/DiscardStatus, which belong to the
         // ingestion pipeline (client-fed consumption data), not this step. Must run LAST in
         // calculation.config.json: it snapshots the final, post-ZAF/QualifiedDemand state of CenterProduct.
-        private const string Sql = """
+        // idCenterProduct: see CalculateAduStandardDesvAndCvStep.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             MERGE INTO dbo.Histories AS target
             USING (
                 SELECT
@@ -87,6 +88,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     ), 0) AS OpenOutbound
                 FROM dbo.CenterProducts cp
                 WHERE cp.deletedAt IS NULL
+                  AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             ) AS source
             ON target.IdProduct = source.IdProduct
                AND target.IdCenter = source.IdCenter

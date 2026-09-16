@@ -32,6 +32,8 @@ namespace Service.Infra.Data.Context
         public DbSet<Note> Note { get; set; }
         public DbSet<Order> Order { get; set; }
         public DbSet<Workspace> Workspace { get; set; }
+        public DbSet<Setting> Setting { get; set; }
+        public DbSet<Calendar> Calendar { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

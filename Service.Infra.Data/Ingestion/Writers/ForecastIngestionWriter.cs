@@ -24,20 +24,21 @@ namespace Service.Infra.Data.Ingestion.Writers
         public async Task<IngestionWriteResult> WriteAsync(IngestionSourceConfig source, List<Dictionary<string, string?>> mappedRows, CancellationToken cancellationToken = default)
         {
             var result = new IngestionWriteResult();
-            var parsedRows = new List<(int IdProduct, int IdCenter, DateTime Date, decimal Quantity)>();
+            var parsedRows = new List<(int IdProduct, int IdCenter, DateTime StartDate, DateTime EndDate, decimal Value)>();
 
             foreach (var row in mappedRows)
             {
                 if (!int.TryParse(row.GetValueOrDefault("IdProduct"), out var idProduct) ||
                     !int.TryParse(row.GetValueOrDefault("IdCenter"), out var idCenter) ||
-                    !DateTime.TryParse(row.GetValueOrDefault("Date"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ||
-                    !decimal.TryParse(row.GetValueOrDefault("Quantity"), NumberStyles.Any, CultureInfo.InvariantCulture, out var quantity))
+                    !DateTime.TryParse(row.GetValueOrDefault("StartDate"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var startDate) ||
+                    !DateTime.TryParse(row.GetValueOrDefault("EndDate"), CultureInfo.InvariantCulture, DateTimeStyles.None, out var endDate) ||
+                    !decimal.TryParse(row.GetValueOrDefault("Value"), NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
                 {
-                    result.Errors.Add("Row skipped: missing/invalid IdProduct, IdCenter, Date or Quantity.");
+                    result.Errors.Add("Row skipped: missing/invalid IdProduct, IdCenter, StartDate, EndDate or Value.");
                     continue;
                 }
 
-                parsedRows.Add((idProduct, idCenter, DateTime.SpecifyKind(date.Date, DateTimeKind.Utc), quantity));
+                parsedRows.Add((idProduct, idCenter, DateTime.SpecifyKind(startDate.Date, DateTimeKind.Utc), DateTime.SpecifyKind(endDate.Date, DateTimeKind.Utc), value));
             }
 
             var productIds = parsedRows.Select(r => r.IdProduct).Distinct().ToList();
@@ -46,16 +47,16 @@ namespace Service.Infra.Data.Ingestion.Writers
             var existing = await _context.Forecast
                 .Where(f => f.deletedAt == null && productIds.Contains(f.IdProduct) && centerIds.Contains(f.IdCenter))
                 .ToListAsync(cancellationToken);
-            var existingMap = existing.ToDictionary(f => (f.IdProduct, f.IdCenter, f.Date), f => f);
+            var existingMap = existing.ToDictionary(f => (f.IdProduct, f.IdCenter, f.StartDate, f.EndDate), f => f);
 
             var now = DateTime.UtcNow;
             var userId = _currentUser.UserId;
 
-            foreach (var (idProduct, idCenter, date, quantity) in parsedRows)
+            foreach (var (idProduct, idCenter, startDate, endDate, value) in parsedRows)
             {
-                if (existingMap.TryGetValue((idProduct, idCenter, date), out var forecast))
+                if (existingMap.TryGetValue((idProduct, idCenter, startDate, endDate), out var forecast))
                 {
-                    forecast.Quantity = quantity;
+                    forecast.Value = value;
                     forecast.updatedAt = now;
                     forecast.updatedBy = userId;
                     result.Updated++;
@@ -66,21 +67,22 @@ namespace Service.Infra.Data.Ingestion.Writers
                     {
                         IdProduct = idProduct,
                         IdCenter = idCenter,
-                        Date = date,
-                        Quantity = quantity,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        Value = value,
                         createdAt = now,
                         createdBy = userId
                     };
                     _context.Forecast.Add(newForecast);
-                    existingMap[(idProduct, idCenter, date)] = newForecast;
+                    existingMap[(idProduct, idCenter, startDate, endDate)] = newForecast;
                     result.Inserted++;
                 }
             }
 
             if (source.DeleteNonSent)
             {
-                var sentKeys = parsedRows.Select(r => (r.IdProduct, r.IdCenter, r.Date)).ToHashSet();
-                var toDelete = existing.Where(f => !sentKeys.Contains((f.IdProduct, f.IdCenter, f.Date))).ToList();
+                var sentKeys = parsedRows.Select(r => (r.IdProduct, r.IdCenter, r.StartDate, r.EndDate)).ToHashSet();
+                var toDelete = existing.Where(f => !sentKeys.Contains((f.IdProduct, f.IdCenter, f.StartDate, f.EndDate))).ToList();
 
                 foreach (var forecast in toDelete)
                 {

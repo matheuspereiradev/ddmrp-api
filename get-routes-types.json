@@ -118,13 +118,37 @@
         "pageNumber": "number",
         "pageSize": "number"
       },
+      "responseData": "PagedList<ForecastDailyGetDto>",
+      "itemShape": {
+        "id": "number",
+        "idProduct": "number",
+        "idCenter": "number",
+        "value": "number",
+        "date": "string (ISO datetime)",
+        "product": "ProductGetDto | null",
+        "center": "CenterGetDto | null"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/forecast/grouped",
+      "auth": true,
+      "queryParams": {
+        "idProduct": "number | null (optional filter)",
+        "idCenter": "number | null (optional filter)",
+        "dateStart": "string (ISO date) | null (optional filter, matches EndDate >= dateStart)",
+        "dateEnd": "string (ISO date) | null (optional filter, matches StartDate <= dateEnd)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<ForecastGetDto>",
       "itemShape": {
         "id": "number",
         "idProduct": "number",
         "idCenter": "number",
-        "quantity": "number",
-        "date": "string (ISO datetime)",
+        "value": "number",
+        "startDate": "string (ISO datetime)",
+        "endDate": "string (ISO datetime)",
         "product": "ProductGetDto | null",
         "center": "CenterGetDto | null"
       }
@@ -687,6 +711,43 @@
         "greenZone": "number | null",
         "inventoryDays": "number | null (computed: Stock / Adu, null when Adu is null/0)",
         "netflow": "number (computed via UtilsDdmrp.CalculateNetflow(Stock, QualifiedDemand, OrdersInTransit), null fields treated as 0)"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/report/projectedStockAlert",
+      "auth": true,
+      "queryParams": {
+        "idCenter": "number (required)",
+        "idProduct": "number (required)",
+        "dateStart": "string (ISO date) (required)",
+        "dateEnd": "string (ISO date) (required)",
+        "useAdu": "boolean (default true) — include adu in the MAX comparison that determines outbound",
+        "useForecast": "boolean (default true) — include projectedConsumption in the MAX comparison that determines outbound",
+        "useOutbounds": "boolean (default true) — include outboundOrders in the MAX comparison that determines outbound",
+        "useInbounds": "boolean (default true) — when false, inbound is not added to closingStock (the row's inbound field still shows the raw pending quantity)",
+        "accumulateInboundsToday": "boolean (default false) — when true, an inbound order with deliveryDate before today is bucketed onto today instead of its own date",
+        "accumulateOutboundsToday": "boolean (default false) — same as accumulateInboundsToday, for outbound orders",
+        "useFictionalOrders": "boolean (default true) — when true, orders with isFictional=true count in inbound/outboundOrders; when false, only real orders count. Unlike every other report (openOrders/inventoryBufferManagement/inventoryHistory), which always exclude fictional orders with no toggle, this one counts them by default."
+      },
+      "responseData": "ProjectedStockAlertRow[] (plain array, NOT a PagedList — no pagination). One row per calendar day in [dateStart, dateEnd], a forward-looking day-by-day stock simulation for that (idProduct, idCenter) — each day's openingStock is the previous day's closingStock. 404 if no CenterProduct exists for (idProduct, idCenter); 400 if dateEnd < dateStart. Sorted by date ascending.",
+      "itemShape": {
+        "date": "string (ISO date)",
+        "idProduct": "number",
+        "idCenter": "number",
+        "productReference": "string",
+        "centerCode": "string",
+        "adu": "number (fixed for the whole period, CenterProduct.Adu, 0 if null)",
+        "redZoneExecution": "number (fixed for the whole period, CenterProduct.RedZoneExecution, 0 if null — reference only, not used in any formula below)",
+        "yellowZoneExecution": "number (fixed for the whole period, CenterProduct.YellowZoneExecution, 0 if null — reference only, not used in any formula below)",
+        "greenZoneExecution": "number (fixed for the whole period, CenterProduct.GreenZoneExecution, 0 if null — reference only, not used in any formula below)",
+        "projectedConsumption": "number (Forecast for the day, exploded across business days of its interval via Calendar — same rule as GET /api/forecast)",
+        "inbound": "number (sum of Quantity - DeliveredQuantity of non-deleted inbound orders for this idProduct/idDestinyCenter=idCenter with deliveryDate = this day, or today if accumulateInboundsToday=true and deliveryDate is before today — fictional orders included unless useFictionalOrders=false; raw value, always shown regardless of useInbounds)",
+        "outboundOrders": "number (same as inbound, but IsOutbound/idOriginCenter=idCenter and accumulateOutboundsToday — the raw pending order demand for the day, before the MAX below, always shown regardless of useOutbounds)",
+        "outbound": "number (computed: MAX of whichever of {adu, outboundOrders, projectedConsumption} are enabled via useAdu/useOutbounds/useForecast; 0 if all three are disabled — the quantity actually consumed from stock this day)",
+        "openingStock": "number (CenterProduct.Stock on the first day of the period, else the previous row's closingStock)",
+        "closingStock": "number (computed: openingStock - outbound + (useInbounds ? inbound : 0))",
+        "executionBufferColor": "BufferColor (enum string) (computed via UtilsDdmrp.CalculateBufferColor(closingStock, CenterProduct.topOfRedExecution, topOfYellowExecution, topOfGreenExecution), 0 for any unset zone)"
       }
     }
   ]

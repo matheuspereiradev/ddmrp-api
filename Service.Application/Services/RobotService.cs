@@ -18,7 +18,7 @@ namespace Service.Application.Services
         public async Task<RobotRunResultDto> RunAsync(CancellationToken cancellationToken = default)
         {
             var ingestionResults = await _ingestionService.RunAsync(view: null, cancellationToken);
-            var calculationResults = await _calculationService.RunAsync(cancellationToken);
+            var calculationResults = await _calculationService.RunAsync(idCenterProduct: null, cancellationToken);
 
             return new RobotRunResultDto
             {

@@ -17,13 +17,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateDynamicMinMaxBufferZones", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -34,11 +34,12 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        private const string Sql = """
+        // idCenterProduct: see CalculateAduStandardDesvAndCvStep.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE cp
             SET cp.YellowZone = 0, cp.GreenZone = 0, cp.RedZoneSafe = 0, cp.RedZoneBase = 0
             FROM dbo.CenterProducts cp
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 3;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 3 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 
@@ -54,7 +55,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 JOIN ValidRanked vr
                     ON vr.IdProduct = cp.IdProduct AND vr.IdCenter = cp.IdCenter
                     AND vr.rn <= cp.HistoryAduDays
-                WHERE cp.deletedAt IS NULL AND cp.BufferType = 3
+                WHERE cp.deletedAt IS NULL AND cp.BufferType = 3 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
                 GROUP BY cp.Id
             ),
             DateSpine AS (
@@ -90,7 +91,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 cp.RedZoneBase = CEILING(IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu) < 0, 0, ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu))))
             FROM dbo.CenterProducts cp
             LEFT JOIN MaxAccumulated ma ON ma.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 3
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 3 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             OPTION (MAXRECURSION 0);
             """;
     }

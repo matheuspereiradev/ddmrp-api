@@ -19,13 +19,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateAduStandardDesvAndCv", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -37,10 +37,12 @@ namespace Service.Infra.Data.Calculation.Steps
         }
 
         // DiscardStatus 2 = Discarded (Service.Domain.Enums.DiscardStatus).
-        private const string Sql = """
+        // idCenterProduct: when set, scopes the whole step to that one CenterProduct.Id (POST /api/calculation/run's
+        // optional recalculation-for-one-item mode — see CLAUDE.md); null runs it for every active CenterProduct.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE dbo.CenterProducts
             SET Adu = 0, StandardDeviation = 0, Cv = 0
-            WHERE deletedAt IS NULL;
+            WHERE deletedAt IS NULL AND ({idCenterProduct} IS NULL OR Id = {idCenterProduct});
 
             DECLARE @Today DATE = CAST(GETDATE() AS DATE);
 
@@ -68,21 +70,43 @@ namespace Service.Infra.Data.Calculation.Steps
                     AND rh.rn <= cp.HistoryAduDays
                 WHERE cp.deletedAt IS NULL
                   AND ISNULL(cp.HistoryAduDays, 0) > 0
+                  AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
                 GROUP BY cp.Id, cp.HistoryAduDays
+            ),
+            ForecastBusinessDays AS (
+                -- How many business days each Forecast's own [StartDate, EndDate] window covers —
+                -- its Value is split evenly across exactly those days (Forecast is monthly/interval-based,
+                -- not one row per day — see CLAUDE.md's Forecast bullet).
+                SELECT
+                    f.Id AS ForecastId,
+                    COUNT(wc.Date) AS BusinessDayCount
+                FROM dbo.Forecasts f
+                JOIN dbo.Calendar wc
+                    ON wc.Date >= f.StartDate AND wc.Date <= f.EndDate AND wc.IsWorkingDay = 1
+                WHERE f.deletedAt IS NULL
+                GROUP BY f.Id
             ),
             FutureAdu AS (
                 SELECT
                     cp.Id AS CenterProductId,
-                    ISNULL(SUM(f.Quantity), 0) / cp.FutureAduDays AS Value
+                    ISNULL(SUM(
+                        CASE WHEN wc.IsWorkingDay = 1 AND ISNULL(fbd.BusinessDayCount, 0) > 0
+                            THEN f.Value / fbd.BusinessDayCount
+                            ELSE 0
+                        END
+                    ), 0) / cp.FutureAduDays AS Value
                 FROM dbo.CenterProducts cp
+                JOIN dbo.Calendar wc
+                    ON wc.Date > @Today AND wc.Date <= DATEADD(DAY, cp.FutureAduDays, @Today)
                 LEFT JOIN dbo.Forecasts f
                     ON f.IdProduct = cp.IdProduct
                     AND f.IdCenter = cp.IdCenter
                     AND f.deletedAt IS NULL
-                    AND f.Date > @Today
-                    AND f.Date <= DATEADD(DAY, cp.FutureAduDays, @Today)
+                    AND wc.Date >= f.StartDate AND wc.Date <= f.EndDate
+                LEFT JOIN ForecastBusinessDays fbd ON fbd.ForecastId = f.Id
                 WHERE cp.deletedAt IS NULL
                   AND ISNULL(cp.FutureAduDays, 0) > 0
+                  AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
                 GROUP BY cp.Id, cp.FutureAduDays
             )
             UPDATE cp
@@ -103,7 +127,7 @@ namespace Service.Infra.Data.Calculation.Steps
             FROM dbo.CenterProducts cp
             LEFT JOIN HistoricalStats hs ON hs.CenterProductId = cp.Id
             LEFT JOIN FutureAdu fa ON fa.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL;
+            WHERE cp.deletedAt IS NULL AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

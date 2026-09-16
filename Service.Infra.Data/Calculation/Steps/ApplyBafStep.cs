@@ -17,13 +17,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "ApplyBAF", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -34,7 +34,10 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        private const string Sql = """
+        // idCenterProduct: see CalculateAduStandardDesvAndCvStep. The 2nd statement (AlreadyReverted
+        // bookkeeping) has no CenterProducts join of its own, so it's scoped via an EXISTS against the
+        // one target CenterProduct's (IdProduct, IdCenter) instead of a direct cp.Id filter.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE cp
             SET
                 cp.BufferType = ISNULL(baf.BufferTypeOld, cp.BufferType),
@@ -48,14 +51,19 @@ namespace Service.Infra.Data.Calculation.Steps
             WHERE cp.deletedAt IS NULL
               AND baf.deletedAt IS NULL
               AND baf.EffectiveTo < GETDATE()
-              AND baf.AlreadyReverted = 0;
+              AND baf.AlreadyReverted = 0
+              AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             UPDATE baf
             SET baf.AlreadyReverted = 1
             FROM dbo.BufferAdjustmentFactors baf
             WHERE baf.deletedAt IS NULL
               AND baf.EffectiveTo < GETDATE()
-              AND baf.AlreadyReverted = 0;
+              AND baf.AlreadyReverted = 0
+              AND ({idCenterProduct} IS NULL OR EXISTS (
+                    SELECT 1 FROM dbo.CenterProducts cp2
+                    WHERE cp2.Id = {idCenterProduct} AND cp2.IdProduct = baf.IdProduct AND cp2.IdCenter = baf.IdCenter
+              ));
 
             UPDATE cp
             SET cp.BufferType = baf.BufferType
@@ -66,7 +74,8 @@ namespace Service.Infra.Data.Calculation.Steps
               AND baf.deletedAt IS NULL
               AND baf.IsActive = 1
               AND baf.EffectiveFrom <= GETDATE()
-              AND baf.EffectiveTo >= GETDATE();
+              AND baf.EffectiveTo >= GETDATE()
+              AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             UPDATE cp
             SET
@@ -82,7 +91,8 @@ namespace Service.Infra.Data.Calculation.Steps
               AND baf.IsActive = 1
               AND baf.EffectiveFrom <= GETDATE()
               AND baf.EffectiveTo >= GETDATE()
-              AND baf.BufferType = 1;
+              AND baf.BufferType = 1
+              AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

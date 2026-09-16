@@ -4,6 +4,6 @@ namespace Service.Application.Interfaces
 {
     public interface ICalculationService
     {
-        Task<List<CalculationStepResult>> RunAsync(CancellationToken cancellationToken = default);
+        Task<List<CalculationStepResult>> RunAsync(int? idCenterProduct = null, CancellationToken cancellationToken = default);
     }
 }

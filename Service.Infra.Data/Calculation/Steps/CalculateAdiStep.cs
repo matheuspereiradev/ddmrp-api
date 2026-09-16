@@ -20,7 +20,7 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateAdi", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
@@ -40,7 +40,7 @@ namespace Service.Infra.Data.Calculation.Steps
 
             try
             {
-                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(thresholdDays), cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(thresholdDays, idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -55,10 +55,10 @@ namespace Service.Infra.Data.Calculation.Steps
         // DiscardStatus (todas as linhas contam) e sem denominador zero: sem nenhuma linha com
         // Consumption > 0 no período, Adi = 0. Zera a coluna antes de calcular (mesma convenção usada
         // por todo step de cálculo, ver CalculateAduStandardDesvAndCvStep).
-        private static FormattableString BuildSql(int thresholdDays) => $"""
+        private static FormattableString BuildSql(int thresholdDays, int? idCenterProduct) => $"""
             UPDATE dbo.CenterProducts
             SET Adi = 0
-            WHERE deletedAt IS NULL;
+            WHERE deletedAt IS NULL AND ({idCenterProduct} IS NULL OR Id = {idCenterProduct});
 
             DECLARE @Today DATE = CAST(GETDATE() AS DATE);
             DECLARE @WindowStart DATE = DATEADD(DAY, -{thresholdDays}, @Today);
@@ -86,7 +86,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 END
             FROM dbo.CenterProducts cp
             LEFT JOIN AdiAgg aa ON aa.IdProduct = cp.IdProduct AND aa.IdCenter = cp.IdCenter
-            WHERE cp.deletedAt IS NULL;
+            WHERE cp.deletedAt IS NULL AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

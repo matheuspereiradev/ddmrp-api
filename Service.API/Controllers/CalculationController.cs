@@ -1,3 +1,4 @@
+using Service.Application.DTOs.Calculation;
 using Service.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +18,9 @@ namespace Service.API.Controllers
 
         [HttpPost("run")]
         [Authorize]
-        public async Task<ActionResult> Run(CancellationToken cancellationToken)
+        public async Task<ActionResult> Run(CalculationRunRequestDto? request, CancellationToken cancellationToken)
         {
-            var results = await _calculationService.RunAsync(cancellationToken);
+            var results = await _calculationService.RunAsync(request?.IdCenterProduct, cancellationToken);
             return Ok(results);
         }
     }

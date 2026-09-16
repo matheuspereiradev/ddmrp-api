@@ -17,13 +17,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateQualifiedDemand", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -34,11 +34,12 @@ namespace Service.Infra.Data.Calculation.Steps
             }
         }
 
-        private const string Sql = """
+        // idCenterProduct: see CalculateAduStandardDesvAndCvStep.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE cp
             SET cp.QualifiedDemand = 0
             FROM dbo.CenterProducts cp
-            WHERE cp.deletedAt IS NULL;
+            WHERE cp.deletedAt IS NULL AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             ;WITH TodayPending AS (
                 SELECT
@@ -97,6 +98,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     ON po.IdProduct = cp.IdProduct
                    AND po.IdOriginCenter = cp.IdCenter
                 WHERE cp.deletedAt IS NULL
+                  AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
                   AND po.DeliveryDate <= DATEADD(
                         DAY,
                         IIF(cp.SpikeHorizonType = 0, cp.LeadTime * cp.SpikeHorizonLTDays, cp.SpikeHorizonValue),
@@ -112,7 +114,7 @@ namespace Service.Infra.Data.Calculation.Steps
             SET cp.QualifiedDemand = qt.TotalQualifiedDemand
             FROM dbo.CenterProducts cp
             INNER JOIN QualifiedTotals qt ON qt.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL;
+            WHERE cp.deletedAt IS NULL AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }

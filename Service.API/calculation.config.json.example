@@ -37,7 +37,7 @@
       "parameters": []
     },
     {
-      "name": "SaveCenterProductConfigToHistory",
+      "name": "ReplicateCenterProductToHistory",
       "parameters": []
     }
   ]

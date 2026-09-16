@@ -22,7 +22,7 @@ public class RobotServiceTests
     public async Task RunAsync_RunsIngestionBeforeCalculation()
     {
         _ingestionService.RunAsync(null, Arg.Any<CancellationToken>()).Returns([new IngestionRunResultDto { View = "Centers" }]);
-        _calculationService.RunAsync(Arg.Any<CancellationToken>()).Returns([new CalculationStepResult { Name = "usp_Step1", Success = true }]);
+        _calculationService.RunAsync(Arg.Any<int?>(), Arg.Any<CancellationToken>()).Returns([new CalculationStepResult { Name = "usp_Step1", Success = true }]);
 
         var result = await _sut.RunAsync();
 
@@ -31,7 +31,7 @@ public class RobotServiceTests
         Received.InOrder(() =>
         {
             _ingestionService.RunAsync(null, Arg.Any<CancellationToken>());
-            _calculationService.RunAsync(Arg.Any<CancellationToken>());
+            _calculationService.RunAsync(Arg.Any<int?>(), Arg.Any<CancellationToken>());
         });
     }
 
@@ -43,6 +43,6 @@ public class RobotServiceTests
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.RunAsync());
 
-        await _calculationService.DidNotReceive().RunAsync(Arg.Any<CancellationToken>());
+        await _calculationService.DidNotReceive().RunAsync(Arg.Any<int?>(), Arg.Any<CancellationToken>());
     }
 }

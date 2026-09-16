@@ -44,6 +44,24 @@ namespace Service.API.Controllers
             return Ok(forecasts);
         }
 
+        [HttpGet("grouped")]
+        [Authorize]
+        public async Task<ActionResult> GetGroupedForecasts(
+            [FromQuery] int? idProduct,
+            [FromQuery] int? idCenter,
+            [FromQuery] DateTime? dateStart,
+            [FromQuery] DateTime? dateEnd,
+            [FromQuery] PaginationParams paginationParams,
+            CancellationToken cancellationToken)
+        {
+            var forecasts = await _forecastService.GetGroupedAsync(idProduct, idCenter, dateStart, dateEnd, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+
+            Response.AddPaginationHeader(
+                new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, forecasts.TotalCount, forecasts.TotalPages));
+
+            return Ok(forecasts);
+        }
+
         [HttpPut("{id}")]
         [Authorize]
         public async Task<ActionResult> UpdateForecast(int id, ForecastPutDto forecastPutDto, CancellationToken cancellationToken)

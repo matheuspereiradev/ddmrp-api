@@ -19,13 +19,13 @@ namespace Service.Infra.Data.Calculation.Steps
 
         public bool CanHandle(string name) => string.Equals(name, "CalculateNormalBufferZones", StringComparison.OrdinalIgnoreCase);
 
-        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, CancellationToken cancellationToken = default)
+        public async Task<CalculationStepResult> ExecuteAsync(CalculationStepConfig step, int? idCenterProduct, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                await _context.Database.ExecuteSqlRawAsync(Sql, cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync(BuildSql(idCenterProduct), cancellationToken);
                 stopwatch.Stop();
                 return new CalculationStepResult { Name = step.Name, Success = true, DurationMs = stopwatch.ElapsedMilliseconds };
             }
@@ -39,12 +39,12 @@ namespace Service.Infra.Data.Calculation.Steps
         // BufferType 0 = Normal (Service.Domain.Enums.BufferType). Depends on CenterProduct.Adu
         // already being computed, so this step must run after CalculateAduStandardDesvAndCv in
         // calculation.config.json. AdjustmentType 0 = FlatValue, 1 = Percentage
-        // (Service.Domain.Enums.AdjustmentType).
-        private const string Sql = """
+        // (Service.Domain.Enums.AdjustmentType). idCenterProduct: see CalculateAduStandardDesvAndCvStep.
+        private static FormattableString BuildSql(int? idCenterProduct) => $"""
             UPDATE cp
             SET cp.YellowZone = 0, cp.GreenZone = 0, cp.RedZoneSafe = 0, cp.RedZoneBase = 0
             FROM dbo.CenterProducts cp
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 0;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 0 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
 
             ;WITH ActiveDaf AS (
                 SELECT daf.IdProduct, daf.IdCenter, daf.AdjustmentType, daf.AdjustmentValue
@@ -64,7 +64,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     END AS Value
                 FROM dbo.CenterProducts cp
                 LEFT JOIN ActiveDaf daf ON daf.IdProduct = cp.IdProduct AND daf.IdCenter = cp.IdCenter
-                WHERE cp.deletedAt IS NULL AND cp.BufferType = 0
+                WHERE cp.deletedAt IS NULL AND cp.BufferType = 0 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             ),
             Zones AS (
                 SELECT
@@ -83,7 +83,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 FROM dbo.CenterProducts cp
                 LEFT JOIN dbo.BufferProfiles bp ON bp.Id = cp.IdBufferProfile
                 JOIN AdjustedAdu a ON a.CenterProductId = cp.Id
-                WHERE cp.deletedAt IS NULL AND cp.BufferType = 0
+                WHERE cp.deletedAt IS NULL AND cp.BufferType = 0 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})
             )
             UPDATE cp
             SET
@@ -93,7 +93,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 cp.RedZoneBase = CEILING(IIF(z.RedBase < 0, 0, z.RedBase))
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
-            WHERE cp.deletedAt IS NULL AND cp.BufferType = 0;
+            WHERE cp.deletedAt IS NULL AND cp.BufferType = 0 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});
             """;
     }
 }
