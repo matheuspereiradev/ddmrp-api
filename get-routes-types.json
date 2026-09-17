@@ -39,7 +39,8 @@
     "SpikeThresholdType": ["Adu", "PlanningRedZone"],
     "DiscardStatus": ["NotReviewed", "Reviewed", "Discarded"],
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
-    "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"]
+    "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
+    "EfficientDistributionStopCondition": ["Zero", "Moq", "OnePackQuantity"]
   },
   "routes": [
     {
@@ -250,6 +251,47 @@
       "itemShape": {
         "id": "number",
         "name": "string"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/allocationGroup/efficientDistribution",
+      "auth": true,
+      "queryParams": {},
+      "responseData": "EfficientDistributionRow[]",
+      "notes": "Scoped to the authenticated user's own Workspace rows (Approved = true), joined to CenterProduct (via IdProduct+IdCenter) for the AllocationGroup and to Product for Weight/Volume/Value/Pallet. A group's weighted metric (Weight/Volume/Value/Pallet) comes back null if ANY item contributing to that group is missing that Product property (or, for Pallet, has it as 0).",
+      "itemShape": {
+        "id": "number",
+        "name": "string",
+        "approvedQuantityUnit": "number",
+        "approvedQuantityWeight": "number | null",
+        "approvedQuantityVolume": "number | null",
+        "approvedQuantityValue": "number | null",
+        "approvedQuantityPallet": "number | null"
+      }
+    },
+    {
+      "method": "POST",
+      "route": "/api/allocationGroup/efficientDistribution/run",
+      "auth": true,
+      "requestBody": {
+        "idGroup": "number",
+        "limit": "number",
+        "stopCondition": "EfficientDistributionStopCondition"
+      },
+      "responseData": "EfficientDistributionAllocationItem[]",
+      "notes": "Runs the 'DE' (Distribuição Eficiente) redistribution algorithm over the authenticated user's approved Workspace items for that AllocationGroup, then persists the resulting quantities back onto each Workspace row (OptimizedQuantity). If the group's current total approved quantity is above `limit`, quantities are walked down one PackQuantity at a time starting from the item with the highest buffer percentage, never going below the floor set by `stopCondition` (Zero=0, Moq=item.Moq, OnePackQuantity=item.PackQuantity) and never dropping the group total below `limit`. If below `limit`, quantities are walked up starting from the item with the lowest buffer percentage, never pushing the group total above `limit`. If already equal to `limit`, nothing changes. Each item's own PackQuantity determines its step size; an item with PackQuantity <= 0 is left untouched.",
+      "itemShape": {
+        "id": "number",
+        "idCenter": "number",
+        "idProduct": "number",
+        "approvedQuantity": "number",
+        "netflow": "number",
+        "tog": "number",
+        "moq": "number",
+        "packQuantity": "number",
+        "finished": "boolean",
+        "percentage": "number"
       }
     },
     {

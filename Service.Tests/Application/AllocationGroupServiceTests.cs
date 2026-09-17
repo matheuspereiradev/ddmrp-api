@@ -2,19 +2,70 @@ using NSubstitute;
 using Service.Application.DTOs.AllocationGroup;
 using Service.Application.Exceptions;
 using Service.Application.Services;
+using Service.Domain.Account;
+using Service.Domain.AllocationGroups;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
+using Service.Domain.Report.Results;
 
 namespace Service.Tests.Application;
 
 public class AllocationGroupServiceTests
 {
     private readonly IAllocationGroupRepository _allocationGroupRepository = Substitute.For<IAllocationGroupRepository>();
+    private readonly IReportRepository _reportRepository = Substitute.For<IReportRepository>();
+    private readonly IWorkspaceRepository _workspaceRepository = Substitute.For<IWorkspaceRepository>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly AllocationGroupService _sut;
 
     public AllocationGroupServiceTests()
     {
-        _sut = new AllocationGroupService(_allocationGroupRepository);
+        _currentUser.UserId.Returns(1);
+        _sut = new AllocationGroupService(_allocationGroupRepository, _reportRepository, _workspaceRepository, _currentUser);
+    }
+
+    [Fact]
+    public async Task GetEfficientDistributionAsync_ReturnsRepositoryResult_ForCurrentUser()
+    {
+        var rows = new List<EfficientDistributionRow>
+        {
+            new() { Id = 1, Name = "Grupo A", ApprovedQuantityUnit = 10 }
+        };
+        _allocationGroupRepository.GetEfficientDistributionAsync(1, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.GetEfficientDistributionAsync();
+
+        Assert.Same(rows, result);
+    }
+
+    [Fact]
+    public async Task RunEfficientDistributionAsync_ThrowsNotFoundException_WhenGroupDoesNotExist()
+    {
+        _allocationGroupRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<NotFoundException>(
+            () => _sut.RunEfficientDistributionAsync(new EfficientDistributionRunDto { IdGroup = 1, Limit = 10, StopCondition = EfficientDistributionStopCondition.Zero }));
+    }
+
+    [Fact]
+    public async Task RunEfficientDistributionAsync_UpdatesWorkspaceQuantities_AndReturnsItems()
+    {
+        _allocationGroupRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(true);
+        _reportRepository.GetApprovedByAllocationGroupAsync(1, Arg.Any<CancellationToken>()).Returns(new List<InventoryBufferManagementRow>
+        {
+            new() { Id = 10, IdCenter = 1, IdProduct = 1, OptimizedOrderQuantity = 4, Netflow = 0, TopOfGreen = 20, Moq = 0, PackQuantity = 2 }
+        });
+        var workspace = new Workspace { Id = 99, IdCenter = 1, IdProduct = 1, IdUser = 1, OptimizedQuantity = 4, Approved = true };
+        _workspaceRepository.GetByKeyAsync(1, 1, 1, Arg.Any<CancellationToken>()).Returns(workspace);
+
+        var result = await _sut.RunEfficientDistributionAsync(new EfficientDistributionRunDto { IdGroup = 1, Limit = 6, StopCondition = EfficientDistributionStopCondition.Zero });
+
+        var item = Assert.Single(result);
+        Assert.Equal(6, item.ApprovedQuantity);
+        await _workspaceRepository.Received(1).UpdateAsync(
+            Arg.Is<Workspace>(w => w.OptimizedQuantity == 6),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

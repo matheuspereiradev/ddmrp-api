@@ -401,6 +401,16 @@ namespace Service.Infra.Data.Repositories
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        // Feeds AllocationGroupService's efficient-distribution ("DE") algorithm: only the current user's
+        // approved Workspace items for the given group, with Netflow/TopOfGreen/Moq/PackQuantity already
+        // computed by the shared inventory-buffer queryable, so that math stays a single source of truth.
+        public async Task<List<InventoryBufferManagementRow>> GetApprovedByAllocationGroupAsync(int idAllocationGroup, CancellationToken cancellationToken = default)
+        {
+            return await GetInventoryBufferManagementQueryable()
+                .Where(r => r.IdAllocationGroup == idAllocationGroup && r.Approved)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default)
         {
             var query = _context.Order

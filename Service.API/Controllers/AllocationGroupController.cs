@@ -38,6 +38,22 @@ namespace Service.API.Controllers
             return Ok(allocationGroups);
         }
 
+        [HttpGet("efficientDistribution")]
+        [Authorize]
+        public async Task<ActionResult> GetEfficientDistribution(CancellationToken cancellationToken)
+        {
+            var result = await _allocationGroupService.GetEfficientDistributionAsync(cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("efficientDistribution/run")]
+        [Authorize]
+        public async Task<ActionResult> RunEfficientDistribution(EfficientDistributionRunDto efficientDistributionRunDto, CancellationToken cancellationToken)
+        {
+            var result = await _allocationGroupService.RunEfficientDistributionAsync(efficientDistributionRunDto, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPut("{id}")]
         [Authorize]
         public async Task<ActionResult> UpdateAllocationGroup(int id, AllocationGroupPutDto allocationGroupPutDto, CancellationToken cancellationToken)
