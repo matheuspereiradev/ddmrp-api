@@ -2,7 +2,7 @@ using Service.Domain.Enums;
 
 namespace Service.Domain.AllocationGroups
 {
-    public class EfficientDistributionAllocationItem
+    public class PriorizedAllocationItem
     {
         public int Id { get; set; }
         public int IdCenter { get; set; }
@@ -24,20 +24,20 @@ namespace Service.Domain.AllocationGroups
         // (quantity / Product.Pallet), normalized here into a multiplier so every adjustment type shares the
         // same ApprovedQuantity * factor formula. Returns null when the product is missing the property the
         // requested AdjustmentType needs (or Pallet is 0), meaning this item can't be valorized at all.
-        public decimal? GetValorizationFactor(EfficientDistributionAdjustmentType adjustmentType) => adjustmentType switch
+        public decimal? GetValorizationFactor(PriorizedAllocationAdjustmentType adjustmentType) => adjustmentType switch
         {
-            EfficientDistributionAdjustmentType.Unit => 1,
-            EfficientDistributionAdjustmentType.Weight => ProductWeight,
-            EfficientDistributionAdjustmentType.Volume => ProductVolume,
-            EfficientDistributionAdjustmentType.Value => ProductValue,
-            EfficientDistributionAdjustmentType.Pallet => ProductPallet is > 0 ? 1 / ProductPallet : null,
+            PriorizedAllocationAdjustmentType.Unit => 1,
+            PriorizedAllocationAdjustmentType.Weight => ProductWeight,
+            PriorizedAllocationAdjustmentType.Volume => ProductVolume,
+            PriorizedAllocationAdjustmentType.Value => ProductValue,
+            PriorizedAllocationAdjustmentType.Pallet => ProductPallet is > 0 ? 1 / ProductPallet : null,
             _ => 1
         };
 
-        public decimal? GetValorizedApprovedQuantity(EfficientDistributionAdjustmentType adjustmentType) =>
+        public decimal? GetValorizedApprovedQuantity(PriorizedAllocationAdjustmentType adjustmentType) =>
             GetValorizationFactor(adjustmentType) is { } factor ? ApprovedQuantity * factor : null;
 
-        public decimal? GetValorizedPackQuantity(EfficientDistributionAdjustmentType adjustmentType) =>
+        public decimal? GetValorizedPackQuantity(PriorizedAllocationAdjustmentType adjustmentType) =>
             GetValorizationFactor(adjustmentType) is { } factor ? PackQuantity * factor : null;
     }
 }

@@ -1,6 +1,6 @@
 namespace Service.Domain.Enums
 {
-    public enum EfficientDistributionAdjustmentType
+    public enum PriorizedAllocationAdjustmentType
     {
         Unit,
         Weight,

@@ -40,8 +40,8 @@
     "DiscardStatus": ["NotReviewed", "Reviewed", "Discarded"],
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
     "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
-    "EfficientDistributionStopCondition": ["Zero", "Moq", "OnePackQuantity"],
-    "EfficientDistributionAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"]
+    "PriorizedAllocationStopCondition": ["Zero", "Moq", "OnePackQuantity"],
+    "PriorizedAllocationAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"]
   },
   "routes": [
     {
@@ -256,10 +256,10 @@
     },
     {
       "method": "GET",
-      "route": "/api/allocationGroup/efficientDistribution",
+      "route": "/api/allocationGroup/priorizedAllocation",
       "auth": true,
       "queryParams": {},
-      "responseData": "EfficientDistributionRow[]",
+      "responseData": "PriorizedAllocationRow[]",
       "notes": "Scoped to the authenticated user's own Workspace rows (Approved = true), joined to CenterProduct (via IdProduct+IdCenter) for the AllocationGroup and to Product for Weight/Volume/Value/Pallet. A group's weighted metric (Weight/Volume/Value/Pallet) comes back null if ANY item contributing to that group is missing that Product property (or, for Pallet, has it as 0).",
       "itemShape": {
         "id": "number",
@@ -273,16 +273,16 @@
     },
     {
       "method": "POST",
-      "route": "/api/allocationGroup/efficientDistribution/run",
+      "route": "/api/allocationGroup/priorizedAllocation/run",
       "auth": true,
       "requestBody": {
         "idGroup": "number",
         "limit": "number",
-        "stopCondition": "EfficientDistributionStopCondition",
-        "adjustmentType": "EfficientDistributionAdjustmentType (optional, default Unit)"
+        "stopCondition": "PriorizedAllocationStopCondition",
+        "adjustmentType": "PriorizedAllocationAdjustmentType (optional, default Unit)"
       },
-      "responseData": "EfficientDistributionAllocationItem[]",
-      "notes": "Runs the 'DE' (Distribuição Eficiente) redistribution algorithm over the authenticated user's approved Workspace items for that AllocationGroup, then persists the resulting quantities back onto each Workspace row (OptimizedQuantity) - always in raw units, regardless of adjustmentType. If the group's current total (converted to adjustmentType's unit for the comparison only) is above `limit`, quantities are walked down one PackQuantity at a time starting from the item with the highest buffer percentage, never going below the floor set by `stopCondition` (Zero=0, Moq=item.Moq, OnePackQuantity=item.PackQuantity, always in raw units) and never dropping the group's converted total below `limit`. If below `limit`, quantities are walked up starting from the item with the lowest buffer percentage, never pushing the converted total above `limit`. If already equal to `limit`, nothing changes. adjustmentType only changes what the group total is measured in when comparing against `limit`: Unit (default) uses the raw approved quantity as-is; Weight/Volume/Value multiply each item's approved quantity by the matching Product property; Pallet divides it by Product.Pallet. An item whose Product is missing the property adjustmentType needs (or has Pallet = 0) is left untouched, same as an item with PackQuantity <= 0. Each item's own PackQuantity (in raw units) determines its step size.",
+      "responseData": "PriorizedAllocationItem[]",
+      "notes": "Runs the 'PriorizedAllocation' redistribution algorithm over the authenticated user's approved Workspace items for that AllocationGroup, then persists the resulting quantities back onto each Workspace row (OptimizedQuantity) - always in raw units, regardless of adjustmentType. If the group's current total (converted to adjustmentType's unit for the comparison only) is above `limit`, quantities are walked down one PackQuantity at a time starting from the item with the highest buffer percentage, never going below the floor set by `stopCondition` (Zero=0, Moq=item.Moq, OnePackQuantity=item.PackQuantity, always in raw units) and never dropping the group's converted total below `limit`. If below `limit`, quantities are walked up starting from the item with the lowest buffer percentage, never pushing the converted total above `limit`. If already equal to `limit`, nothing changes. adjustmentType only changes what the group total is measured in when comparing against `limit`: Unit (default) uses the raw approved quantity as-is; Weight/Volume/Value multiply each item's approved quantity by the matching Product property; Pallet divides it by Product.Pallet. An item whose Product is missing the property adjustmentType needs (or has Pallet = 0) is left untouched, same as an item with PackQuantity <= 0. Each item's own PackQuantity (in raw units) determines its step size.",
       "itemShape": {
         "id": "number",
         "idCenter": "number",

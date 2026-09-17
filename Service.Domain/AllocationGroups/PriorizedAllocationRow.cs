@@ -1,6 +1,6 @@
 namespace Service.Domain.AllocationGroups
 {
-    public class EfficientDistributionRow
+    public class PriorizedAllocationRow
     {
         public int Id { get; set; }
         public string Name { get; set; }

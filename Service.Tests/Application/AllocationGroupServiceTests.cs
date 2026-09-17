@@ -26,30 +26,30 @@ public class AllocationGroupServiceTests
     }
 
     [Fact]
-    public async Task GetEfficientDistributionAsync_ReturnsRepositoryResult_ForCurrentUser()
+    public async Task GetPriorizedAllocationAsync_ReturnsRepositoryResult_ForCurrentUser()
     {
-        var rows = new List<EfficientDistributionRow>
+        var rows = new List<PriorizedAllocationRow>
         {
             new() { Id = 1, Name = "Grupo A", ApprovedQuantityUnit = 10 }
         };
-        _allocationGroupRepository.GetEfficientDistributionAsync(1, Arg.Any<CancellationToken>()).Returns(rows);
+        _allocationGroupRepository.GetPriorizedAllocationAsync(1, Arg.Any<CancellationToken>()).Returns(rows);
 
-        var result = await _sut.GetEfficientDistributionAsync();
+        var result = await _sut.GetPriorizedAllocationAsync();
 
         Assert.Same(rows, result);
     }
 
     [Fact]
-    public async Task RunEfficientDistributionAsync_ThrowsNotFoundException_WhenGroupDoesNotExist()
+    public async Task RunPriorizedAllocationAsync_ThrowsNotFoundException_WhenGroupDoesNotExist()
     {
         _allocationGroupRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(false);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => _sut.RunEfficientDistributionAsync(new EfficientDistributionRunDto { IdGroup = 1, Limit = 10, StopCondition = EfficientDistributionStopCondition.Zero }));
+            () => _sut.RunPriorizedAllocationAsync(new PriorizedAllocationRunDto { IdGroup = 1, Limit = 10, StopCondition = PriorizedAllocationStopCondition.Zero }));
     }
 
     [Fact]
-    public async Task RunEfficientDistributionAsync_UpdatesWorkspaceQuantities_AndReturnsItems()
+    public async Task RunPriorizedAllocationAsync_UpdatesWorkspaceQuantities_AndReturnsItems()
     {
         _allocationGroupRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(true);
         _reportRepository.GetApprovedByAllocationGroupAsync(1, Arg.Any<CancellationToken>()).Returns(new List<InventoryBufferManagementRow>
@@ -59,7 +59,7 @@ public class AllocationGroupServiceTests
         var workspace = new Workspace { Id = 99, IdCenter = 1, IdProduct = 1, IdUser = 1, OptimizedQuantity = 4, Approved = true };
         _workspaceRepository.GetByKeyAsync(1, 1, 1, Arg.Any<CancellationToken>()).Returns(workspace);
 
-        var result = await _sut.RunEfficientDistributionAsync(new EfficientDistributionRunDto { IdGroup = 1, Limit = 6, StopCondition = EfficientDistributionStopCondition.Zero });
+        var result = await _sut.RunPriorizedAllocationAsync(new PriorizedAllocationRunDto { IdGroup = 1, Limit = 6, StopCondition = PriorizedAllocationStopCondition.Zero });
 
         var item = Assert.Single(result);
         Assert.Equal(6, item.ApprovedQuantity);

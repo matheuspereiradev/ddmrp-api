@@ -1,6 +1,6 @@
 namespace Service.Domain.Enums
 {
-    public enum EfficientDistributionStopCondition
+    public enum PriorizedAllocationStopCondition
     {
         Zero,
         Moq,

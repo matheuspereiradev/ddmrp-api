@@ -38,19 +38,19 @@ namespace Service.API.Controllers
             return Ok(allocationGroups);
         }
 
-        [HttpGet("efficientDistribution")]
+        [HttpGet("priorizedAllocation")]
         [Authorize]
-        public async Task<ActionResult> GetEfficientDistribution(CancellationToken cancellationToken)
+        public async Task<ActionResult> GetPriorizedAllocation(CancellationToken cancellationToken)
         {
-            var result = await _allocationGroupService.GetEfficientDistributionAsync(cancellationToken);
+            var result = await _allocationGroupService.GetPriorizedAllocationAsync(cancellationToken);
             return Ok(result);
         }
 
-        [HttpPost("efficientDistribution/run")]
+        [HttpPost("priorizedAllocation/run")]
         [Authorize]
-        public async Task<ActionResult> RunEfficientDistribution(EfficientDistributionRunDto efficientDistributionRunDto, CancellationToken cancellationToken)
+        public async Task<ActionResult> RunPriorizedAllocation(PriorizedAllocationRunDto priorizedAllocationRunDto, CancellationToken cancellationToken)
         {
-            var result = await _allocationGroupService.RunEfficientDistributionAsync(efficientDistributionRunDto, cancellationToken);
+            var result = await _allocationGroupService.RunPriorizedAllocationAsync(priorizedAllocationRunDto, cancellationToken);
             return Ok(result);
         }
 

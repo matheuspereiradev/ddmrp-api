@@ -3,7 +3,7 @@ using Service.Domain.Enums;
 
 namespace Service.Application.DTOs.AllocationGroup
 {
-    public class EfficientDistributionRunDto
+    public class PriorizedAllocationRunDto
     {
         [Required(ErrorMessage = "Field {0} required.")]
         public int IdGroup { get; set; }
@@ -13,10 +13,10 @@ namespace Service.Application.DTOs.AllocationGroup
         public decimal Limit { get; set; }
 
         [Required(ErrorMessage = "Field {0} required.")]
-        [EnumDataType(typeof(EfficientDistributionStopCondition))]
-        public EfficientDistributionStopCondition StopCondition { get; set; }
+        [EnumDataType(typeof(PriorizedAllocationStopCondition))]
+        public PriorizedAllocationStopCondition StopCondition { get; set; }
 
-        [EnumDataType(typeof(EfficientDistributionAdjustmentType))]
-        public EfficientDistributionAdjustmentType AdjustmentType { get; set; } = EfficientDistributionAdjustmentType.Unit;
+        [EnumDataType(typeof(PriorizedAllocationAdjustmentType))]
+        public PriorizedAllocationAdjustmentType AdjustmentType { get; set; } = PriorizedAllocationAdjustmentType.Unit;
     }
 }

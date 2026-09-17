@@ -13,7 +13,7 @@ namespace Service.Infra.Data.Repositories
         {
         }
 
-        public async Task<List<EfficientDistributionRow>> GetEfficientDistributionAsync(int idUser, CancellationToken cancellationToken = default)
+        public async Task<List<PriorizedAllocationRow>> GetPriorizedAllocationAsync(int idUser, CancellationToken cancellationToken = default)
         {
             var items = await _context.Workspace
                 .Where(w => w.deletedAt == null && w.IdUser == idUser && w.Approved)
@@ -39,7 +39,7 @@ namespace Service.Infra.Data.Repositories
 
             return items
                 .GroupBy(x => new { x.IdAllocationGroup, x.GroupName })
-                .Select(g => new EfficientDistributionRow
+                .Select(g => new PriorizedAllocationRow
                 {
                     Id = g.Key.IdAllocationGroup,
                     Name = g.Key.GroupName,

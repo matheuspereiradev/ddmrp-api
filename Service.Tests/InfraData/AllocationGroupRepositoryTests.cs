@@ -27,7 +27,7 @@ public class AllocationGroupRepositoryTests
     }
 
     [Fact]
-    public async Task GetEfficientDistributionAsync_SumsApprovedQuantityAndWeightedMetrics_PerGroup()
+    public async Task GetPriorizedAllocationAsync_SumsApprovedQuantityAndWeightedMetrics_PerGroup()
     {
         var (context, repository) = CreateSut();
         context.Product.AddRange(
@@ -41,7 +41,7 @@ public class AllocationGroupRepositoryTests
             new Workspace { IdCenter = 1, IdProduct = 2, IdUser = 1, OptimizedQuantity = 4, Approved = true });
         context.SaveChanges();
 
-        var result = await repository.GetEfficientDistributionAsync(1);
+        var result = await repository.GetPriorizedAllocationAsync(1);
 
         var group = Assert.Single(result);
         Assert.Equal(1, group.Id);
@@ -54,7 +54,7 @@ public class AllocationGroupRepositoryTests
     }
 
     [Fact]
-    public async Task GetEfficientDistributionAsync_NullsOutMetric_WhenAnyItemInGroupIsMissingThatProperty()
+    public async Task GetPriorizedAllocationAsync_NullsOutMetric_WhenAnyItemInGroupIsMissingThatProperty()
     {
         var (context, repository) = CreateSut();
         context.Product.AddRange(
@@ -68,7 +68,7 @@ public class AllocationGroupRepositoryTests
             new Workspace { IdCenter = 1, IdProduct = 2, IdUser = 1, OptimizedQuantity = 4, Approved = true });
         context.SaveChanges();
 
-        var result = await repository.GetEfficientDistributionAsync(1);
+        var result = await repository.GetPriorizedAllocationAsync(1);
 
         var group = Assert.Single(result);
         Assert.Null(group.ApprovedQuantityWeight);
@@ -77,7 +77,7 @@ public class AllocationGroupRepositoryTests
     }
 
     [Fact]
-    public async Task GetEfficientDistributionAsync_IgnoresNonApprovedWorkspacesAndUngroupedCenterProducts()
+    public async Task GetPriorizedAllocationAsync_IgnoresNonApprovedWorkspacesAndUngroupedCenterProducts()
     {
         var (context, repository) = CreateSut();
         context.Product.Add(new Product { Id = 1, Reference = "REF1", Description = "P1", UnitOfMeasure = "UN" });
@@ -88,7 +88,7 @@ public class AllocationGroupRepositoryTests
         context.Workspace.Add(new Workspace { IdCenter = 1, IdProduct = 2, IdUser = 1, OptimizedQuantity = 20, Approved = true });
         context.SaveChanges();
 
-        var result = await repository.GetEfficientDistributionAsync(1);
+        var result = await repository.GetPriorizedAllocationAsync(1);
 
         Assert.Empty(result);
     }

@@ -6,7 +6,7 @@ namespace Service.Application.Interfaces
 {
     public interface IAllocationGroupService : IBaseService<AllocationGroup, AllocationGroupGetDto, AllocationGroupPostDto, AllocationGroupPutDto>
     {
-        Task<List<EfficientDistributionRow>> GetEfficientDistributionAsync(CancellationToken cancellationToken = default);
-        Task<List<EfficientDistributionAllocationItem>> RunEfficientDistributionAsync(EfficientDistributionRunDto runDto, CancellationToken cancellationToken = default);
+        Task<List<PriorizedAllocationRow>> GetPriorizedAllocationAsync(CancellationToken cancellationToken = default);
+        Task<List<PriorizedAllocationItem>> RunPriorizedAllocationAsync(PriorizedAllocationRunDto runDto, CancellationToken cancellationToken = default);
     }
 }

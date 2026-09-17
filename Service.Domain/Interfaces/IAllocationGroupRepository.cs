@@ -5,6 +5,6 @@ namespace Service.Domain.Interfaces
 {
     public interface IAllocationGroupRepository : IBaseRepository<AllocationGroup>
     {
-        Task<List<EfficientDistributionRow>> GetEfficientDistributionAsync(int idUser, CancellationToken cancellationToken = default);
+        Task<List<PriorizedAllocationRow>> GetPriorizedAllocationAsync(int idUser, CancellationToken cancellationToken = default);
     }
 }

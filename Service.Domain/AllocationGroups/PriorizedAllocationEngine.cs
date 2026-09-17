@@ -8,13 +8,13 @@ namespace Service.Domain.AllocationGroups
     // (converted to `adjustmentType`'s unit of measure - Units/Weight/Volume/Value/Pallet - for the limit
     // comparison only) reaches `limit`, or every item is exhausted. ApprovedQuantity itself, and the floor
     // enforced by `stopCondition`, always stay in raw units - only the comparison against `limit` changes.
-    public static class EfficientDistributionEngine
+    public static class PriorizedAllocationEngine
     {
         public static void Run(
-            List<EfficientDistributionAllocationItem> items,
+            List<PriorizedAllocationItem> items,
             decimal limit,
-            EfficientDistributionStopCondition stopCondition,
-            EfficientDistributionAdjustmentType adjustmentType)
+            PriorizedAllocationStopCondition stopCondition,
+            PriorizedAllocationAdjustmentType adjustmentType)
         {
             foreach (var item in items.Where(i => i.PackQuantity <= 0 || i.GetValorizationFactor(adjustmentType) is null))
                 item.Finished = true;
@@ -27,7 +27,7 @@ namespace Service.Domain.AllocationGroups
                 RunUp(items, limit, adjustmentType);
         }
 
-        private static void RunUp(List<EfficientDistributionAllocationItem> items, decimal limit, EfficientDistributionAdjustmentType adjustmentType)
+        private static void RunUp(List<PriorizedAllocationItem> items, decimal limit, PriorizedAllocationAdjustmentType adjustmentType)
         {
             while (true)
             {
@@ -55,10 +55,10 @@ namespace Service.Domain.AllocationGroups
         }
 
         private static void RunDown(
-            List<EfficientDistributionAllocationItem> items,
+            List<PriorizedAllocationItem> items,
             decimal limit,
-            EfficientDistributionStopCondition stopCondition,
-            EfficientDistributionAdjustmentType adjustmentType)
+            PriorizedAllocationStopCondition stopCondition,
+            PriorizedAllocationAdjustmentType adjustmentType)
         {
             while (true)
             {
@@ -86,11 +86,11 @@ namespace Service.Domain.AllocationGroups
             }
         }
 
-        private static decimal GetFloor(EfficientDistributionAllocationItem item, EfficientDistributionStopCondition stopCondition) => stopCondition switch
+        private static decimal GetFloor(PriorizedAllocationItem item, PriorizedAllocationStopCondition stopCondition) => stopCondition switch
         {
-            EfficientDistributionStopCondition.Zero => 0,
-            EfficientDistributionStopCondition.Moq => item.Moq,
-            EfficientDistributionStopCondition.OnePackQuantity => item.PackQuantity,
+            PriorizedAllocationStopCondition.Zero => 0,
+            PriorizedAllocationStopCondition.Moq => item.Moq,
+            PriorizedAllocationStopCondition.OnePackQuantity => item.PackQuantity,
             _ => 0
         };
     }

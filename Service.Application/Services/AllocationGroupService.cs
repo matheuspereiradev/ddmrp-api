@@ -28,19 +28,19 @@ namespace Service.Application.Services
             _currentUser = currentUser;
         }
 
-        public Task<List<EfficientDistributionRow>> GetEfficientDistributionAsync(CancellationToken cancellationToken = default)
+        public Task<List<PriorizedAllocationRow>> GetPriorizedAllocationAsync(CancellationToken cancellationToken = default)
         {
-            return _allocationGroupRepository.GetEfficientDistributionAsync(_currentUser.UserId, cancellationToken);
+            return _allocationGroupRepository.GetPriorizedAllocationAsync(_currentUser.UserId, cancellationToken);
         }
 
-        public async Task<List<EfficientDistributionAllocationItem>> RunEfficientDistributionAsync(EfficientDistributionRunDto runDto, CancellationToken cancellationToken = default)
+        public async Task<List<PriorizedAllocationItem>> RunPriorizedAllocationAsync(PriorizedAllocationRunDto runDto, CancellationToken cancellationToken = default)
         {
             if (!await _allocationGroupRepository.Exists(runDto.IdGroup, cancellationToken))
                 throw new NotFoundException("Allocation group not found.");
 
             var rows = await _reportRepository.GetApprovedByAllocationGroupAsync(runDto.IdGroup, cancellationToken);
 
-            var items = rows.Select(r => new EfficientDistributionAllocationItem
+            var items = rows.Select(r => new PriorizedAllocationItem
             {
                 Id = r.Id,
                 IdCenter = r.IdCenter,
@@ -59,7 +59,7 @@ namespace Service.Application.Services
             if (items.Count == 0)
                 return items;
 
-            EfficientDistributionEngine.Run(items, runDto.Limit, runDto.StopCondition, runDto.AdjustmentType);
+            PriorizedAllocationEngine.Run(items, runDto.Limit, runDto.StopCondition, runDto.AdjustmentType);
 
             var currentUserId = _currentUser.UserId;
             foreach (var item in items)
