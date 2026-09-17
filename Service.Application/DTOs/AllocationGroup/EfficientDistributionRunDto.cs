@@ -15,5 +15,8 @@ namespace Service.Application.DTOs.AllocationGroup
         [Required(ErrorMessage = "Field {0} required.")]
         [EnumDataType(typeof(EfficientDistributionStopCondition))]
         public EfficientDistributionStopCondition StopCondition { get; set; }
+
+        [EnumDataType(typeof(EfficientDistributionAdjustmentType))]
+        public EfficientDistributionAdjustmentType AdjustmentType { get; set; } = EfficientDistributionAdjustmentType.Unit;
     }
 }

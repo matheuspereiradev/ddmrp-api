@@ -49,13 +49,17 @@ namespace Service.Application.Services
                 Netflow = r.Netflow,
                 Tog = r.TopOfGreen ?? 0,
                 Moq = r.Moq,
-                PackQuantity = r.PackQuantity
+                PackQuantity = r.PackQuantity,
+                ProductWeight = r.ProductWeight,
+                ProductVolume = r.ProductVolume,
+                ProductValue = r.ProductValue,
+                ProductPallet = r.ProductPallet
             }).ToList();
 
             if (items.Count == 0)
                 return items;
 
-            EfficientDistributionEngine.Run(items, runDto.Limit, runDto.StopCondition);
+            EfficientDistributionEngine.Run(items, runDto.Limit, runDto.StopCondition, runDto.AdjustmentType);
 
             var currentUserId = _currentUser.UserId;
             foreach (var item in items)

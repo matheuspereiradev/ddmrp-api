@@ -5,27 +5,33 @@ namespace Service.Domain.AllocationGroups
     // Pure, in-memory redistribution algorithm - no DB access here, so it can be unit tested directly.
     // Walks the group's approved workspace quantities one PackQuantity at a time, always picking the
     // item furthest from the target buffer percentage first, until the group's total approved quantity
-    // reaches `limit` (or every item is exhausted).
+    // (converted to `adjustmentType`'s unit of measure - Units/Weight/Volume/Value/Pallet - for the limit
+    // comparison only) reaches `limit`, or every item is exhausted. ApprovedQuantity itself, and the floor
+    // enforced by `stopCondition`, always stay in raw units - only the comparison against `limit` changes.
     public static class EfficientDistributionEngine
     {
-        public static void Run(List<EfficientDistributionAllocationItem> items, decimal limit, EfficientDistributionStopCondition stopCondition)
+        public static void Run(
+            List<EfficientDistributionAllocationItem> items,
+            decimal limit,
+            EfficientDistributionStopCondition stopCondition,
+            EfficientDistributionAdjustmentType adjustmentType)
         {
-            foreach (var item in items.Where(i => i.PackQuantity <= 0))
+            foreach (var item in items.Where(i => i.PackQuantity <= 0 || i.GetValorizationFactor(adjustmentType) is null))
                 item.Finished = true;
 
-            var total = items.Sum(i => i.ApprovedQuantity);
+            var total = items.Sum(i => i.GetValorizedApprovedQuantity(adjustmentType) ?? 0);
 
             if (total > limit)
-                RunDown(items, limit, stopCondition);
+                RunDown(items, limit, stopCondition, adjustmentType);
             else if (total < limit)
-                RunUp(items, limit);
+                RunUp(items, limit, adjustmentType);
         }
 
-        private static void RunUp(List<EfficientDistributionAllocationItem> items, decimal limit)
+        private static void RunUp(List<EfficientDistributionAllocationItem> items, decimal limit, EfficientDistributionAdjustmentType adjustmentType)
         {
             while (true)
             {
-                var total = items.Sum(i => i.ApprovedQuantity);
+                var total = items.Sum(i => i.GetValorizedApprovedQuantity(adjustmentType) ?? 0);
                 if (total > limit)
                     break;
 
@@ -37,7 +43,8 @@ namespace Service.Domain.AllocationGroups
                 if (item == null)
                     break;
 
-                if (total + item.PackQuantity > limit)
+                var valorizedPack = item.GetValorizedPackQuantity(adjustmentType)!.Value;
+                if (total + valorizedPack > limit)
                 {
                     item.Finished = true;
                     continue;
@@ -47,11 +54,15 @@ namespace Service.Domain.AllocationGroups
             }
         }
 
-        private static void RunDown(List<EfficientDistributionAllocationItem> items, decimal limit, EfficientDistributionStopCondition stopCondition)
+        private static void RunDown(
+            List<EfficientDistributionAllocationItem> items,
+            decimal limit,
+            EfficientDistributionStopCondition stopCondition,
+            EfficientDistributionAdjustmentType adjustmentType)
         {
             while (true)
             {
-                var total = items.Sum(i => i.ApprovedQuantity);
+                var total = items.Sum(i => i.GetValorizedApprovedQuantity(adjustmentType) ?? 0);
                 if (total < limit)
                     break;
 
@@ -64,7 +75,8 @@ namespace Service.Domain.AllocationGroups
                     break;
 
                 var floor = GetFloor(item, stopCondition);
-                if (total - item.PackQuantity < limit || item.ApprovedQuantity - item.PackQuantity < floor)
+                var valorizedPack = item.GetValorizedPackQuantity(adjustmentType)!.Value;
+                if (total - valorizedPack < limit || item.ApprovedQuantity - item.PackQuantity < floor)
                 {
                     item.Finished = true;
                     continue;

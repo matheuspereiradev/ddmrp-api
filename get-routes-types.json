@@ -40,7 +40,8 @@
     "DiscardStatus": ["NotReviewed", "Reviewed", "Discarded"],
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
     "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
-    "EfficientDistributionStopCondition": ["Zero", "Moq", "OnePackQuantity"]
+    "EfficientDistributionStopCondition": ["Zero", "Moq", "OnePackQuantity"],
+    "EfficientDistributionAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"]
   },
   "routes": [
     {
@@ -277,10 +278,11 @@
       "requestBody": {
         "idGroup": "number",
         "limit": "number",
-        "stopCondition": "EfficientDistributionStopCondition"
+        "stopCondition": "EfficientDistributionStopCondition",
+        "adjustmentType": "EfficientDistributionAdjustmentType (optional, default Unit)"
       },
       "responseData": "EfficientDistributionAllocationItem[]",
-      "notes": "Runs the 'DE' (Distribuição Eficiente) redistribution algorithm over the authenticated user's approved Workspace items for that AllocationGroup, then persists the resulting quantities back onto each Workspace row (OptimizedQuantity). If the group's current total approved quantity is above `limit`, quantities are walked down one PackQuantity at a time starting from the item with the highest buffer percentage, never going below the floor set by `stopCondition` (Zero=0, Moq=item.Moq, OnePackQuantity=item.PackQuantity) and never dropping the group total below `limit`. If below `limit`, quantities are walked up starting from the item with the lowest buffer percentage, never pushing the group total above `limit`. If already equal to `limit`, nothing changes. Each item's own PackQuantity determines its step size; an item with PackQuantity <= 0 is left untouched.",
+      "notes": "Runs the 'DE' (Distribuição Eficiente) redistribution algorithm over the authenticated user's approved Workspace items for that AllocationGroup, then persists the resulting quantities back onto each Workspace row (OptimizedQuantity) - always in raw units, regardless of adjustmentType. If the group's current total (converted to adjustmentType's unit for the comparison only) is above `limit`, quantities are walked down one PackQuantity at a time starting from the item with the highest buffer percentage, never going below the floor set by `stopCondition` (Zero=0, Moq=item.Moq, OnePackQuantity=item.PackQuantity, always in raw units) and never dropping the group's converted total below `limit`. If below `limit`, quantities are walked up starting from the item with the lowest buffer percentage, never pushing the converted total above `limit`. If already equal to `limit`, nothing changes. adjustmentType only changes what the group total is measured in when comparing against `limit`: Unit (default) uses the raw approved quantity as-is; Weight/Volume/Value multiply each item's approved quantity by the matching Product property; Pallet divides it by Product.Pallet. An item whose Product is missing the property adjustmentType needs (or has Pallet = 0) is left untouched, same as an item with PackQuantity <= 0. Each item's own PackQuantity (in raw units) determines its step size.",
       "itemShape": {
         "id": "number",
         "idCenter": "number",
