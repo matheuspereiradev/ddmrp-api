@@ -177,6 +177,8 @@
         "date": "string (ISO datetime)",
         "discardStatus": "DiscardStatus (enum string)",
         "stock": "number | null (robot-only)",
+        "reservedStock": "number | null (robot-only)",
+        "availableStock": "number | null (computed: stock - reservedStock, robot-only)",
         "qualifiedDemand": "number | null (robot-only)",
         "openInbounds": "number | null (robot-only)",
         "openOutbound": "number | null (robot-only)",
@@ -346,11 +348,11 @@
         "topOfRedExecution": "number | null",
         "topOfYellowExecution": "number | null",
         "topOfGreenExecution": "number | null",
-        "redSafeAnalytical": "number | null",
-        "yellowSafeAnalytical": "number | null",
-        "greenAnalytical": "number | null",
+        "redSafeAnalytical": "number | null (ceiling(RedZone/2))",
+        "yellowSafeAnalytical": "number | null (ceiling(RedZone))",
+        "greenAnalytical": "number | null (ceiling(GreenZone) — GreenZone alone, not RedZone + GreenZone)",
         "yellowExcessAnalytical": "number | null",
-        "redSafeExcessAnalytical": "number | null",
+        "redExcessAnalytical": "number | null (renamed from redSafeExcessAnalytical 2026-09-20)",
         "useDafOnGreenZone": "boolean",
         "customLeadTimeFactor": "number",
         "customVariabilityFactor": "number",
@@ -629,11 +631,11 @@
         "topOfRedExecution": "number | null",
         "topOfYellowExecution": "number | null",
         "topOfGreenExecution": "number | null",
-        "redSafeAnalytical": "number | null",
-        "yellowSafeAnalytical": "number | null",
-        "greenAnalytical": "number | null",
+        "redSafeAnalytical": "number | null (ceiling(RedZone/2))",
+        "yellowSafeAnalytical": "number | null (ceiling(RedZone))",
+        "greenAnalytical": "number | null (ceiling(GreenZone) — GreenZone alone, not RedZone + GreenZone)",
         "yellowExcessAnalytical": "number | null",
-        "redSafeExcessAnalytical": "number | null",
+        "redExcessAnalytical": "number | null (renamed from redSafeExcessAnalytical 2026-09-20)",
         "useDafOnGreenZone": "boolean",
         "customLeadTimeFactor": "number",
         "customVariabilityFactor": "number",
@@ -861,6 +863,37 @@
           "black": "number (count of items whose color this day was Black)",
           "noColor": "number (count of items whose color this day was NoColor)"
         }
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/report/accumulatedBufferHistory",
+      "auth": true,
+      "queryParams": {
+        "dateStart": "string (ISO date) (required)",
+        "dateEnd": "string (ISO date) (required)",
+        "idCenters": "number[] (required, repeat the param e.g. ?idCenters=1&idCenters=2) — unlike bufferPenetration/itemsByBufferColorHistory, there is no 'all centers' default here; 400 if omitted/empty"
+      },
+      "responseData": "AccumulatedBufferHistoryRow[] (plain array, NOT a PagedList — no pagination). One row per Date in [dateStart, dateEnd], summing every metric across every (idProduct, idCenter) History row within idCenters whose RedBaseZone + RedSafeZone > 0 (nulls treated as 0; items with no red zone computed yet are excluded entirely, not summed as 0). Every product is included (no idProduct filter) — the row has no idProduct/idCenter of its own, it's a sum across all qualifying pairs for that date. 400 if dateEnd < dateStart or idCenters is empty.",
+      "itemShape": {
+        "date": "string (ISO date)",
+        "executionRedZone": "number (sum of ceiling((RedBaseZone+RedSafeZone)/2) across qualifying items)",
+        "executionYellowZone": "number (sum, always equal to executionRedZone per item before summing — same intentional duplication as CenterProduct.RedZoneExecution/YellowZoneExecution)",
+        "executionGreenZone": "number (sum of YellowZone across qualifying items)",
+        "netflowRedZone": "number (sum of RedBaseZone+RedSafeZone across qualifying items)",
+        "netflowYellowZone": "number (sum of YellowZone across qualifying items)",
+        "netflowGreenZone": "number (sum of GreenZone across qualifying items)",
+        "redSafeAnalytical": "number (sum of ceiling(netflowRedZone/2) per item — same formula as CenterProduct.RedSafeAnalytical, fed netflowRedZone)",
+        "yellowSafeAnalytical": "number (sum of ceiling(netflowRedZone) per item)",
+        "greenAnalytical": "number (sum of ceiling(netflowGreenZone) per item — matches CenterProduct.GreenAnalytical, GreenZone alone, not RedZone + GreenZone)",
+        "yellowExcessAnalytical": "number (sum per item of: 0 if (netflowRedZone+netflowGreenZone) >= (netflowRedZone+netflowYellowZone), else ceiling((netflowRedZone+netflowYellowZone) - (netflowRedZone+netflowGreenZone)))",
+        "redExcessAnalytical": "number (sum per item of: 0 if topOfGreenNetflow <= 0, else ceiling(topOfGreenNetflow - (netflowRedZone+netflowGreenZone+yellowExcessAnalytical)), where topOfGreenNetflow = netflowRedZone+netflowYellowZone+netflowGreenZone)",
+        "averageProjectedInventory": "number (sum of netflowRedZone + netflowGreenZone/2 per item — DDMRP Average Projected On-Hand formula)",
+        "availableStock": "number (sum of (History.Stock - History.ReservedStock) across qualifying items, nulls treated as 0 — NOT raw Stock)",
+        "netflow": "number (sum of UtilsDdmrp.CalculateNetflow(AvailableStock, QualifiedDemand, OpenInbounds) per item)",
+        "excessStock": "number (sum of max(0, AvailableStock - (netflowRedZone+netflowYellowZone+netflowGreenZone)) per item)",
+        "minimumOscillationRange": "number (sum of netflowRedZone per item)",
+        "maximumOscillationRange": "number (sum of netflowRedZone + netflowGreenZone per item — note: yellow is NOT included)"
       }
     }
   ]

@@ -50,7 +50,7 @@ namespace Service.Domain.Report.Results
         public decimal? YellowSafeAnalytical { get; set; }
         public decimal? GreenAnalytical { get; set; }
         public decimal? YellowExcessAnalytical { get; set; }
-        public decimal? RedSafeExcessAnalytical { get; set; }
+        public decimal? RedExcessAnalytical { get; set; }
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; }
         public decimal CustomVariabilityFactor { get; set; }

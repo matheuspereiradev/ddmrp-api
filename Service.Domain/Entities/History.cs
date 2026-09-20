@@ -13,6 +13,8 @@ namespace Service.Domain.Entities
         public DateTime Date { get; set; }
         public DiscardStatus DiscardStatus { get; set; } = DiscardStatus.NotReviewed;
         public decimal? Stock { get; set; }
+        public decimal? ReservedStock { get; set; }
+        public decimal? AvailableStock => Stock.HasValue && ReservedStock.HasValue ? Stock.Value - ReservedStock.Value : null;
         public decimal? QualifiedDemand { get; set; }
         public decimal? OpenInbounds { get; set; }
         public decimal? OpenOutbound { get; set; }

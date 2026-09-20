@@ -19,6 +19,8 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(h => h.Date).IsRequired();
             builder.Property(h => h.DiscardStatus).IsRequired().HasDefaultValue(DiscardStatus.NotReviewed);
             builder.Property(h => h.Stock).HasPrecision(18, 4);
+            builder.Property(h => h.ReservedStock).HasPrecision(18, 4);
+            builder.Ignore(h => h.AvailableStock);
             builder.Property(h => h.QualifiedDemand).HasPrecision(18, 4);
             builder.Property(h => h.OpenInbounds).HasPrecision(18, 4);
             builder.Property(h => h.OpenOutbound).HasPrecision(18, 4);

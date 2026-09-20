@@ -159,7 +159,7 @@ namespace Service.Application.Mappers
             YellowSafeAnalytical = centerProduct.YellowSafeAnalytical,
             GreenAnalytical = centerProduct.GreenAnalytical,
             YellowExcessAnalytical = centerProduct.YellowExcessAnalytical,
-            RedSafeExcessAnalytical = centerProduct.RedSafeExcessAnalytical,
+            RedExcessAnalytical = centerProduct.RedExcessAnalytical,
             UseDafOnGreenZone = centerProduct.UseDafOnGreenZone,
             CustomLeadTimeFactor = centerProduct.CustomLeadTimeFactor,
             CustomVariabilityFactor = centerProduct.CustomVariabilityFactor,

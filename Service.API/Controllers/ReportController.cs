@@ -149,5 +149,17 @@ namespace Service.API.Controllers
             var result = await _reportService.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, idProduct, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("accumulatedBufferHistory")]
+        [Authorize]
+        public async Task<ActionResult> AccumulatedBufferHistory(
+            [FromQuery] DateTime dateStart,
+            [FromQuery] DateTime dateEnd,
+            [FromQuery] int[] idCenters,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reportService.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters, cancellationToken);
+            return Ok(result);
+        }
     }
 }

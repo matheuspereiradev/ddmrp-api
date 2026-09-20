@@ -55,9 +55,17 @@ namespace Service.Domain.Entities
         public decimal? TopOfGreenExecution => RedZoneExecution.HasValue && YellowZoneExecution.HasValue && GreenZoneExecution.HasValue ? Math.Ceiling(RedZoneExecution.Value + YellowZoneExecution.Value + GreenZoneExecution.Value) : (decimal?)null;
         public decimal? RedSafeAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value / 2) : (decimal?)null;
         public decimal? YellowSafeAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value) : (decimal?)null;
-        public decimal? GreenAnalytical => RedZone.HasValue && GreenZone.HasValue ? Math.Ceiling(RedZone.Value + GreenZone.Value) : (decimal?)null;
-        public decimal? YellowExcessAnalytical => RedZone.HasValue && YellowZone.HasValue ? Math.Ceiling(RedZone.Value + YellowZone.Value) : (decimal?)null;
-        public decimal? RedSafeExcessAnalytical => RedZone.HasValue ? Math.Ceiling(RedZone.Value / 2) : (decimal?)null;
+        public decimal? GreenAnalytical => GreenZone.HasValue ? Math.Ceiling(GreenZone.Value) : (decimal?)null;
+        public decimal? YellowExcessAnalytical => RedZone.HasValue && YellowZone.HasValue && GreenZone.HasValue
+            ? ((RedZone.Value + GreenZone.Value) >= (RedZone.Value + YellowZone.Value)
+                ? 0
+                : Math.Ceiling((RedZone.Value + YellowZone.Value) - (RedZone.Value + GreenZone.Value)))
+            : (decimal?)null;
+        public decimal? RedExcessAnalytical => TopOfGreen.HasValue && RedZone.HasValue && GreenZone.HasValue && YellowExcessAnalytical.HasValue
+            ? (TopOfGreen.Value <= 0
+                ? 0
+                : Math.Ceiling(TopOfGreen.Value - (RedZone.Value + GreenZone.Value + YellowExcessAnalytical.Value)))
+            : (decimal?)null;
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; } = 1;
         public decimal CustomVariabilityFactor { get; set; } = 1;

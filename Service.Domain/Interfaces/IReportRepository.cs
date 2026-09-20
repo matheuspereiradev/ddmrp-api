@@ -36,5 +36,10 @@ namespace Service.Domain.Interfaces
             int[]? idCenters,
             int? idProduct,
             CancellationToken cancellationToken = default);
+        Task<List<AccumulatedBufferHistoryRow>> GetAccumulatedBufferHistoryAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[] idCenters,
+            CancellationToken cancellationToken = default);
     }
 }

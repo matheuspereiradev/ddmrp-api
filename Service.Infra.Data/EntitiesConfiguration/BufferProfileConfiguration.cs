@@ -12,7 +12,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.ConfigureAuditFields();
             builder.HasKey(b => b.Id);
 
-            builder.Property(b => b.ProfileName).IsRequired().HasMaxLength(5);
+            builder.Property(b => b.ProfileName).IsRequired().HasMaxLength(25);
             builder.Property(b => b.SupplyType).IsRequired();
             builder.Property(b => b.LeadTimeCategory).IsRequired();
             builder.Property(b => b.VariabilityCategory).IsRequired();

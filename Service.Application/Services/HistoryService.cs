@@ -34,6 +34,8 @@ namespace Service.Application.Services
                 Date = entity.Date,
                 DiscardStatus = entity.DiscardStatus,
                 Stock = entity.Stock,
+                ReservedStock = entity.ReservedStock,
+                AvailableStock = entity.AvailableStock,
                 QualifiedDemand = entity.QualifiedDemand,
                 OpenInbounds = entity.OpenInbounds,
                 OpenOutbound = entity.OpenOutbound,

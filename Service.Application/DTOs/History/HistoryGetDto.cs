@@ -15,6 +15,8 @@ namespace Service.Application.DTOs.History
         public DateTime Date { get; set; }
         public DiscardStatus DiscardStatus { get; set; }
         public decimal? Stock { get; set; }
+        public decimal? ReservedStock { get; set; }
+        public decimal? AvailableStock { get; set; }
         public decimal? QualifiedDemand { get; set; }
         public decimal? OpenInbounds { get; set; }
         public decimal? OpenOutbound { get; set; }

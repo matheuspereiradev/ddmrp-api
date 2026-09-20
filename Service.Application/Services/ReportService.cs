@@ -81,5 +81,20 @@ namespace Service.Application.Services
 
             return _reportRepository.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, idProduct, cancellationToken);
         }
+
+        public Task<List<AccumulatedBufferHistoryRow>> GetAccumulatedBufferHistoryAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[] idCenters,
+            CancellationToken cancellationToken = default)
+        {
+            if (dateEnd < dateStart)
+                throw new BadRequestException("dateEnd must not be earlier than dateStart.");
+
+            if (idCenters == null || idCenters.Length == 0)
+                throw new BadRequestException("At least one idCenter must be informed.");
+
+            return _reportRepository.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters, cancellationToken);
+        }
     }
 }

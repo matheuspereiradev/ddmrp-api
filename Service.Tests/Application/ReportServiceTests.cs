@@ -153,4 +153,37 @@ public class ReportServiceTests
 
         await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, null, null));
     }
+
+    [Fact]
+    public async Task GetAccumulatedBufferHistoryAsync_ReturnsWhatTheRepositoryReturns()
+    {
+        var dateStart = new DateTime(2026, 9, 1);
+        var dateEnd = new DateTime(2026, 9, 30);
+        var idCenters = new[] { 1, 2 };
+        var rows = new List<AccumulatedBufferHistoryRow> { new() { AvailableStock = 100m } };
+        _reportRepository.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters);
+
+        Assert.Same(rows, result);
+    }
+
+    [Fact]
+    public async Task GetAccumulatedBufferHistoryAsync_ThrowsBadRequest_WhenDateEndIsBeforeDateStart()
+    {
+        var dateStart = new DateTime(2026, 9, 30);
+        var dateEnd = new DateTime(2026, 9, 1);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, new[] { 1 }));
+    }
+
+    [Fact]
+    public async Task GetAccumulatedBufferHistoryAsync_ThrowsBadRequest_WhenIdCentersIsNullOrEmpty()
+    {
+        var dateStart = new DateTime(2026, 9, 1);
+        var dateEnd = new DateTime(2026, 9, 30);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, null!));
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, Array.Empty<int>()));
+    }
 }

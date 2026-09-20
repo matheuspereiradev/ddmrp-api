@@ -62,6 +62,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     cp.QualifiedDemand,
                     cp.RedZoneBase AS RedBaseZone,
                     cp.RedZoneSafe AS RedSafeZone,
+                    cp.ReservedStock,
                     cp.StandardDeviation,
                     cp.Stock,
                     cp.YellowZone,
@@ -114,6 +115,7 @@ namespace Service.Infra.Data.Calculation.Steps
                     target.QualifiedDemand = source.QualifiedDemand,
                     target.RedBaseZone = source.RedBaseZone,
                     target.RedSafeZone = source.RedSafeZone,
+                    target.ReservedStock = source.ReservedStock,
                     target.StandardDeviation = source.StandardDeviation,
                     target.Stock = source.Stock,
                     target.YellowZone = source.YellowZone,
@@ -125,14 +127,14 @@ namespace Service.Infra.Data.Calculation.Steps
                     IdProduct, IdCenter, Consumption, Date, DiscardStatus,
                     Adi, Adu, Cv, Frequency, FutureAduDays, GreenZone, HistoryAduDays,
                     IdBufferProfile, IdReason, IdTag, LeadTime, Moq, OpenInbounds, OpenOutbound,
-                    PackQuantity, QualifiedDemand, RedBaseZone, RedSafeZone, StandardDeviation,
+                    PackQuantity, QualifiedDemand, RedBaseZone, RedSafeZone, ReservedStock, StandardDeviation,
                     Stock, YellowZone, ZafGreenZone, ZafRedZone, ZafYellowZone
                 )
                 VALUES (
                     source.IdProduct, source.IdCenter, 0, source.[Date], 0,
                     source.Adi, source.Adu, source.Cv, source.Frequency, source.FutureAduDays, source.GreenZone, source.HistoryAduDays,
                     source.IdBufferProfile, source.IdReason, source.IdTag, source.LeadTime, source.Moq, source.OpenInbounds, source.OpenOutbound,
-                    source.PackQuantity, source.QualifiedDemand, source.RedBaseZone, source.RedSafeZone, source.StandardDeviation,
+                    source.PackQuantity, source.QualifiedDemand, source.RedBaseZone, source.RedSafeZone, source.ReservedStock, source.StandardDeviation,
                     source.Stock, source.YellowZone, source.ZafGreenZone, source.ZafRedZone, source.ZafYellowZone
                 );
             """;

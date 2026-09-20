@@ -50,7 +50,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Ignore(cp => cp.YellowSafeAnalytical);
             builder.Ignore(cp => cp.GreenAnalytical);
             builder.Ignore(cp => cp.YellowExcessAnalytical);
-            builder.Ignore(cp => cp.RedSafeExcessAnalytical);
+            builder.Ignore(cp => cp.RedExcessAnalytical);
             builder.Property(cp => cp.UseDafOnGreenZone).IsRequired().HasDefaultValue(false);
             builder.Property(cp => cp.CustomLeadTimeFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
             builder.Property(cp => cp.CustomVariabilityFactor).IsRequired().HasPrecision(18, 4).HasDefaultValue(1);
