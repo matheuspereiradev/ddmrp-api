@@ -47,7 +47,5 @@ namespace Service.Application.DTOs.Order
 
         [Required(ErrorMessage = "Field {0} required.")]
         public bool IsOutbound { get; set; }
-
-        public bool IsFictional { get; set; } = false;
     }
 }

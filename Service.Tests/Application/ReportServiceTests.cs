@@ -2,6 +2,7 @@ using NSubstitute;
 using Service.Application.Exceptions;
 using Service.Application.Services;
 using Service.Domain.Entities;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
 using Service.Domain.Report.Results;
 
@@ -88,5 +89,68 @@ public class ReportServiceTests
             accumulateInboundsToday: true, accumulateOutboundsToday: true, useFictionalOrders: false);
 
         Assert.Same(rows, result);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_ReturnsWhatTheRepositoryReturns()
+    {
+        var dateStart = new DateTime(2026, 9, 1);
+        var dateEnd = new DateTime(2026, 9, 30);
+        var idCenters = new[] { 1 };
+        var rows = new List<BufferPenetrationRow> { new() { IdProduct = 2, IdCenter = 1 } };
+        _reportRepository.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, 2, BufferPenetrationMode.Netflow, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, 2);
+
+        Assert.Same(rows, result);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_PassesModeThroughToTheRepository()
+    {
+        var dateStart = new DateTime(2026, 9, 1);
+        var dateEnd = new DateTime(2026, 9, 30);
+        var idCenters = new[] { 1 };
+        var rows = new List<BufferPenetrationRow> { new() { IdProduct = 2, IdCenter = 1 } };
+        _reportRepository.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, 2, BufferPenetrationMode.Execution, Arg.Any<CancellationToken>()).Returns(rows);
+
+        var result = await _sut.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, 2, BufferPenetrationMode.Execution);
+
+        Assert.Same(rows, result);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_ThrowsBadRequest_WhenDateEndIsBeforeDateStart()
+    {
+        var dateStart = new DateTime(2026, 9, 30);
+        var dateEnd = new DateTime(2026, 9, 1);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetBufferPenetrationAsync(dateStart, dateEnd, null, null));
+    }
+
+    [Fact]
+    public async Task GetItemsByBufferColorHistoryAsync_ReturnsWhatTheRepositoryReturns()
+    {
+        var dateStart = new DateTime(2026, 9, 1);
+        var dateEnd = new DateTime(2026, 9, 30);
+        var idCenters = new[] { 1 };
+        var repositoryResult = new ItemsByBufferColorHistoryResult
+        {
+            Netflow = new List<BufferColorHistoryDayRow> { new() { Red = 1 } }
+        };
+        _reportRepository.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, 2, Arg.Any<CancellationToken>()).Returns(repositoryResult);
+
+        var result = await _sut.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, 2);
+
+        Assert.Same(repositoryResult, result);
+    }
+
+    [Fact]
+    public async Task GetItemsByBufferColorHistoryAsync_ThrowsBadRequest_WhenDateEndIsBeforeDateStart()
+    {
+        var dateStart = new DateTime(2026, 9, 30);
+        var dateEnd = new DateTime(2026, 9, 1);
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, null, null));
     }
 }

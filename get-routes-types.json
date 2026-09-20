@@ -41,7 +41,8 @@
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
     "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
     "PriorizedAllocationStopCondition": ["Zero", "Moq", "OnePackQuantity"],
-    "PriorizedAllocationAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"]
+    "PriorizedAllocationAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"],
+    "BufferPenetrationMode": ["Netflow", "Execution"]
   },
   "routes": [
     {
@@ -315,6 +316,8 @@
         "classification": "string | null",
         "segment": "string | null",
         "stock": "number",
+        "reservedStock": "number",
+        "availableStock": "number (computed: stock - reservedStock)",
         "idProvider": "number | null",
         "idTag": "number | null",
         "idReason": "number | null",
@@ -512,14 +515,18 @@
       "method": "GET",
       "route": "/api/note",
       "auth": true,
-      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "queryParams": {
+        "idCenterProduct": "number | null (optional filter)",
+        "pageNumber": "number",
+        "pageSize": "number"
+      },
       "responseData": "PagedList<NoteGetDto>",
       "itemShape": {
         "id": "number",
         "content": "string",
         "centerProductId": "number",
         "createdBy": "number | null",
-        "centerProduct": "CenterProductGetDto | null",
+        "createdAt": "string (ISO date) | null",
         "createdByUser": "UserGetDto | null"
       }
     },
@@ -592,6 +599,8 @@
         "classification": "string | null",
         "segment": "string | null",
         "stock": "number",
+        "reservedStock": "number",
+        "availableStock": "number (computed: stock - reservedStock; feeds netflow and coverageDays — executionBufferPercentage/executionBufferColor still use raw stock)",
         "idProvider": "number | null",
         "idTag": "number | null",
         "idReason": "number | null",
@@ -669,7 +678,7 @@
         "fictionalInbounds": "number",
         "outbounds": "number",
         "fictionalOutbounds": "number",
-        "netflow": "number",
+        "netflow": "number (computed via UtilsDdmrp.CalculateNetflow(availableStock, qualifiedDemand, inbounds) — uses availableStock = stock - reservedStock, not raw stock)",
         "orderQuantity": "number",
         "systemOptimizedOrderQuantity": "number (the system-suggested optimized order quantity, before any Workspace override)",
         "hasSuggestion": "boolean (systemOptimizedOrderQuantity > 0)",
@@ -679,9 +688,9 @@
         "simulatedNetflowBufferPercentage": "number ((Netflow + (Workspace.approved ? Workspace.optimizedQuantity : 0)) / TopOfGreen, for the current user; 0 when TopOfGreen = 0)",
         "netflowBufferColor": "BufferColor (enum string)",
         "simulatedNetflowBufferColor": "BufferColor (enum string) (same zone classification as netflowBufferColor, but against SimulatedNetflow instead of Netflow)",
-        "coverageDays": "number",
-        "executionBufferPercentage": "number",
-        "executionBufferColor": "BufferColor (enum string)"
+        "coverageDays": "number (computed via UtilsDdmrp.CalculateCoverageDays(availableStock, adu) — uses availableStock = stock - reservedStock, not raw stock)",
+        "executionBufferPercentage": "number (still computed against raw stock, not availableStock)",
+        "executionBufferColor": "BufferColor (enum string) (still computed against raw stock, not availableStock)"
       }
     },
     {
@@ -792,6 +801,66 @@
         "openingStock": "number (CenterProduct.Stock on the first day of the period, else the previous row's closingStock)",
         "closingStock": "number (computed: openingStock - outbound + (useInbounds ? inbound : 0))",
         "executionBufferColor": "BufferColor (enum string) (computed via UtilsDdmrp.CalculateBufferColor(closingStock, CenterProduct.topOfRedExecution, topOfYellowExecution, topOfGreenExecution), 0 for any unset zone)"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/report/bufferPenetration",
+      "auth": true,
+      "queryParams": {
+        "dateStart": "string (ISO date) (required)",
+        "dateEnd": "string (ISO date) (required)",
+        "idCenters": "number[] (optional, repeat the param e.g. ?idCenters=1&idCenters=2) — restricts to one or more centers; omitted/empty = no center filter",
+        "idProduct": "number (optional) — restricts to this product",
+        "mode": "BufferPenetrationMode (enum string, optional, default 'Netflow') — 'Netflow': quantity = CalculateNetflow(Stock, QualifiedDemand, OpenInbounds), zones = RedZoneBase+RedZoneSafe/YellowZone/GreenZone. 'Execution': quantity = Stock ONLY (QualifiedDemand/OpenInbounds ignored, no Netflow involved), zones = RedZoneExecution/YellowZoneExecution/GreenZoneExecution (same formulas as CenterProduct's execution zones: RedZoneExecution = YellowZoneExecution = ceiling((RedZoneBase+RedZoneSafe)/2), GreenZoneExecution = YellowZone)."
+      },
+      "responseData": "BufferPenetrationRow[] (plain array, NOT a PagedList — no pagination). One row per (idProduct, idCenter) pair that has at least one History row in [dateStart, dateEnd] — unlike inventoryHistory/projectedStockAlert, not scoped to a single pair; idCenters/idProduct just narrow it, same as openOrders. For each History day in range, the quantity and zone tops (picked per 'mode', see queryParams) are reconstructed from that day's own History snapshot columns (Stock/QualifiedDemand/OpenInbounds/RedBaseZone/RedSafeZone/YellowZone/GreenZone, nulls treated as 0) and classified via UtilsDdmrp.CalculateBufferColor; days with no zones computed yet fall into NoColor (topOfGreen=0), they still count toward quantityDays. No 'today' row injected — only counts days that already have a History row. 400 if dateEnd < dateStart.",
+      "itemShape": {
+        "idCenter": "number",
+        "centerCode": "string",
+        "idProduct": "number",
+        "referenceProduct": "string",
+        "descriptionProduct": "string",
+        "quantityDays": "number (count of History rows for this pair within the range)",
+        "daysBlack": "number",
+        "daysRed": "number",
+        "daysYellow": "number",
+        "daysGreen": "number",
+        "daysBlue": "number",
+        "daysNoColor": "number",
+        "daysRedAndBlack": "number (computed: daysRed + daysBlack, not a separate CalculateBufferColor classification)",
+        "daysBlackPercentage": "number (ratio 0-1, daysBlack / quantityDays, 0 if quantityDays = 0)",
+        "daysRedPercentage": "number (ratio 0-1)",
+        "daysYellowPercentage": "number (ratio 0-1)",
+        "daysGreenPercentage": "number (ratio 0-1)",
+        "daysBluePercentage": "number (ratio 0-1)",
+        "daysNoColorPercentage": "number (ratio 0-1)",
+        "daysRedAndBlackPercentage": "number (ratio 0-1, daysRedAndBlack / quantityDays)"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/report/itemsByBufferColorHistory",
+      "auth": true,
+      "queryParams": {
+        "dateStart": "string (ISO date) (required)",
+        "dateEnd": "string (ISO date) (required)",
+        "idCenters": "number[] (optional, repeat the param e.g. ?idCenters=1&idCenters=2) — restricts to one or more centers; omitted/empty = no center filter",
+        "idProduct": "number (optional) — restricts to this product"
+      },
+      "responseData": "ItemsByBufferColorHistoryResult (a single object, NOT a plain array and NOT a PagedList — no pagination): { netflow: BufferColorHistoryDayRow[], execution: BufferColorHistoryDayRow[] }. Each list has one row per day in [dateStart, dateEnd] that has at least one History row (matching idCenters/idProduct if given) — same scope/data source as bufferPenetration, but aggregated the other way around: bufferPenetration is one row per item counting days per color, this is one row per day counting items per color, with each of the 6 BufferColor values as its own field on that row (0 when no item landed in that color that day) — a day with no History data simply doesn't appear in either list. Unlike bufferPenetration there is no 'mode' param: both perspectives are always computed together, as two separate lists rather than one 'mode' choice. 400 if dateEnd < dateStart.",
+      "itemShape": {
+        "netflow": "BufferColorHistoryDayRow[] — colors classified via quantity = CalculateNetflow(Stock, QualifiedDemand, OpenInbounds), zones = RedZoneBase+RedZoneSafe/YellowZone/GreenZone",
+        "execution": "BufferColorHistoryDayRow[] — colors classified via quantity = Stock ONLY, zones = RedZoneExecution/YellowZoneExecution/GreenZoneExecution (same formulas as bufferPenetration's 'Execution' mode)",
+        "BufferColorHistoryDayRow": {
+          "date": "string (ISO date)",
+          "red": "number (count of items whose color this day was Red)",
+          "yellow": "number (count of items whose color this day was Yellow)",
+          "green": "number (count of items whose color this day was Green)",
+          "blue": "number (count of items whose color this day was Blue)",
+          "black": "number (count of items whose color this day was Black)",
+          "noColor": "number (count of items whose color this day was NoColor)"
+        }
       }
     }
   ]

@@ -64,11 +64,11 @@ namespace Service.API.Controllers
             return Ok();
         }
 
-        [HttpPut]
+        [HttpPut("{id}")]
         [Authorize]
-        public async Task<ActionResult> UpdateUser(UserPutDto userPutDto, CancellationToken cancellationToken)
+        public async Task<ActionResult> UpdateUser(int id, UserPutDto userPutDto, CancellationToken cancellationToken)
         {
-            var user = await _userService.UpdateAsync(User.GetUserId(), userPutDto, cancellationToken);
+            var user = await _userService.UpdateAsync(id, userPutDto, cancellationToken);
             return Ok(user);
         }
 

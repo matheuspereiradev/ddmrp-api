@@ -39,7 +39,7 @@ namespace Service.Domain.Utils
             if (topOfGreen == 0)
                 return BufferColor.NoColor;
 
-            if (quantity < 0)
+            if (quantity <= 0)
                 return BufferColor.Black;
 
             if (quantity > topOfGreen)

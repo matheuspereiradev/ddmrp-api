@@ -42,8 +42,7 @@ public class OrderServiceTests
         Notes = "Test order",
         Type = OrderType.PurchaseOrder,
         IsInbound = true,
-        IsOutbound = false,
-        IsFictional = false
+        IsOutbound = false
     };
 
     [Fact]
@@ -99,8 +98,9 @@ public class OrderServiceTests
         Assert.Equal(postDto.OrderNumber, result.OrderNumber);
         Assert.Equal(postDto.Type, result.Type);
         Assert.Equal(postDto.IsInbound, result.IsInbound);
+        Assert.True(result.IsFictional);
         await _orderRepository.Received(1).AddAsync(
-            Arg.Is<Order>(o => o.OrderNumber == postDto.OrderNumber && o.IdProduct == postDto.IdProduct),
+            Arg.Is<Order>(o => o.OrderNumber == postDto.OrderNumber && o.IdProduct == postDto.IdProduct && o.IsFictional),
             Arg.Any<CancellationToken>());
     }
 

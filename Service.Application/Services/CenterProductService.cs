@@ -55,6 +55,7 @@ namespace Service.Application.Services
                 Classification = postDTO.Classification,
                 Segment = postDTO.Segment,
                 Stock = postDTO.Stock,
+                ReservedStock = postDTO.ReservedStock,
                 IdProvider = postDTO.IdProvider,
                 IdTag = postDTO.IdTag,
                 IdReason = postDTO.IdReason,
@@ -92,6 +93,7 @@ namespace Service.Application.Services
             entity.Classification = putDTO.Classification;
             entity.Segment = putDTO.Segment;
             entity.Stock = putDTO.Stock;
+            entity.ReservedStock = putDTO.ReservedStock;
             entity.IdProvider = putDTO.IdProvider;
             entity.IdTag = putDTO.IdTag;
             entity.IdReason = putDTO.IdReason;

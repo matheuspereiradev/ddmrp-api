@@ -538,14 +538,14 @@ Utilitário: `Service.Domain/Utils/UtilsDdmrp.cs` — `CalculateBufferColor(deci
 
 ```
 BufferColor = NoColor,   se TopOfGreen = 0 (sem buffer calculado)
-            = Black,    se Quantity < 0
+            = Black,    se Quantity <= 0
             = Blue,     se Quantity > TopOfGreen
-            = Red,      se 0 <= Quantity <= TopOfRed
+            = Red,      se 0 < Quantity <= TopOfRed
             = Yellow,   se TopOfRed < Quantity <= TopOfYellow
             = Green,    se TopOfYellow < Quantity <= TopOfGreen
 ```
 
-**Campos envolvidos**: `Quantity` (no report `InventoryBufferManagement`, é o `Netflow` — resultado de `CalculateNetflow` — que alimenta o campo `NetflowBufferColor` da linha), `CenterProduct.TopOfRed`/`TopOfYellow`/`TopOfGreen` — todos passados como parâmetro. `NoColor` = ainda não tem buffer calculado (checado primeiro, antes de qualquer outra condição — mesmo caso "sem buffer" do `BufferPercentage`), `Black` = quantidade negativa (ruptura, quando `Quantity` é o Netflow), `Blue` = acima do topo do verde (excesso), `Red`/`Yellow`/`Green` = dentro do buffer normal, cada um na sua faixa.
+**Campos envolvidos**: `Quantity` (no report `InventoryBufferManagement`, é o `Netflow` — resultado de `CalculateNetflow` — que alimenta o campo `NetflowBufferColor` da linha), `CenterProduct.TopOfRed`/`TopOfYellow`/`TopOfGreen` — todos passados como parâmetro. `NoColor` = ainda não tem buffer calculado (checado primeiro, antes de qualquer outra condição — mesmo caso "sem buffer" do `BufferPercentage`), `Black` = quantidade zero ou negativa (ruptura, quando `Quantity` é o Netflow — ajustado de `< 0` pra `<= 0` em 2026-09-19), `Blue` = acima do topo do verde (excesso), `Red`/`Yellow`/`Green` = dentro do buffer normal, cada um na sua faixa.
 
 ## CoverageDays
 
@@ -788,3 +788,73 @@ ExecutionBufferColor(dia) = UtilsDdmrp.CalculateBufferColor(ClosingStock(dia),
 - Escopo sempre um único `(IdProduct, IdCenter)` por chamada — não itera sobre todos os itens (diferente do `inventoryBufferManagement`), então materializar o período inteiro não tem o mesmo problema de volume que motivou o OData naquele report.
 - **Campos envolvidos**: `CenterProduct.Stock`/`Adu`/`RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`/`TopOfRedExecution`/`TopOfYellowExecution`/`TopOfGreenExecution`, `Forecast.Value`/`StartDate`/`EndDate`, `Calendar.Date`/`IsWorkingDay`, `Order.Quantity`/`DeliveredQuantity`/`DeliveryDate`/`IsInbound`/`IsOutbound`/`IsFictional`/`IdProduct`/`IdDestinyCenter`/`IdOriginCenter`, `Product.Reference`, `Center.Code`.
 - **`useFictionalOrders` é o único report que conta ordens fictícias por padrão** — `openOrders`/`inventoryBufferManagement`/`inventoryHistory` excluem `IsFictional = true` sempre, sem opção de ligar; aqui é o oposto, conta por padrão (`true`) e só exclui se `useFictionalOrders = false` for passado explicitamente.
+
+## Report `bufferPenetration` (`GET /api/report/bufferPenetration`, 2026-09-19, `mode` adicionado no mesmo dia, `idCenter` → `idCenters` no dia seguinte)
+
+Repositório: `ReportRepository.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, idProduct, mode, cancellationToken)`. Não é `IQueryable` (materializa direto, `Task<List<BufferPenetrationRow>>`, mesmo status do `inventoryHistory`/`openOrders`) — sem OData, sem paginação. Diferente de todo report anterior de período (`inventoryHistory`/`projectedStockAlert`, sempre um único `(IdProduct, IdCenter)`), esse cobre **todos os pares `(IdProduct, IdCenter)`** que tiverem `History` no intervalo pedido — `idCenters`/`idProduct` são filtros opcionais (mesmo padrão do `openOrders`), não um par obrigatório. **`idCenters`** (`int[]?`, `?idCenters=1&idCenters=2` na query string) filtra por **um ou mais** centros — `null`/array vazio não filtra por centro nenhum; `idProduct` continua um único valor (`int?`), não foi convertido pra lista.
+
+Lê apenas colunas já gravadas pelo robô em `History` (nunca `CenterProduct` — é sempre passado, nunca presente) — mesmas colunas do `inventoryHistory`: `Stock`, `QualifiedDemand`, `OpenInbounds`, `RedBaseZone`, `RedSafeZone`, `YellowZone`, `GreenZone`. `History` é inner-joined a `Product`/`Center` não deletados (mesma convenção do `InventoryBufferManagementRow`).
+
+**`mode`** (`Service.Domain.Enums.BufferPenetrationMode`: `Netflow`/`Execution`, query param, default `Netflow` — mesma convenção global de enum-como-string do resto da API) escolhe qual quantidade/conjunto de zonas alimenta `CalculateBufferColor` por dia — mesma distinção Netflow vs. Execução já usada em `InventoryBufferManagementRow` (`NetflowBufferColor`/`ExecutionBufferColor`) e `OpenOrderRow.ExecutionBufferColor`:
+
+```
+Para cada linha de History no intervalo [dateStart, dateEnd]:
+    TopOfRed(dia) = (RedBaseZone ?? 0) + (RedSafeZone ?? 0)
+
+    Se mode = Netflow:
+        YellowZoneTop(dia) = TopOfRed(dia) + (YellowZone ?? 0)
+        GreenZoneTop(dia)  = YellowZoneTop(dia) + (GreenZone ?? 0)
+        Quantity(dia)      = Netflow(dia) = UtilsDdmrp.CalculateNetflow(Stock ?? 0, QualifiedDemand ?? 0, OpenInbounds ?? 0)
+        Color(dia)         = UtilsDdmrp.CalculateBufferColor(Quantity(dia), TopOfRed(dia), YellowZoneTop(dia), GreenZoneTop(dia))
+
+    Se mode = Execution:
+        RedZoneExecution(dia)    = YellowZoneExecution(dia) = CEILING(TopOfRed(dia) / 2)
+        GreenZoneExecution(dia)  = YellowZone ?? 0
+        TopOfRedExecution(dia)   = RedZoneExecution(dia)
+        TopOfYellowExecution(dia) = RedZoneExecution(dia) + YellowZoneExecution(dia)
+        TopOfGreenExecution(dia)  = TopOfYellowExecution(dia) + GreenZoneExecution(dia)
+        Quantity(dia)             = Stock ?? 0   (NÃO usa Netflow, QualifiedDemand/OpenInbounds são ignorados)
+        Color(dia)                = UtilsDdmrp.CalculateBufferColor(Quantity(dia), TopOfRedExecution(dia), TopOfYellowExecution(dia), TopOfGreenExecution(dia))
+
+Agrupado por (IdProduct, IdCenter):
+    QuantityDays              = COUNT(linhas de History do par no intervalo)
+    Days<Color>               = COUNT(dias com Color(dia) = <Color>), uma coluna por cor (Black/Red/Yellow/Green/Blue/NoColor)
+    DaysRedAndBlack           = DaysRed + DaysBlack
+    Days<Color>Percentage     = Days<Color> / QuantityDays,   0 se QuantityDays = 0
+    DaysRedAndBlackPercentage = DaysRedAndBlack / QuantityDays,   0 se QuantityDays = 0
+```
+
+- **`Execution` usa só o `Stock` do dia como quantidade — nunca `Netflow`** (confirmado explicitamente 2026-09-19): `QualifiedDemand`/`OpenInbounds` daquele dia são completamente ignorados nessa modalidade, diferente de `Netflow` onde os três compõem a quantidade via `CalculateNetflow`.
+- **As zonas de execução são derivadas de `TopOfRed`/`YellowZone`, mesma fórmula de `CenterProduct.RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`** (ver seção "CenterProduct — zonas derivadas" acima): `RedZoneExecution = YellowZoneExecution = TopOfRed / 2` (arredondado pra cima), `GreenZoneExecution` é o valor puro de `YellowZone` (não `GreenZone`) — não são colunas próprias de `History`, são recalculadas por dia a partir das mesmas colunas snapshot (`RedBaseZone`/`RedSafeZone`/`YellowZone`) que alimentam o modo `Netflow`.
+- **Zonas nulas contam como `NoColor`, não são excluídas do `QuantityDays`**: um dia de `History` sem `RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone` (zona ainda não calculada naquele dia) faz o topo de verde do modo escolhido ficar `0`, que `CalculateBufferColor` já resolve pra `NoColor` (checado antes de qualquer outra condição) — confirmado explicitamente 2026-09-19, esse dia ainda soma pro `QuantityDays` do par.
+- **`DaysRedAndBlack`/`DaysRedAndBlackPercentage` não são uma cor nova** — são a soma de `DaysRed` + `DaysBlack` (dias em ruptura ou na zona vermelha), calculada em cima da contagem por dia, não uma classificação própria de `CalculateBufferColor`.
+- Sem linha "hoje" injetada (diferente do `inventoryHistory`) — só conta dias que já têm uma linha de `History` gravada pelo robô; um par sem `History` nenhuma no intervalo simplesmente não aparece no resultado.
+- **Campos envolvidos**: `History.IdProduct`/`IdCenter`/`Date`/`Stock`/`QualifiedDemand`/`OpenInbounds`/`RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone`, `Product.Reference`/`Description`, `Center.Code`.
+
+## Report `itemsByBufferColorHistory` (`GET /api/report/itemsByBufferColorHistory`, 2026-09-19, `idCenter` → `idCenters` no dia seguinte; formato de resposta trocado para `{ netflow, execution }` no mesmo dia)
+
+Repositório: `ReportRepository.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, idProduct, cancellationToken)`. Não é `IQueryable` (materializa direto, `Task<ItemsByBufferColorHistoryResult>`) — mesmo escopo do `bufferPenetration` (todos os `(IdProduct, IdCenter)` no intervalo, `idCenters`/`idProduct` opcionais pra filtrar — `idCenters` aceita um ou mais centros, mesma mudança do `bufferPenetration`, ver acima), mesma fonte de dados (`History`, inner-joined a `Product`/`Center` não deletados) — mas **agregado na direção oposta**: `bufferPenetration` é uma linha por item (contando dias por cor), este é **uma linha por dia, por perspectiva** (contando itens por cor, por dia) — pensado pra alimentar um gráfico de tendência (quantos itens estavam em cada cor do buffer, dia a dia).
+
+**Sempre calcula as duas perspectivas juntas, em listas separadas** (confirmado 2026-09-19, formato revisado no mesmo dia): a resposta é um objeto `{ netflow: [...], execution: [...] }` — cada lista tem uma linha (`BufferColorHistoryDayRow`) por dia, com as 6 cores como colunas (`date`, `red`, `yellow`, `green`, `blue`, `black`, `noColor`), em vez do desenho anterior (uma linha "achatada" por `(Date, Color)` com `NetflowQuantity`/`ExecutionQuantity` lado a lado) — pedido explicitamente pra já vir no formato que um gráfico de série temporal empilhada consome direto, uma série por perspectiva.
+
+```
+Para cada linha de History no intervalo [dateStart, dateEnd]:
+    (NetflowColor(item,dia), ExecutionColor(item,dia)) = as mesmas duas fórmulas do report bufferPenetration acima
+                                                          (mesmo ComputeBufferColors compartilhado no código)
+
+Agrupado por Date — uma linha por dia em CADA lista (netflow, execution), com pelo menos uma linha de History
+no intervalo (filtrado ou não):
+    netflow[].red      = COUNT(itens daquele dia com NetflowColor(item,dia) = Red)
+    netflow[].yellow    = COUNT(itens daquele dia com NetflowColor(item,dia) = Yellow)
+    netflow[].green     = COUNT(itens daquele dia com NetflowColor(item,dia) = Green)
+    netflow[].blue      = COUNT(itens daquele dia com NetflowColor(item,dia) = Blue)
+    netflow[].black     = COUNT(itens daquele dia com NetflowColor(item,dia) = Black)
+    netflow[].noColor   = COUNT(itens daquele dia com NetflowColor(item,dia) = NoColor)
+    (execution[] espelha o mesmo, usando ExecutionColor(item,dia))
+```
+
+- **Uma linha por dia, todas as 6 cores como colunas** (revisado 2026-09-19, substitui o desenho anterior de "grade densa" com uma linha por `(Date, Color)`): cada dia que aparece em `netflow`/`execution` sempre tem as 6 contagens presentes na mesma linha (`0` quando nenhum item caiu naquela cor naquele dia) — não existe mais uma linha "faltando" por cor, porque cor virou coluna, não linha. Um dia sem nenhuma linha de `History` no intervalo (filtrado ou não) simplesmente não aparece em nenhuma das duas listas — mesma regra de "não injeta dia" do `bufferPenetration`.
+- **`ComputeBufferColors`** (método privado estático em `ReportRepository`, extraído 2026-09-19 ao construir este report) é o mesmo cálculo por-dia que `bufferPenetration` já fazia — fatorado num só lugar pra as duas fórmulas (Netflow/Execution) não ficarem duplicadas entre os dois reports. `bufferPenetration` continua escolhendo uma das duas (via `mode`) depois de chamá-lo; este report usa as duas.
+- `netflow`/`execution` cada um ordenado por `Date` ascendente; as duas listas têm sempre o mesmo conjunto de dias (mesma fonte de `History`, só a cor considerada por item muda).
+- **Campos envolvidos**: `History.IdProduct`/`IdCenter`/`Date`/`Stock`/`QualifiedDemand`/`OpenInbounds`/`RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone`, `Product.deletedAt` (inner-join, não aparece no row), `Center.deletedAt` (idem).
+- **Tipos de resultado** (`Service.Domain/Report/Results/`): `ItemsByBufferColorHistoryResult { List<BufferColorHistoryDayRow> Netflow, List<BufferColorHistoryDayRow> Execution }`, `BufferColorHistoryDayRow { DateTime Date, int Red, int Yellow, int Green, int Blue, int Black, int NoColor }` — substituem o antigo `ItemsByBufferColorHistoryRow` (removido).

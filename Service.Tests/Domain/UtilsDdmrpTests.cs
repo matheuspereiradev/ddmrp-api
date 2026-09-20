@@ -82,7 +82,7 @@ public class UtilsDdmrpTests
     [Theory]
     [InlineData(-1, 50, 100, 200, BufferColor.Black)]
     [InlineData(201, 50, 100, 200, BufferColor.Blue)]
-    [InlineData(0, 50, 100, 200, BufferColor.Red)]
+    [InlineData(0, 50, 100, 200, BufferColor.Black)]
     [InlineData(50, 50, 100, 200, BufferColor.Red)]
     [InlineData(51, 50, 100, 200, BufferColor.Yellow)]
     [InlineData(100, 50, 100, 200, BufferColor.Yellow)]

@@ -16,6 +16,8 @@ namespace Service.Domain.Report.Results
         public string? Classification { get; set; }
         public string? Segment { get; set; }
         public decimal Stock { get; set; }
+        public decimal ReservedStock { get; set; }
+        public decimal AvailableStock { get; set; }
         public int? IdProvider { get; set; }
         public int? IdTag { get; set; }
         public int? IdReason { get; set; }

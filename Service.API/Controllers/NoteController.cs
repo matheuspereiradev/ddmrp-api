@@ -28,9 +28,11 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult> GetAllNotes([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetAllNotes([FromQuery] int? idCenterProduct, [FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
-            var notes = await _noteService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
+            var notes = idCenterProduct.HasValue
+                ? await _noteService.GetByCenterProductAsync(idCenterProduct.Value, paginationParams.PageNumber, paginationParams.PageSize, cancellationToken)
+                : await _noteService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
 
             Response.AddPaginationHeader(
                 new PaginationHeader(paginationParams.PageNumber, paginationParams.PageSize, notes.TotalCount, notes.TotalPages));

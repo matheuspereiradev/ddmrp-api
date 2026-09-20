@@ -1,5 +1,6 @@
 using Service.Application.Exceptions;
 using Service.Application.Interfaces;
+using Service.Domain.Enums;
 using Service.Domain.Interfaces;
 using Service.Domain.Report.Results;
 
@@ -52,6 +53,33 @@ namespace Service.Application.Services
                 accumulateInboundsToday, accumulateOutboundsToday,
                 useFictionalOrders,
                 cancellationToken);
+        }
+
+        public Task<List<BufferPenetrationRow>> GetBufferPenetrationAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
+            BufferPenetrationMode mode = BufferPenetrationMode.Netflow,
+            CancellationToken cancellationToken = default)
+        {
+            if (dateEnd < dateStart)
+                throw new BadRequestException("dateEnd must not be earlier than dateStart.");
+
+            return _reportRepository.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, idProduct, mode, cancellationToken);
+        }
+
+        public Task<ItemsByBufferColorHistoryResult> GetItemsByBufferColorHistoryAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
+            CancellationToken cancellationToken = default)
+        {
+            if (dateEnd < dateStart)
+                throw new BadRequestException("dateEnd must not be earlier than dateStart.");
+
+            return _reportRepository.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, idProduct, cancellationToken);
         }
     }
 }

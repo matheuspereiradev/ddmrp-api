@@ -125,6 +125,8 @@ namespace Service.Application.Mappers
             Classification = centerProduct.Classification,
             Segment = centerProduct.Segment,
             Stock = centerProduct.Stock,
+            ReservedStock = centerProduct.ReservedStock,
+            AvailableStock = centerProduct.AvailableStock,
             IdProvider = centerProduct.IdProvider,
             IdTag = centerProduct.IdTag,
             IdReason = centerProduct.IdReason,

@@ -18,6 +18,8 @@ namespace Service.Domain.Entities
         public string? Classification { get; set; }
         public string? Segment { get; set; }
         public decimal Stock { get; set; }
+        public decimal ReservedStock { get; set; }
+        public decimal AvailableStock => Stock - ReservedStock;
         public int? IdProvider { get; set; }
         public Partner? Provider { get; set; }
         public int? IdTag { get; set; }

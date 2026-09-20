@@ -1,4 +1,3 @@
-using Service.Application.DTOs.CenterProduct;
 using Service.Application.DTOs.User;
 
 namespace Service.Application.DTOs.Note
@@ -9,7 +8,7 @@ namespace Service.Application.DTOs.Note
         public string Content { get; set; }
         public int CenterProductId { get; set; }
         public int? CreatedBy { get; set; }
-        public CenterProductGetDto? CenterProduct { get; set; }
+        public DateTime? CreatedAt { get; set; }
         public UserGetDto? CreatedByUser { get; set; }
     }
 }

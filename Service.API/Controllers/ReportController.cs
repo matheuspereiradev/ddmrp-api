@@ -1,6 +1,7 @@
 using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.Interfaces;
+using Service.Domain.Enums;
 using Service.Domain.Report.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -119,6 +120,33 @@ namespace Service.API.Controllers
                 accumulateInboundsToday, accumulateOutboundsToday,
                 useFictionalOrders,
                 cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("bufferPenetration")]
+        [Authorize]
+        public async Task<ActionResult> BufferPenetration(
+            [FromQuery] DateTime dateStart,
+            [FromQuery] DateTime dateEnd,
+            [FromQuery] int[]? idCenters,
+            [FromQuery] int? idProduct,
+            [FromQuery] BufferPenetrationMode mode = BufferPenetrationMode.Netflow,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reportService.GetBufferPenetrationAsync(dateStart, dateEnd, idCenters, idProduct, mode, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("itemsByBufferColorHistory")]
+        [Authorize]
+        public async Task<ActionResult> ItemsByBufferColorHistory(
+            [FromQuery] DateTime dateStart,
+            [FromQuery] DateTime dateEnd,
+            [FromQuery] int[]? idCenters,
+            [FromQuery] int? idProduct,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reportService.GetItemsByBufferColorHistoryAsync(dateStart, dateEnd, idCenters, idProduct, cancellationToken);
             return Ok(result);
         }
     }

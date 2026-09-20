@@ -44,7 +44,7 @@ public class NoteServiceTests
     }
 
     [Fact]
-    public async Task GetByIdAsync_IncludesCenterProductAndCreatedByUser_WhenLoaded()
+    public async Task GetByIdAsync_IncludesCreatedByUser_WhenLoaded()
     {
         var note = new Note
         {
@@ -59,7 +59,6 @@ public class NoteServiceTests
 
         var result = await _sut.GetByIdAsync(1);
 
-        Assert.NotNull(result.CenterProduct);
         Assert.NotNull(result.CreatedByUser);
         Assert.Equal("Matheus", result.CreatedByUser!.Name);
     }

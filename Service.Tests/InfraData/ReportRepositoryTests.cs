@@ -122,8 +122,8 @@ public class ReportRepositoryTests
         Assert.Equal(
             UtilsDdmrp.CalculateBufferPercentage(rowForUser1.TopOfGreen ?? 0, rowForUser1.Netflow + 42m),
             rowForUser1.SimulatedNetflowBufferPercentage);
-        // Netflow (0) is Red on its own, but simulated (0 + 42 approved) crosses into Yellow.
-        Assert.Equal(BufferColor.Red, rowForUser1.NetflowBufferColor);
+        // Netflow (0) is Black on its own (quantity <= 0), but simulated (0 + 42 approved) crosses into Yellow.
+        Assert.Equal(BufferColor.Black, rowForUser1.NetflowBufferColor);
         Assert.Equal(
             UtilsDdmrp.CalculateBufferColor(rowForUser1.Netflow + 42m, rowForUser1.TopOfRed ?? 0, rowForUser1.TopOfYellow ?? 0, rowForUser1.TopOfGreen ?? 0),
             rowForUser1.SimulatedNetflowBufferColor);
@@ -223,6 +223,10 @@ public class ReportRepositoryTests
     [InlineData("Black-Stockout", 10, 50, 20, 20, 30, 30, 5, 10, 10)]
     [InlineData("Blue-Overstock", 150, 0, 20, 20, 30, 30, 5, 10, 10)]
     [InlineData("Red-PackQuantityZero", 10, 0, 20, 20, 30, 30, 5, 0, 10)]
+    // Boundary case: stock = qualifiedDemand = 0 makes both Netflow and Stock exactly 0 — must be Black
+    // (quantity <= 0), not Red. Catches drift between UtilsDdmrp.CalculateBufferColor's quantity <= 0 check
+    // and this query's inline duplicate (which historically used quantity < 0 and missed the exact-zero case).
+    [InlineData("Black-Zero", 0, 0, 20, 20, 30, 30, 5, 10, 10)]
     public async Task GetInventoryBufferManagementQueryable_DerivedMetrics_MatchUtilsDdmrp(
         string scenario, int stock, int qualifiedDemand, int redZoneBase, int redZoneSafe,
         int yellowZone, int greenZone, int moq, int packQuantity, int adu)
@@ -254,7 +258,11 @@ public class ReportRepositoryTests
 
         var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
 
-        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
+        // ReservedStock defaults to 0 in this theory's fixtures, so AvailableStock == Stock here — the
+        // ReservedStock-specific behavior (Netflow/CoverageDays using AvailableStock while ExecutionBuffer*
+        // keeps using raw Stock) is covered separately below by AvailableStock_IsStockMinusReservedStock_AndOnlyFeedsNetflowAndCoverageDays.
+        Assert.Equal(row.Stock - row.ReservedStock, row.AvailableStock);
+        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.AvailableStock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
         Assert.Equal(UtilsDdmrp.CalculateOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0), row.OrderQuantity);
         Assert.Equal(
             UtilsDdmrp.CalculateOptimizedOrderQuantity(row.Netflow, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0, row.Moq, row.PackQuantity),
@@ -278,7 +286,7 @@ public class ReportRepositoryTests
                 row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0),
             row.SimulatedNetflowBufferColor);
         Assert.Equal(row.NetflowBufferColor, row.SimulatedNetflowBufferColor);
-        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.Stock, row.Adu ?? 0), row.CoverageDays);
+        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.AvailableStock, row.Adu ?? 0), row.CoverageDays);
         Assert.Equal(UtilsDdmrp.CalculateBufferPercentage(row.GreenZoneExecution ?? 0, row.Stock), row.ExecutionBufferPercentage);
         Assert.Equal(
             UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0),
@@ -289,14 +297,63 @@ public class ReportRepositoryTests
             "Green" => BufferColor.Green,
             "Yellow" => BufferColor.Yellow,
             "Red" or "Red-PackQuantityZero" => BufferColor.Red,
-            "Black-Stockout" => BufferColor.Black,
+            "Black-Stockout" or "Black-Zero" => BufferColor.Black,
             "Blue-Overstock" => BufferColor.Blue,
             _ => throw new InvalidOperationException($"Unmapped scenario {scenario}")
         };
         Assert.Equal(expectedColor, row.NetflowBufferColor);
+        Assert.Equal(expectedColor, row.SimulatedNetflowBufferColor);
+
+        if (scenario == "Black-Zero")
+            Assert.Equal(BufferColor.Black, row.ExecutionBufferColor); // Stock = 0 too, same quantity <= 0 boundary
 
         if (scenario == "Red-PackQuantityZero")
             Assert.Equal(0m, row.OptimizedOrderQuantity);
+    }
+
+    // ReservedStock (added 2026-09-19): AvailableStock = Stock - ReservedStock feeds Netflow/CoverageDays,
+    // but ExecutionBufferPercentage/ExecutionBufferColor deliberately keep reading raw Stock (per explicit
+    // decision — only Netflow and CoverageDays were asked to move to AvailableStock).
+    [Fact]
+    public async Task AvailableStock_IsStockMinusReservedStock_AndOnlyFeedsNetflowAndCoverageDays()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 100m,
+            ReservedStock = 30m,
+            Adu = 10m,
+            RedZoneBase = 5m,
+            RedZoneSafe = 5m,
+            YellowZone = 20m,
+            GreenZone = 20m
+        };
+
+        context.AddRange(center, product, centerProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
+
+        Assert.Equal(100m, row.Stock);
+        Assert.Equal(30m, row.ReservedStock);
+        Assert.Equal(70m, row.AvailableStock);
+        Assert.Equal(UtilsDdmrp.CalculateNetflow(70m, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
+        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(70m, row.Adu ?? 0), row.CoverageDays);
+        // ExecutionBufferPercentage/Color stay on raw Stock (100), not AvailableStock (70).
+        Assert.Equal(UtilsDdmrp.CalculateBufferPercentage(row.GreenZoneExecution ?? 0, row.Stock), row.ExecutionBufferPercentage);
+        Assert.Equal(
+            UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0),
+            row.ExecutionBufferColor);
     }
 
     // Regression coverage for the 2026-09-15 OData bug: [EnableQuery] composes an extra `.Where(...)` on top of
@@ -383,11 +440,11 @@ public class ReportRepositoryTests
 
         var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
 
-        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.Stock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
+        Assert.Equal(UtilsDdmrp.CalculateNetflow(row.AvailableStock, row.QualifiedDemand ?? 0, row.Inbounds), row.Netflow);
         Assert.Equal(
             UtilsDdmrp.CalculateBufferColor(row.Netflow, row.TopOfRed ?? 0, row.TopOfYellow ?? 0, row.TopOfGreen ?? 0),
             row.NetflowBufferColor);
-        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.Stock, row.Adu ?? 0), row.CoverageDays);
+        Assert.Equal(UtilsDdmrp.CalculateCoverageDays(row.AvailableStock, row.Adu ?? 0), row.CoverageDays);
         Assert.Equal(
             UtilsDdmrp.CalculateBufferColor(row.Stock, row.RedZoneExecution ?? 0, row.YellowZoneExecution ?? 0, row.GreenZoneExecution ?? 0),
             row.ExecutionBufferColor);
@@ -727,5 +784,245 @@ public class ReportRepositoryTests
         Assert.Equal(30m, withAccumulation.Single(r => r.Date == today).Inbound);
         Assert.Equal(0m, withAccumulation.Single(r => r.Date == overdue).OutboundOrders);
         Assert.Equal(12m, withAccumulation.Single(r => r.Date == today).OutboundOrders);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_CountsDaysPerColor_AndComputesPercentages()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        context.AddRange(center, product);
+
+        var start = new DateTime(2026, 1, 1);
+
+        // RedZone (RedBaseZone+RedSafeZone) = 20, TopOfYellow = 40, TopOfGreen = 60 (OpenInbounds/QualifiedDemand
+        // are 0 on every row, so Netflow == Stock and the expected color is easy to reason about per day).
+        context.History.AddRange(
+            new History { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Date = start, Consumption = 0, Stock = 50, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Green
+            new History { Id = 2, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(1), Consumption = 0, Stock = 30, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Yellow
+            new History { Id = 3, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(2), Consumption = 0, Stock = 10, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Red
+            new History { Id = 4, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(3), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black
+            new History { Id = 5, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(4), Consumption = 0, Stock = 70, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Blue
+            new History { Id = 6, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(5), Consumption = 0, Stock = 5 } // no zones -> NoColor
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetBufferPenetrationAsync(start, start.AddDays(5), null, null);
+
+        var row = Assert.Single(rows);
+
+        Assert.Equal(center.Id, row.IdCenter);
+        Assert.Equal("C1", row.CenterCode);
+        Assert.Equal(product.Id, row.IdProduct);
+        Assert.Equal("REF1", row.ReferenceProduct);
+        Assert.Equal("Product 1", row.DescriptionProduct);
+
+        Assert.Equal(6, row.QuantityDays);
+        Assert.Equal(1, row.DaysGreen);
+        Assert.Equal(1, row.DaysYellow);
+        Assert.Equal(1, row.DaysRed);
+        Assert.Equal(1, row.DaysBlack);
+        Assert.Equal(1, row.DaysBlue);
+        Assert.Equal(1, row.DaysNoColor);
+        Assert.Equal(2, row.DaysRedAndBlack);
+
+        Assert.Equal(1m / 6m, row.DaysGreenPercentage);
+        Assert.Equal(1m / 6m, row.DaysYellowPercentage);
+        Assert.Equal(1m / 6m, row.DaysRedPercentage);
+        Assert.Equal(1m / 6m, row.DaysBlackPercentage);
+        Assert.Equal(1m / 6m, row.DaysBluePercentage);
+        Assert.Equal(1m / 6m, row.DaysNoColorPercentage);
+        Assert.Equal(2m / 6m, row.DaysRedAndBlackPercentage);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_ExecutionMode_ClassifiesByStockAndExecutionZones_IgnoringQualifiedDemandAndInbounds()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        context.AddRange(center, product);
+
+        var start = new DateTime(2026, 1, 1);
+
+        // TopOfRed (RedBaseZone+RedSafeZone) = 20 -> RedZoneExecution = YellowZoneExecution = Ceiling(20/2) = 10,
+        // GreenZoneExecution = YellowZone = 20 -> TopOfRedExecution = 10, TopOfYellowExecution = 20, TopOfGreenExecution = 40.
+        // QualifiedDemand/OpenInbounds are set to large, mismatched values on purpose: Execution mode must ignore
+        // them entirely (only Stock feeds the color), unlike Netflow mode which would combine them.
+        context.History.AddRange(
+            new History { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Date = start, Consumption = 0, Stock = 30, QualifiedDemand = 1000, OpenInbounds = 1000, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Green
+            new History { Id = 2, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(1), Consumption = 0, Stock = 15, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Yellow
+            new History { Id = 3, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(2), Consumption = 0, Stock = 5, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Red
+            new History { Id = 4, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(3), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black
+            new History { Id = 5, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(4), Consumption = 0, Stock = 50, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Blue
+            new History { Id = 6, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(5), Consumption = 0, Stock = 5 } // no zones -> NoColor
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetBufferPenetrationAsync(start, start.AddDays(5), null, null, BufferPenetrationMode.Execution);
+
+        var row = Assert.Single(rows);
+
+        Assert.Equal(6, row.QuantityDays);
+        Assert.Equal(1, row.DaysGreen);
+        Assert.Equal(1, row.DaysYellow);
+        Assert.Equal(1, row.DaysRed);
+        Assert.Equal(1, row.DaysBlack);
+        Assert.Equal(1, row.DaysBlue);
+        Assert.Equal(1, row.DaysNoColor);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_GroupsPerCenterProductPair_AndRespectsFiltersAndDateRange()
+    {
+        await using var context = CreateContext();
+
+        var center1 = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var center2 = new Center { Id = 2, Code = "C2", Description = "Center 2" };
+        var product1 = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var product2 = new Product { Id = 2, Reference = "REF2", Description = "Product 2", UnitOfMeasure = "UN" };
+        var deletedProduct = new Product { Id = 3, Reference = "REF3", Description = "Product 3", UnitOfMeasure = "UN", deletedAt = DateTime.UtcNow };
+        context.AddRange(center1, center2, product1, product2, deletedProduct);
+
+        var start = new DateTime(2026, 1, 1);
+        var end = start.AddDays(2);
+
+        // Zones set so TopOfGreen > 0 and Stock = 0 lands on Black (quantity <= 0), not NoColor.
+        context.History.AddRange(
+            new History { Id = 1, IdProduct = product1.Id, IdCenter = center1.Id, Date = start, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black, in range
+            new History { Id = 2, IdProduct = product1.Id, IdCenter = center1.Id, Date = start.AddDays(1), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black, in range
+            new History { Id = 3, IdProduct = product1.Id, IdCenter = center1.Id, Date = start.AddDays(-1), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // before range, excluded
+            new History { Id = 4, IdProduct = product1.Id, IdCenter = center1.Id, Date = start, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20, deletedAt = DateTime.UtcNow }, // soft-deleted, excluded
+            new History { Id = 5, IdProduct = product2.Id, IdCenter = center2.Id, Date = start, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // different pair, in range
+            new History { Id = 6, IdProduct = deletedProduct.Id, IdCenter = center1.Id, Date = start, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 } // deleted product, excluded
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var allRows = await repository.GetBufferPenetrationAsync(start, end, null, null);
+        Assert.Equal(2, allRows.Count);
+
+        var pair1 = allRows.Single(r => r.IdCenter == center1.Id && r.IdProduct == product1.Id);
+        Assert.Equal(2, pair1.QuantityDays);
+        Assert.Equal(2, pair1.DaysBlack);
+
+        var pair2 = allRows.Single(r => r.IdCenter == center2.Id && r.IdProduct == product2.Id);
+        Assert.Equal(1, pair2.QuantityDays);
+
+        var filteredByCenter = await repository.GetBufferPenetrationAsync(start, end, new[] { center2.Id }, null);
+        Assert.Equal(pair2.IdProduct, Assert.Single(filteredByCenter).IdProduct);
+
+        var filteredByMultipleCenters = await repository.GetBufferPenetrationAsync(start, end, new[] { center1.Id, center2.Id }, null);
+        Assert.Equal(2, filteredByMultipleCenters.Count);
+
+        var filteredByProduct = await repository.GetBufferPenetrationAsync(start, end, null, product1.Id);
+        Assert.Equal(pair1.IdCenter, Assert.Single(filteredByProduct).IdCenter);
+    }
+
+    [Fact]
+    public async Task GetItemsByBufferColorHistoryAsync_CountsItemsPerColor_ForBothPerspectives_AsADenseGrid()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var productA = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var productB = new Product { Id = 2, Reference = "REF2", Description = "Product 2", UnitOfMeasure = "UN" };
+        context.AddRange(center, productA, productB);
+
+        var date = new DateTime(2026, 1, 1);
+
+        // Zones: TopOfRed = 20, TopOfYellow = 40, TopOfGreen = 60 (Netflow perspective).
+        // Execution: RedZoneExecution = YellowZoneExecution = Ceiling(20/2) = 10, GreenZoneExecution = YellowZone = 20
+        // -> TopOfRedExecution = 10, TopOfYellowExecution = 20, TopOfGreenExecution = 40.
+        context.History.AddRange(
+            // Item A: Netflow = 50 -> Green. Execution: Stock = 50 > 40 -> Blue. Perspectives disagree on purpose.
+            new History { Id = 1, IdProduct = productA.Id, IdCenter = center.Id, Date = date, Consumption = 0, Stock = 50, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 },
+            // Item B: Netflow = 10 -> Red. Execution: Stock = 10 <= 10 -> Red. Perspectives agree.
+            new History { Id = 2, IdProduct = productB.Id, IdCenter = center.Id, Date = date, Consumption = 0, Stock = 10, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var result = await repository.GetItemsByBufferColorHistoryAsync(date, date, null, null);
+
+        // One row per day, per perspective — all 6 colors as columns on that single row.
+        var netflowDay = Assert.Single(result.Netflow);
+        var executionDay = Assert.Single(result.Execution);
+        Assert.Equal(date, netflowDay.Date);
+        Assert.Equal(date, executionDay.Date);
+
+        Assert.Equal(1, netflowDay.Green);
+        Assert.Equal(0, executionDay.Green);
+
+        Assert.Equal(0, netflowDay.Blue);
+        Assert.Equal(1, executionDay.Blue);
+
+        Assert.Equal(1, netflowDay.Red);
+        Assert.Equal(1, executionDay.Red);
+
+        Assert.Equal(0, netflowDay.Yellow);
+        Assert.Equal(0, netflowDay.Black);
+        Assert.Equal(0, netflowDay.NoColor);
+    }
+
+    [Fact]
+    public async Task GetItemsByBufferColorHistoryAsync_OneDensGridPerDay_AndRespectsFiltersAndDateRange()
+    {
+        await using var context = CreateContext();
+
+        var center1 = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var center2 = new Center { Id = 2, Code = "C2", Description = "Center 2" };
+        var product1 = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var product2 = new Product { Id = 2, Reference = "REF2", Description = "Product 2", UnitOfMeasure = "UN" };
+        context.AddRange(center1, center2, product1, product2);
+
+        var day1 = new DateTime(2026, 1, 1);
+        var day2 = day1.AddDays(1);
+
+        context.History.AddRange(
+            new History { Id = 1, IdProduct = product1.Id, IdCenter = center1.Id, Date = day1, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black
+            new History { Id = 2, IdProduct = product1.Id, IdCenter = center1.Id, Date = day2, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black
+            new History { Id = 3, IdProduct = product1.Id, IdCenter = center1.Id, Date = day1.AddDays(-1), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // before range
+            new History { Id = 4, IdProduct = product2.Id, IdCenter = center2.Id, Date = day1, Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 } // different pair
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var allResult = await repository.GetItemsByBufferColorHistoryAsync(day1, day2, null, null);
+        // 2 days in range with data (day1, day2) -> 2 rows per perspective.
+        Assert.Equal(2, allResult.Netflow.Count);
+        Assert.Equal(2, allResult.Execution.Count);
+        // day1 has 2 items (product1@center1 + product2@center2), both Black.
+        Assert.Equal(2, allResult.Netflow.Single(r => r.Date == day1).Black);
+        // day2 has 1 item (product1@center1 only), Black.
+        Assert.Equal(1, allResult.Netflow.Single(r => r.Date == day2).Black);
+
+        var filteredByCenter = await repository.GetItemsByBufferColorHistoryAsync(day1, day2, new[] { center2.Id }, null);
+        // Only center2 has data on day1, none on day2 -> only day1's row.
+        Assert.Single(filteredByCenter.Netflow);
+        Assert.Equal(1, filteredByCenter.Netflow.Single().Black);
+
+        var filteredByMultipleCenters = await repository.GetItemsByBufferColorHistoryAsync(day1, day2, new[] { center1.Id, center2.Id }, null);
+        Assert.Equal(2, filteredByMultipleCenters.Netflow.Count);
+        Assert.Equal(2, filteredByMultipleCenters.Netflow.Single(r => r.Date == day1).Black);
+
+        var filteredByProduct = await repository.GetItemsByBufferColorHistoryAsync(day1, day2, null, product1.Id);
+        Assert.Equal(2, filteredByProduct.Netflow.Count);
+        Assert.Equal(1, filteredByProduct.Netflow.Single(r => r.Date == day1).Black);
     }
 }

@@ -1,3 +1,4 @@
+using Service.Domain.Enums;
 using Service.Domain.Report.Results;
 
 namespace Service.Domain.Interfaces
@@ -21,6 +22,19 @@ namespace Service.Domain.Interfaces
             bool accumulateInboundsToday = false,
             bool accumulateOutboundsToday = false,
             bool useFictionalOrders = true,
+            CancellationToken cancellationToken = default);
+        Task<List<BufferPenetrationRow>> GetBufferPenetrationAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
+            BufferPenetrationMode mode = BufferPenetrationMode.Netflow,
+            CancellationToken cancellationToken = default);
+        Task<ItemsByBufferColorHistoryResult> GetItemsByBufferColorHistoryAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
             CancellationToken cancellationToken = default);
     }
 }

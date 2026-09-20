@@ -87,7 +87,7 @@ namespace Service.Application.Services
                 Type = postDTO.Type,
                 IsInbound = postDTO.IsInbound,
                 IsOutbound = postDTO.IsOutbound,
-                IsFictional = postDTO.IsFictional
+                IsFictional = true
             };
         }
 

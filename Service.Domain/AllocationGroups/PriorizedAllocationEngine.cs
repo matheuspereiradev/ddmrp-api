@@ -78,6 +78,8 @@ namespace Service.Domain.AllocationGroups
                 var valorizedPack = item.GetValorizedPackQuantity(adjustmentType)!.Value;
                 if (total - valorizedPack < limit || item.ApprovedQuantity - item.PackQuantity < floor)
                 {
+                    if (item.ApprovedQuantity > item.Moq)
+                        item.ApprovedQuantity = item.Moq;
                     item.Finished = true;
                     continue;
                 }

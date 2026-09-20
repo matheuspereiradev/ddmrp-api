@@ -157,7 +157,7 @@ namespace Service.Infra.Data.Repositories
                     : null
             });
 
-            // UtilsDdmrp.CalculateNetflow: stock + inbounds - qualifiedDemand
+            // UtilsDdmrp.CalculateNetflow: availableStock (stock - reservedStock) + inbounds - qualifiedDemand
             var withNetflow = withExecutionTops.Select(x => new
             {
                 x.Cp,
@@ -182,7 +182,7 @@ namespace Service.Infra.Data.Repositories
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
                 x.RedSafeExcessAnalytical,
-                Netflow = x.Cp.Stock + x.Inbounds - (x.Cp.QualifiedDemand ?? 0)
+                Netflow = (x.Cp.Stock - x.Cp.ReservedStock) + x.Inbounds - (x.Cp.QualifiedDemand ?? 0)
             });
 
             // UtilsDdmrp.CalculateOrderQuantity: netflow < topOfYellow ? topOfGreen - netflow : 0
@@ -251,7 +251,7 @@ namespace Service.Infra.Data.Repositories
                 NetflowBufferPercentage = (x.TopOfGreen ?? 0) == 0 ? 0 : x.Netflow / (x.TopOfGreen ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: netflow, topOfRed, topOfYellow, topOfGreen)
                 NetflowBufferColor = (x.TopOfGreen ?? 0) == 0 ? BufferColor.NoColor
-                    : x.Netflow < 0 ? BufferColor.Black
+                    : x.Netflow <= 0 ? BufferColor.Black
                     : x.Netflow > (x.TopOfGreen ?? 0) ? BufferColor.Blue
                     : x.Netflow <= (x.TopOfRed ?? 0) ? BufferColor.Red
                     : x.Netflow <= (x.TopOfYellow ?? 0) ? BufferColor.Yellow
@@ -260,18 +260,18 @@ namespace Service.Infra.Data.Repositories
                 SimulatedNetflowBufferPercentage = (x.TopOfGreen ?? 0) == 0 ? 0 : x.SimulatedNetflow / (x.TopOfGreen ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: simulatedNetflow, topOfRed, topOfYellow, topOfGreen)
                 SimulatedNetflowBufferColor = (x.TopOfGreen ?? 0) == 0 ? BufferColor.NoColor
-                    : x.SimulatedNetflow < 0 ? BufferColor.Black
+                    : x.SimulatedNetflow <= 0 ? BufferColor.Black
                     : x.SimulatedNetflow > (x.TopOfGreen ?? 0) ? BufferColor.Blue
                     : x.SimulatedNetflow <= (x.TopOfRed ?? 0) ? BufferColor.Red
                     : x.SimulatedNetflow <= (x.TopOfYellow ?? 0) ? BufferColor.Yellow
                     : BufferColor.Green,
-                // UtilsDdmrp.CalculateCoverageDays(availableStock: Stock, adu)
-                CoverageDays = (x.Cp.Adu ?? 0) > 0 ? x.Cp.Stock / (x.Cp.Adu ?? 0) : 0,
+                // UtilsDdmrp.CalculateCoverageDays(availableStock: Stock - ReservedStock, adu)
+                CoverageDays = (x.Cp.Adu ?? 0) > 0 ? (x.Cp.Stock - x.Cp.ReservedStock) / (x.Cp.Adu ?? 0) : 0,
                 // UtilsDdmrp.CalculateBufferPercentage(topOfGreen: greenZoneExecution, delta: Stock)
                 ExecutionBufferPercentage = (x.GreenZoneExecution ?? 0) == 0 ? 0 : x.Cp.Stock / (x.GreenZoneExecution ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: Stock, redZoneExecution, yellowZoneExecution, greenZoneExecution)
                 ExecutionBufferColor = (x.GreenZoneExecution ?? 0) == 0 ? BufferColor.NoColor
-                    : x.Cp.Stock < 0 ? BufferColor.Black
+                    : x.Cp.Stock <= 0 ? BufferColor.Black
                     : x.Cp.Stock > (x.GreenZoneExecution ?? 0) ? BufferColor.Blue
                     : x.Cp.Stock <= (x.RedZoneExecution ?? 0) ? BufferColor.Red
                     : x.Cp.Stock <= (x.YellowZoneExecution ?? 0) ? BufferColor.Yellow
@@ -292,6 +292,8 @@ namespace Service.Infra.Data.Repositories
                 Classification = x.Cp.Classification,
                 Segment = x.Cp.Segment,
                 Stock = x.Cp.Stock,
+                ReservedStock = x.Cp.ReservedStock,
+                AvailableStock = x.Cp.Stock - x.Cp.ReservedStock,
                 IdProvider = x.Cp.IdProvider,
                 IdTag = x.Cp.IdTag,
                 IdReason = x.Cp.IdReason,
@@ -705,6 +707,215 @@ namespace Service.Infra.Data.Repositories
             }
 
             return rows;
+        }
+
+        // One row per (IdProduct, IdCenter) pair with History rows in the requested period, counting how many
+        // days each day's buffer color (UtilsDdmrp.CalculateBufferColor) landed in. Zones/Stock/QualifiedDemand/
+        // OpenInbounds null on a History row (no zone calculated yet that day) are treated as 0, which
+        // CalculateBufferColor already resolves to NoColor via its topOfGreen == 0 guard. History rows are
+        // inner-joined to a non-deleted Product/Center, same convention as InventoryBufferManagementRow.
+        //
+        // mode picks which quantity/zone set feeds CalculateBufferColor per day, mirroring the Netflow vs.
+        // Execution buffer distinction already used elsewhere (InventoryBufferManagementRow's
+        // NetflowBufferColor/ExecutionBufferColor, OpenOrderRow.ExecutionBufferColor):
+        //   Netflow   -> quantity = Netflow(Stock, QualifiedDemand, OpenInbounds), zones = RedZoneBase+RedZoneSafe/YellowZone/GreenZone
+        //   Execution -> quantity = Stock only (no Netflow), zones = RedZoneExecution/YellowZoneExecution/GreenZoneExecution
+        //                (same formulas as CenterProduct.RedZoneExecution/YellowZoneExecution/GreenZoneExecution:
+        //                RedZoneExecution = YellowZoneExecution = TopOfRed / 2, GreenZoneExecution = YellowZone)
+        public async Task<List<BufferPenetrationRow>> GetBufferPenetrationAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
+            BufferPenetrationMode mode = BufferPenetrationMode.Netflow,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.History
+                .Where(h => h.deletedAt == null
+                    && h.Date >= dateStart && h.Date <= dateEnd
+                    && h.Product.deletedAt == null
+                    && h.Center.deletedAt == null);
+
+            if (idCenters != null && idCenters.Length > 0)
+                query = query.Where(h => idCenters.Contains(h.IdCenter));
+
+            if (idProduct.HasValue)
+                query = query.Where(h => h.IdProduct == idProduct.Value);
+
+            var historyRows = await query
+                .Select(h => new
+                {
+                    h.IdProduct,
+                    ProductReference = h.Product.Reference,
+                    ProductDescription = h.Product.Description,
+                    h.IdCenter,
+                    CenterCode = h.Center.Code,
+                    h.Stock,
+                    h.QualifiedDemand,
+                    h.OpenInbounds,
+                    h.RedBaseZone,
+                    h.RedSafeZone,
+                    h.YellowZone,
+                    h.GreenZone
+                })
+                .ToListAsync(cancellationToken);
+
+            var rows = historyRows
+                .GroupBy(h => (h.IdProduct, h.ProductReference, h.ProductDescription, h.IdCenter, h.CenterCode))
+                .Select(group =>
+                {
+                    var row = new BufferPenetrationRow
+                    {
+                        IdProduct = group.Key.IdProduct,
+                        ReferenceProduct = group.Key.ProductReference,
+                        DescriptionProduct = group.Key.ProductDescription,
+                        IdCenter = group.Key.IdCenter,
+                        CenterCode = group.Key.CenterCode,
+                        QuantityDays = group.Count()
+                    };
+
+                    foreach (var h in group)
+                    {
+                        var (netflowColor, executionColor) = ComputeBufferColors(
+                            h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone, h.GreenZone);
+                        var color = mode == BufferPenetrationMode.Execution ? executionColor : netflowColor;
+
+                        switch (color)
+                        {
+                            case BufferColor.Black: row.DaysBlack++; break;
+                            case BufferColor.Red: row.DaysRed++; break;
+                            case BufferColor.Yellow: row.DaysYellow++; break;
+                            case BufferColor.Green: row.DaysGreen++; break;
+                            case BufferColor.Blue: row.DaysBlue++; break;
+                            case BufferColor.NoColor: row.DaysNoColor++; break;
+                        }
+                    }
+
+                    row.DaysRedAndBlack = row.DaysRed + row.DaysBlack;
+
+                    row.DaysBlackPercentage = row.QuantityDays > 0 ? (decimal)row.DaysBlack / row.QuantityDays : 0;
+                    row.DaysRedPercentage = row.QuantityDays > 0 ? (decimal)row.DaysRed / row.QuantityDays : 0;
+                    row.DaysYellowPercentage = row.QuantityDays > 0 ? (decimal)row.DaysYellow / row.QuantityDays : 0;
+                    row.DaysGreenPercentage = row.QuantityDays > 0 ? (decimal)row.DaysGreen / row.QuantityDays : 0;
+                    row.DaysBluePercentage = row.QuantityDays > 0 ? (decimal)row.DaysBlue / row.QuantityDays : 0;
+                    row.DaysNoColorPercentage = row.QuantityDays > 0 ? (decimal)row.DaysNoColor / row.QuantityDays : 0;
+                    row.DaysRedAndBlackPercentage = row.QuantityDays > 0 ? (decimal)row.DaysRedAndBlack / row.QuantityDays : 0;
+
+                    return row;
+                })
+                .OrderBy(r => r.IdCenter)
+                .ThenBy(r => r.IdProduct)
+                .ToList();
+
+            return rows;
+        }
+
+        // Shared by GetBufferPenetrationAsync and GetItemsByBufferColorHistoryAsync — computes both the
+        // Netflow and Execution buffer colors for a single History day's snapshot columns in one place, so the
+        // two Netflow-vs-Execution formulas (see the comment above GetBufferPenetrationAsync) live in exactly
+        // one spot instead of being duplicated per caller.
+        private static (BufferColor Netflow, BufferColor Execution) ComputeBufferColors(
+            decimal? stock, decimal? qualifiedDemand, decimal? openInbounds,
+            decimal? redBaseZone, decimal? redSafeZone, decimal? yellowZone, decimal? greenZone)
+        {
+            var topOfRed = (redBaseZone ?? 0) + (redSafeZone ?? 0);
+
+            var netflow = UtilsDdmrp.CalculateNetflow(stock ?? 0, qualifiedDemand ?? 0, openInbounds ?? 0);
+            var topOfYellow = topOfRed + (yellowZone ?? 0);
+            var topOfGreen = topOfYellow + (greenZone ?? 0);
+            var netflowColor = UtilsDdmrp.CalculateBufferColor(netflow, topOfRed, topOfYellow, topOfGreen);
+
+            var redZoneExecution = Math.Ceiling(topOfRed / 2);
+            var yellowZoneExecution = redZoneExecution;
+            var greenZoneExecution = yellowZone ?? 0;
+            var topOfRedExecution = redZoneExecution;
+            var topOfYellowExecution = redZoneExecution + yellowZoneExecution;
+            var topOfGreenExecution = topOfYellowExecution + greenZoneExecution;
+            var executionColor = UtilsDdmrp.CalculateBufferColor(stock ?? 0, topOfRedExecution, topOfYellowExecution, topOfGreenExecution);
+
+            return (netflowColor, executionColor);
+        }
+
+        // One row per day, per perspective — for every day in the requested period that has at least one
+        // History row (matching the optional idCenters/idProduct filters), counts how many items landed in
+        // each of the 6 BufferColor values that day, from both perspectives at once (see ComputeBufferColors
+        // above). Returned as two parallel lists (Netflow/Execution) rather than one flat row per (Date, Color)
+        // — confirmed 2026-09-19 — so each day is always a single row with all 6 colors as columns (Red/
+        // Yellow/Green/Blue/Black/NoColor), never a missing color for a day that has data (a color with no
+        // matching item that day is simply 0). Unlike GetBufferPenetrationAsync (one row per item, days
+        // aggregated into it), this report aggregates the other way: one row per day, items aggregated into it.
+        public async Task<ItemsByBufferColorHistoryResult> GetItemsByBufferColorHistoryAsync(
+            DateTime dateStart,
+            DateTime dateEnd,
+            int[]? idCenters,
+            int? idProduct,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.History
+                .Where(h => h.deletedAt == null
+                    && h.Date >= dateStart && h.Date <= dateEnd
+                    && h.Product.deletedAt == null
+                    && h.Center.deletedAt == null);
+
+            if (idCenters != null && idCenters.Length > 0)
+                query = query.Where(h => idCenters.Contains(h.IdCenter));
+
+            if (idProduct.HasValue)
+                query = query.Where(h => h.IdProduct == idProduct.Value);
+
+            var historyRows = await query
+                .Select(h => new
+                {
+                    h.Date,
+                    h.Stock,
+                    h.QualifiedDemand,
+                    h.OpenInbounds,
+                    h.RedBaseZone,
+                    h.RedSafeZone,
+                    h.YellowZone,
+                    h.GreenZone
+                })
+                .ToListAsync(cancellationToken);
+
+            var itemColors = historyRows
+                .Select(h =>
+                {
+                    var (netflowColor, executionColor) = ComputeBufferColors(
+                        h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone, h.GreenZone);
+                    return new { h.Date, NetflowColor = netflowColor, ExecutionColor = executionColor };
+                })
+                .ToList();
+
+            var result = new ItemsByBufferColorHistoryResult();
+
+            foreach (var date in itemColors.Select(x => x.Date).Distinct().OrderBy(date => date))
+            {
+                var dayColors = itemColors.Where(x => x.Date == date).ToList();
+
+                result.Netflow.Add(new BufferColorHistoryDayRow
+                {
+                    Date = date,
+                    Red = dayColors.Count(x => x.NetflowColor == BufferColor.Red),
+                    Yellow = dayColors.Count(x => x.NetflowColor == BufferColor.Yellow),
+                    Green = dayColors.Count(x => x.NetflowColor == BufferColor.Green),
+                    Blue = dayColors.Count(x => x.NetflowColor == BufferColor.Blue),
+                    Black = dayColors.Count(x => x.NetflowColor == BufferColor.Black),
+                    NoColor = dayColors.Count(x => x.NetflowColor == BufferColor.NoColor)
+                });
+
+                result.Execution.Add(new BufferColorHistoryDayRow
+                {
+                    Date = date,
+                    Red = dayColors.Count(x => x.ExecutionColor == BufferColor.Red),
+                    Yellow = dayColors.Count(x => x.ExecutionColor == BufferColor.Yellow),
+                    Green = dayColors.Count(x => x.ExecutionColor == BufferColor.Green),
+                    Blue = dayColors.Count(x => x.ExecutionColor == BufferColor.Blue),
+                    Black = dayColors.Count(x => x.ExecutionColor == BufferColor.Black),
+                    NoColor = dayColors.Count(x => x.ExecutionColor == BufferColor.NoColor)
+                });
+            }
+
+            return result;
         }
 
         private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)

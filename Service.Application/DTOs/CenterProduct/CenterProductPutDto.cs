@@ -34,6 +34,9 @@ namespace Service.Application.DTOs.CenterProduct
         [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
         public decimal Stock { get; set; }
 
+        [Range(0, double.MaxValue, ErrorMessage = "Field {0} must be zero or greater.")]
+        public decimal ReservedStock { get; set; }
+
         public int? IdProvider { get; set; }
         public int? IdTag { get; set; }
         public int? IdReason { get; set; }

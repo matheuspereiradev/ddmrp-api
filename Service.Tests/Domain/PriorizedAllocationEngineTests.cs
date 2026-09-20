@@ -41,8 +41,8 @@ public class PriorizedAllocationEngineTests
     [Fact]
     public void Run_DecreasesHighestPercentageItemFirst_UntilGroupTotalReachesLimit()
     {
-        var a = Item(1, approvedQuantity: 8, packQuantity: 2);
-        var b = Item(2, approvedQuantity: 2, packQuantity: 2);
+        var a = Item(1, approvedQuantity: 8, packQuantity: 2, moq: 4);
+        var b = Item(2, approvedQuantity: 2, packQuantity: 2, moq: 2);
         var items = new List<PriorizedAllocationItem> { a, b };
 
         PriorizedAllocationEngine.Run(items, limit: 6, PriorizedAllocationStopCondition.Zero, PriorizedAllocationAdjustmentType.Unit);
@@ -67,9 +67,21 @@ public class PriorizedAllocationEngineTests
     }
 
     [Fact]
+    public void Run_Down_SnapsDownToMoq_WhenPackQuantityOvershootsPastIt()
+    {
+        var a = Item(1, approvedQuantity: 8, packQuantity: 3, moq: 4);
+        var items = new List<PriorizedAllocationItem> { a };
+
+        PriorizedAllocationEngine.Run(items, limit: 0, PriorizedAllocationStopCondition.Moq, PriorizedAllocationAdjustmentType.Unit);
+
+        Assert.Equal(4, a.ApprovedQuantity);
+        Assert.True(a.Finished);
+    }
+
+    [Fact]
     public void Run_Down_StopsAtOnePackQuantityFloor()
     {
-        var a = Item(1, approvedQuantity: 10, packQuantity: 4);
+        var a = Item(1, approvedQuantity: 10, packQuantity: 4, moq: 6);
         var items = new List<PriorizedAllocationItem> { a };
 
         PriorizedAllocationEngine.Run(items, limit: 0, PriorizedAllocationStopCondition.OnePackQuantity, PriorizedAllocationAdjustmentType.Unit);
@@ -81,7 +93,7 @@ public class PriorizedAllocationEngineTests
     [Fact]
     public void Run_Down_StopsAtZeroFloor()
     {
-        var a = Item(1, approvedQuantity: 5, packQuantity: 2);
+        var a = Item(1, approvedQuantity: 5, packQuantity: 2, moq: 1);
         var items = new List<PriorizedAllocationItem> { a };
 
         PriorizedAllocationEngine.Run(items, limit: 0, PriorizedAllocationStopCondition.Zero, PriorizedAllocationAdjustmentType.Unit);

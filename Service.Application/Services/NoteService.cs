@@ -5,17 +5,20 @@ using Service.Application.Mappers;
 using Service.Domain.Account;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
+using Service.Domain.Pagination;
 
 namespace Service.Application.Services
 {
     public class NoteService : BaseService<Note, NoteGetDto, NotePostDto, NotePutDto>, INoteService
     {
+        private readonly INoteRepository _noteRepository;
         private readonly ICenterProductRepository _centerProductRepository;
         private readonly ICurrentUserService _currentUser;
 
         public NoteService(INoteRepository repository, ICenterProductRepository centerProductRepository, ICurrentUserService currentUser)
             : base(repository)
         {
+            _noteRepository = repository;
             _centerProductRepository = centerProductRepository;
             _currentUser = currentUser;
         }
@@ -28,7 +31,7 @@ namespace Service.Application.Services
                 Content = entity.Content,
                 CenterProductId = entity.CenterProductId,
                 CreatedBy = entity.createdBy,
-                CenterProduct = entity.CenterProduct?.ToGetDto(),
+                CreatedAt = entity.createdAt,
                 CreatedByUser = entity.CreatedByUser?.ToGetDto()
             };
         }
@@ -56,6 +59,16 @@ namespace Service.Application.Services
                 throw new BadRequestException("Center product not found.");
 
             return await base.AddAsync(postDTO, cancellationToken);
+        }
+
+        public async Task<PagedList<NoteGetDto>> GetByCenterProductAsync(int idCenterProduct, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            if (!await _centerProductRepository.Exists(idCenterProduct, cancellationToken))
+                throw new NotFoundException("Center product not found.");
+
+            var paged = await _noteRepository.GetByCenterProductAsync(idCenterProduct, pageNumber, pageSize, cancellationToken);
+            var items = paged.Select(ToGetDTO).ToList();
+            return new PagedList<NoteGetDto>(items, paged.CurrentPage, paged.PageSize, paged.TotalCount);
         }
     }
 }

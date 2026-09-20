@@ -23,6 +23,8 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(cp => cp.Classification).HasMaxLength(200);
             builder.Property(cp => cp.Segment).HasMaxLength(200);
             builder.Property(cp => cp.Stock).IsRequired().HasPrecision(18, 4);
+            builder.Property(cp => cp.ReservedStock).IsRequired().HasPrecision(18, 4).HasDefaultValue(0);
+            builder.Ignore(cp => cp.AvailableStock);
             builder.Property(cp => cp.Adu).HasPrecision(18, 4);
             builder.Property(cp => cp.Adi).HasPrecision(18, 4);
             builder.Property(cp => cp.StandardDeviation).HasPrecision(18, 4);
