@@ -87,10 +87,10 @@ namespace Service.Infra.Data.Calculation.Steps
             )
             UPDATE cp
             SET
-                cp.YellowZone = CEILING(IIF(z.Yellow < 0, 0, z.Yellow)),
-                cp.GreenZone = CEILING(IIF(z.Green < 0, 0, z.Green)),
-                cp.RedZoneSafe = CEILING(IIF(z.RedSafe < 0, 0, z.RedSafe)),
-                cp.RedZoneBase = CEILING(IIF(z.RedBase < 0, 0, z.RedBase))
+                cp.YellowZone = IIF(z.Yellow < 0, 0, z.Yellow),
+                cp.GreenZone = IIF(z.Green < 0, 0, z.Green),
+                cp.RedZoneSafe = IIF(z.RedSafe < 0, 0, z.RedSafe),
+                cp.RedZoneBase = IIF(z.RedBase < 0, 0, z.RedBase)
             FROM dbo.CenterProducts cp
             JOIN Zones z ON z.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType = 0 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});

@@ -218,7 +218,7 @@ RedZoneBase = AdjustedAdu * LeadTime * LeadTimeFactor * VariabilityFactor
 
 > **Importante (2026-09-13)**: nenhuma zona pode ficar negativa — toda zona é sempre `MAX(valor calculado, 0)`. Vale pros 4 valores (`YellowZone`/`GreenZone`/`RedZoneSafe`/`RedZoneBase`) nos **3 steps** de cálculo de zona (`Normal`, `MinMax`, `DynamicMinMax`) — cada um clampa seu próprio resultado antes de gravar.
 >
-> **Importante (2026-09-14)**: todo cálculo de zona **sempre arredonda pra cima** ("arredondamento para cima sempre") — o valor final (já clampado em `0` se negativo) passa por `CEILING()` antes de ser gravado, nos mesmos 3 steps de zona-base, em `ApplyBafStep` (o split `RedZoneSafe`/`RedZoneBase = CEILING(BufferDdmrpRed / 2)` de `ManualFixed`) e em `ApplyZafStep` (a zona final depois de somar o delta: `GreenZone = CEILING(GreenZone + Delta)`, mesma coisa pra `YellowZone`/`RedZoneBase`). **Não** se aplica a cópias diretas de valor já informado pelo usuário (`ApplyBafStep`'s `YellowZone`/`GreenZone = baf.BufferDdmrpYellow`/`BufferDdmrpGreen`, ou o reverter `ISNULL(*Old, atual)`) — só arredonda o que é de fato uma conta feita pelo robô.
+> **Revogado (2026-09-20)** — a regra abaixo ("arredondamento para cima sempre", 2026-09-14) não vale mais. Nenhum step de zona, `ApplyBafStep` ou `ApplyZafStep` arredonda mais o valor gravado — fica cru (`HasPrecision(18,4)`). Arredondamento agora é só de exibição, só em `GetInventoryBufferManagementQueryable` (ver a seção "CenterProduct — zonas derivadas" acima). Texto original mantido como histórico: ~~todo cálculo de zona **sempre arredonda pra cima** ("arredondamento para cima sempre") — o valor final (já clampado em `0` se negativo) passa por `CEILING()` antes de ser gravado, nos mesmos 3 steps de zona-base, em `ApplyBafStep` (o split `RedZoneSafe`/`RedZoneBase = CEILING(BufferDdmrpRed / 2)` de `ManualFixed`) e em `ApplyZafStep` (a zona final depois de somar o delta: `GreenZone = CEILING(GreenZone + Delta)`, mesma coisa pra `YellowZone`/`RedZoneBase`)~~.
 
 ### Execução
 
@@ -343,43 +343,45 @@ RedBase  = 0,                              se MaiorAcumulado = 0
 
 Nenhuma dessas é um calculation step — todas são propriedades C# computadas (`get`-only, `Ignore()`'d no EF em `CenterProductConfiguration`, nunca uma coluna física, sempre nullable-lifted: ficam `null` a menos que **todas** as parcelas envolvidas estejam setadas, nunca `0` por padrão). Nenhum step escreve essas colunas diretamente — elas só leem `RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (essas sim escritas pelos steps de zona/ZAF, ver seções acima) e são lidas onde precisar (`CenterProductGetDto`, `InventoryBufferManagementRow`, `ExecutionBuffer` acima).
 
+Fórmulas cruas, sem arredondamento (ver nota "Arredondamento passou a ser só de exibição" logo abaixo — `GetInventoryBufferManagementQueryable` é o único lugar que ainda envolve cada uma destas em `CEILING`/`Math.Ceiling`, só pra exibição):
+
 ```
-RedZone               = CEILING(RedZoneBase + RedZoneSafe)
+RedZone               = RedZoneBase + RedZoneSafe
 
-TopOfRed              = CEILING(RedZoneBase + RedZoneSafe)                            (= RedZone, nome DDMRP-padrão separado por clareza)
-TopOfYellow           = CEILING(RedZoneBase + RedZoneSafe + YellowZone)
-TopOfGreen            = CEILING(RedZoneBase + RedZoneSafe + YellowZone + GreenZone)      (ponto de reordem — topo do buffer inteiro)
+TopOfRed              = RedZoneBase + RedZoneSafe                            (= RedZone, nome DDMRP-padrão separado por clareza)
+TopOfYellow           = RedZoneBase + RedZoneSafe + YellowZone
+TopOfGreen            = RedZoneBase + RedZoneSafe + YellowZone + GreenZone      (ponto de reordem — topo do buffer inteiro)
 
-RedZoneExecution      = CEILING(TopOfRed / 2)
-YellowZoneExecution   = CEILING(TopOfRed / 2)                                         (idêntico a RedZoneExecution — é a especificação dada, não é erro)
-GreenZoneExecution    = CEILING(YellowZone)                                           (igual à coluna YellowZone pura, não a TopOfYellow)
+RedZoneExecution      = TopOfRed / 2
+YellowZoneExecution   = TopOfRed / 2                                         (idêntico a RedZoneExecution — é a especificação dada, não é erro)
+GreenZoneExecution    = YellowZone                                           (igual à coluna YellowZone pura, não a TopOfYellow)
 
-TopOfRedExecution     = CEILING(RedZoneExecution)
-TopOfYellowExecution  = CEILING(RedZoneExecution + YellowZoneExecution)
-TopOfGreenExecution   = CEILING(RedZoneExecution + YellowZoneExecution + GreenZoneExecution)
+TopOfRedExecution     = RedZoneExecution
+TopOfYellowExecution  = RedZoneExecution + YellowZoneExecution
+TopOfGreenExecution   = RedZoneExecution + YellowZoneExecution + GreenZoneExecution
 
-RedSafeAnalytical       = CEILING(RedZone / 2)
-YellowSafeAnalytical    = CEILING(RedZone)
-GreenAnalytical         = CEILING(GreenZone)                                         (GreenZone puro, não soma RedZone — corrigido 2026-09-20,
-                                                                                        ver nota de correção abaixo)
+RedSafeAnalytical       = RedZone / 2
+YellowSafeAnalytical    = RedZone
+GreenAnalytical         = GreenZone                                         (GreenZone puro, não soma RedZone — corrigido 2026-09-20,
+                                                                                ver nota de correção abaixo)
 
 YellowExcessAnalytical  = (RedZone + GreenZone) >= (RedZone + YellowZone) ? 0
-                            : CEILING((RedZone + YellowZone) - (RedZone + GreenZone))
-                          (o RedZone se cancela dos dois lados — equivale a GreenZone >= YellowZone ? 0 : CEILING(YellowZone - GreenZone))
+                            : (RedZone + YellowZone) - (RedZone + GreenZone)
+                          (o RedZone se cancela dos dois lados — equivale a GreenZone >= YellowZone ? 0 : YellowZone - GreenZone)
 
 RedExcessAnalytical     = TopOfGreen <= 0 ? 0
-                            : CEILING(TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical))
+                            : TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical)
                           (equivale a MIN(YellowZone, GreenZone) — TopOfGreen - RedZone - GreenZone = YellowZone,
                            e subtrair YellowExcessAnalytical remove o excedente de Yellow sobre Green quando houver)
 ```
 
 **Corrigido 2026-09-20** — fórmulas anteriores (`RedZone / 2` pra ambos, `RedZone + YellowZone` pra `YellowExcessAnalytical`) estavam incorretas/provisórias; as de cima são as definitivas. `RedExcessAnalytical` depende de `YellowExcessAnalytical` já calculado, então no `ReportRepository` isso exige um estágio `.Select()` a mais (`YellowExcessAnalytical` calculado em `withExecutionZones`, `RedExcessAnalytical` só no estágio seguinte, `withExecutionTops`, onde `TopOfGreen` e `YellowExcessAnalytical` já estão disponíveis) — mesma razão pela qual `Netflow`/`OrderQuantity`/etc. já são divididos em vários estágios encadeados.
 
-**Segunda correção, mesmo dia**: `GreenAnalytical` no `ReportRepository` (`GetInventoryBufferManagementQueryable`'s `withExecutionZones`) estava calculando `RedZone + GreenZone`, divergindo da propriedade computada da entidade `CenterProduct.GreenAnalytical` (`GreenZone` puro, a fórmula acima e a correta) — a divergência não afetava `YellowExcessAnalytical`/`RedExcessAnalytical` (ambos recalculam `RedZone + GreenZone` cru, não leem a variável `GreenAnalytical`), só o próprio campo `GreenAnalytical`. Corrigido no report pra usar `CenterProduct.GreenZone` isoladamente, igual à entidade; `AccumulatedBufferHistoryRow.GreenAnalytical` (ver `Report accumulatedBufferHistory` abaixo) tinha o mesmo erro copiado e foi corrigido junto. `ReportRepositoryTests.GetInventoryBufferManagementQueryable_RoundsDerivedZonesUp` agora compara `row.GreenAnalytical`/`RedSafeAnalytical`/`YellowSafeAnalytical`/`YellowExcessAnalytical`/`RedExcessAnalytical` diretamente contra as propriedades computadas do `CenterProduct` de teste (não valores hardcoded), como regressão pra essa divergência não voltar.
+**Segunda correção, mesmo dia**: `GreenAnalytical` no `ReportRepository` (`GetInventoryBufferManagementQueryable`'s `withExecutionZones`) estava calculando `RedZone + GreenZone`, divergindo da propriedade computada da entidade `CenterProduct.GreenAnalytical` (`GreenZone` puro, a fórmula acima e a correta) — a divergência não afetava `YellowExcessAnalytical`/`RedExcessAnalytical` (ambos recalculam `RedZone + GreenZone` cru, não leem a variável `GreenAnalytical`), só o próprio campo `GreenAnalytical`. Corrigido no report pra usar `CenterProduct.GreenZone` isoladamente, igual à entidade; `AccumulatedBufferHistoryRow.GreenAnalytical` (ver `Report accumulatedBufferHistory` abaixo) tinha o mesmo erro copiado e foi corrigido junto.
 
-**Arredondamento pra cima sempre** (2026-09-14, "arredondamento para cima sempre" — mesma regra das zonas-base acima, aplicada aqui via `Math.Ceiling` em C#, não `CEILING()` SQL, já que são propriedades computadas em memória — mas `Math.Ceiling(decimal)` é traduzido pelo EF Core/SqlServer da mesma forma quando a propriedade é referenciada dentro de um `Select`, então o efeito final é o mesmo). Nullable-safe: cada `CEILING(...)` acima só roda se todas as parcelas envolvidas tiverem valor — senão a propriedade inteira fica `null`, mesmo comportamento de antes (só ganhou o arredondamento por cima).
+**Arredondamento passou a ser só de exibição** (2026-09-20, revogando a regra "arredondamento para cima sempre" de 2026-09-14 abaixo): nenhum calculation step nem nenhuma propriedade computada de `CenterProduct` arredonda mais — `RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` e todas as derivadas (`RedZone`, `TopOfRed`/`TopOfYellow`/`TopOfGreen`, `*Execution`, `*Analytical`) ficam com o valor decimal cru (`HasPrecision(18,4)`). O único lugar que ainda arredonda pra cima é `GetInventoryBufferManagementQueryable` (reimplementação inline das mesmas fórmulas, por causa da composição OData — ver nota mais abaixo) — `withZoneTops`/`withExecutionZones`/`withExecutionTops` continuam envolvendo cada resultado em `Math.Ceiling`, propositalmente, só pra exibição nesse relatório. `ComputeBufferColors` (usado por `bufferPenetration`/`itemsByBufferColorHistory`) e `GetAccumulatedBufferHistoryAsync` (`accumulatedBufferHistory`) foram ajustados pra não arredondar mais, alinhados com a entidade. `ReportRepositoryTests.GetInventoryBufferManagementQueryable_RoundsDerivedZonesUp` agora compara `row.X` contra valores arredondados fixos (não mais contra `centerProduct.X`, que ficou cru) — a divergência entre entidade (crua) e esse report (arredondado) é esperada e intencional, não deve ser "corrigida".
 
-**Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (as únicas colunas físicas da cadeia — tudo mais deriva delas, e essas 4 já chegam arredondadas pra cima dos steps/ZAF/BAF, ver seções acima). `TopOfYellowExecution` é o denominador de `ExecutionBuffer` (acima). As colunas `*Analytical` ainda não alimentam nenhum relatório/cálculo além de aparecerem cruas em `CenterProductGetDto`/`InventoryBufferManagementRow` — reservadas pra leitura "Buffer Analítica" ainda não escopada (ver `TODO.md`).
+**Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (as únicas colunas físicas da cadeia — tudo mais deriva delas, agora sem arredondamento em nenhum step/ZAF/BAF, ver seções acima). `TopOfYellowExecution` é o denominador de `ExecutionBuffer` (acima), agora cru. As colunas `*Analytical` ainda não alimentam nenhum relatório/cálculo além de aparecerem cruas em `CenterProductGetDto`/`InventoryBufferManagementRow` — reservadas pra leitura "Buffer Analítica" ainda não escopada (ver `TODO.md`).
 
 ## ZAF — ajuste de zona (`CenterProduct.ZafRedZone`/`ZafYellowZone`/`ZafGreenZone`)
 
@@ -410,12 +412,12 @@ ZafRedZone    = 0,                                                              
 ### Aplicação (soma o delta na zona de verdade)
 
 ```
-GreenZone     = CEILING(GreenZone + ZafGreenZone)
-YellowZone    = CEILING(YellowZone + ZafYellowZone)
-RedZoneBase   = CEILING(RedZoneBase + ZafRedZone)
+GreenZone     = GreenZone + ZafGreenZone
+YellowZone    = YellowZone + ZafYellowZone
+RedZoneBase   = RedZoneBase + ZafRedZone
 ```
 
-- Arredondamento pra cima aplicado no valor final (depois de somar o delta), não no delta guardado em `ZafRedZone`/`ZafYellowZone`/`ZafGreenZone` (esse continua cru — ver "Importante" acima). Mesma regra "sempre arredonda pra cima" das seções de zona-base, ver a nota importante 2026-09-14 lá.
+- Sem arredondamento (2026-09-20 — antes era `CEILING(...)` no valor final; ver a nota "Arredondamento passou a ser só de exibição" na seção de zonas derivadas acima).
 
 - O delta do vermelho é somado em `RedZoneBase`, não em `RedZoneSafe` — decisão explícita, não inferida.
 - `RedZone` (propriedade calculada `RedZoneSafe + RedZoneBase`) reflete o ajuste automaticamente, já que `RedZoneBase` foi incrementado.
@@ -824,7 +826,7 @@ Para cada linha de History no intervalo [dateStart, dateEnd]:
         Color(dia)         = UtilsDdmrp.CalculateBufferColor(Quantity(dia), TopOfRed(dia), YellowZoneTop(dia), GreenZoneTop(dia))
 
     Se mode = Execution:
-        RedZoneExecution(dia)    = YellowZoneExecution(dia) = CEILING(TopOfRed(dia) / 2)
+        RedZoneExecution(dia)    = YellowZoneExecution(dia) = TopOfRed(dia) / 2
         GreenZoneExecution(dia)  = YellowZone ?? 0
         TopOfRedExecution(dia)   = RedZoneExecution(dia)
         TopOfYellowExecution(dia) = RedZoneExecution(dia) + YellowZoneExecution(dia)
@@ -841,7 +843,7 @@ Agrupado por (IdProduct, IdCenter):
 ```
 
 - **`Execution` usa só o `Stock` do dia como quantidade — nunca `Netflow`** (confirmado explicitamente 2026-09-19): `QualifiedDemand`/`OpenInbounds` daquele dia são completamente ignorados nessa modalidade, diferente de `Netflow` onde os três compõem a quantidade via `CalculateNetflow`.
-- **As zonas de execução são derivadas de `TopOfRed`/`YellowZone`, mesma fórmula de `CenterProduct.RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`** (ver seção "CenterProduct — zonas derivadas" acima): `RedZoneExecution = YellowZoneExecution = TopOfRed / 2` (arredondado pra cima), `GreenZoneExecution` é o valor puro de `YellowZone` (não `GreenZone`) — não são colunas próprias de `History`, são recalculadas por dia a partir das mesmas colunas snapshot (`RedBaseZone`/`RedSafeZone`/`YellowZone`) que alimentam o modo `Netflow`.
+- **As zonas de execução são derivadas de `TopOfRed`/`YellowZone`, mesma fórmula de `CenterProduct.RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`** (ver seção "CenterProduct — zonas derivadas" acima): `RedZoneExecution = YellowZoneExecution = TopOfRed / 2` (sem arredondamento — 2026-09-20, ver a nota "Arredondamento passou a ser só de exibição" lá), `GreenZoneExecution` é o valor puro de `YellowZone` (não `GreenZone`) — não são colunas próprias de `History`, são recalculadas por dia a partir das mesmas colunas snapshot (`RedBaseZone`/`RedSafeZone`/`YellowZone`) que alimentam o modo `Netflow`.
 - **Zonas nulas contam como `NoColor`, não são excluídas do `QuantityDays`**: um dia de `History` sem `RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone` (zona ainda não calculada naquele dia) faz o topo de verde do modo escolhido ficar `0`, que `CalculateBufferColor` já resolve pra `NoColor` (checado antes de qualquer outra condição) — confirmado explicitamente 2026-09-19, esse dia ainda soma pro `QuantityDays` do par.
 - **`DaysRedAndBlack`/`DaysRedAndBlackPercentage` não são uma cor nova** — são a soma de `DaysRed` + `DaysBlack` (dias em ruptura ou na zona vermelha), calculada em cima da contagem por dia, não uma classificação própria de `CalculateBufferColor`.
 - Sem linha "hoje" injetada (diferente do `inventoryHistory`) — só conta dias que já têm uma linha de `History` gravada pelo robô; um par sem `History` nenhuma no intervalo simplesmente não aparece no resultado.
@@ -887,21 +889,21 @@ Para cada linha de History qualificada (RedBaseZone+RedSafeZone > 0, IdCenter em
     NetflowGreenZone(item,dia)  = GreenZone ?? 0
     AvailableStock(item,dia)    = (Stock ?? 0) - (ReservedStock ?? 0)
 
-    ExecutionRedZone(item,dia)    = ExecutionYellowZone(item,dia) = CEILING(NetflowRedZone(item,dia) / 2)
+    ExecutionRedZone(item,dia)    = ExecutionYellowZone(item,dia) = NetflowRedZone(item,dia) / 2
     ExecutionGreenZone(item,dia)  = NetflowYellowZone(item,dia)
                                      (mesma fórmula de CenterProduct.RedZoneExecution/YellowZoneExecution/GreenZoneExecution
                                       e do ComputeBufferColors dos dois reports acima)
 
-    RedSafeAnalytical(item,dia)    = CEILING(NetflowRedZone(item,dia) / 2)
-    YellowSafeAnalytical(item,dia) = CEILING(NetflowRedZone(item,dia))
-    GreenAnalytical(item,dia)      = CEILING(NetflowGreenZone(item,dia))                     (GreenZone puro, não soma NetflowRedZone)
+    RedSafeAnalytical(item,dia)    = NetflowRedZone(item,dia) / 2
+    YellowSafeAnalytical(item,dia) = NetflowRedZone(item,dia)
+    GreenAnalytical(item,dia)      = NetflowGreenZone(item,dia)                     (GreenZone puro, não soma NetflowRedZone)
     YellowExcessAnalytical(item,dia) = 0,
         se (NetflowRedZone+NetflowGreenZone) >= (NetflowRedZone+NetflowYellowZone)
-                                       = CEILING((NetflowRedZone+NetflowYellowZone) - (NetflowRedZone+NetflowGreenZone)),
+                                       = (NetflowRedZone+NetflowYellowZone) - (NetflowRedZone+NetflowGreenZone),
         caso contrário
                                      (mesmas fórmulas de CenterProduct.RedSafeAnalytical/YellowSafeAnalytical/
                                       GreenAnalytical/YellowExcessAnalytical, iguais às duplicadas inline em
-                                      GetInventoryBufferManagementQueryable)
+                                      GetInventoryBufferManagementQueryable — sem arredondamento, 2026-09-20)
 
     Netflow(item,dia) = UtilsDdmrp.CalculateNetflow(AvailableStock(item,dia), QualifiedDemand ?? 0, OpenInbounds ?? 0)
 
@@ -912,8 +914,8 @@ Para cada linha de History qualificada (RedBaseZone+RedSafeZone > 0, IdCenter em
                                  = 0,                                                        caso contrário
 
     RedExcessAnalytical(item,dia) = 0,                                    se TopOfGreenNetflow(item,dia) <= 0
-                                   = CEILING(TopOfGreenNetflow(item,dia) - (NetflowRedZone(item,dia)
-                                       + NetflowGreenZone(item,dia) + YellowExcessAnalytical(item,dia))),
+                                   = TopOfGreenNetflow(item,dia) - (NetflowRedZone(item,dia)
+                                       + NetflowGreenZone(item,dia) + YellowExcessAnalytical(item,dia)),
                                      caso contrário
 
     MinimumOscillationRange(item,dia) = NetflowRedZone(item,dia)

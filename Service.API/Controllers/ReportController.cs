@@ -21,6 +21,11 @@ namespace Service.API.Controllers
             AllowedQueryOptions = AllowedQueryOptions.Filter | AllowedQueryOptions.OrderBy | AllowedQueryOptions.Top | AllowedQueryOptions.Skip | AllowedQueryOptions.Count
         };
 
+        private static readonly ODataValidationSettings ColorSummaryValidationSettings = new()
+        {
+            AllowedQueryOptions = AllowedQueryOptions.Filter
+        };
+
         private readonly IReportService _reportService;
 
         public ReportController(IReportService reportService)
@@ -75,6 +80,27 @@ namespace Service.API.Controllers
 
             var rows = await query.ToListAsync(cancellationToken);
             return Ok(new ODataResult<InventoryBufferManagementRow> { Value = rows, Count = count });
+        }
+
+        // Snapshot count of CenterProduct by NetflowBufferColor/ExecutionBufferColor right now (not historical),
+        // respecting the same $filter as the inventoryBufferManagement route — for a "current state"
+        // donut/bar chart on the dashboard. Only $filter is accepted here (no $orderby/$top/$skip/$count,
+        // those don't mean anything for a grouped count) so it goes through the normal ApiResponseDto<T>
+        // envelope instead of ODataResult<T>/[SkipApiResponseWrapper].
+        [HttpGet("inventoryBufferManagement/colorSummary")]
+        [Authorize]
+        public async Task<ActionResult> InventoryBufferManagementColorSummary(
+            ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
+            CancellationToken cancellationToken)
+        {
+            queryOptions.Validate(ColorSummaryValidationSettings);
+
+            var query = _reportService.GetInventoryBufferManagementQueryable();
+            if (queryOptions.Filter != null)
+                query = (IQueryable<InventoryBufferManagementRow>)queryOptions.Filter.ApplyTo(query, new ODataQuerySettings());
+
+            var result = await _reportService.SummarizeInventoryBufferManagementByColorAsync(query, cancellationToken);
+            return Ok(result);
         }
 
         [HttpGet("openOrders/inbounds")]

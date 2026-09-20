@@ -78,9 +78,9 @@ namespace Service.Infra.Data.Calculation.Steps
                 cp.ZafGreenZone = d.GreenDelta,
                 cp.ZafYellowZone = d.YellowDelta,
                 cp.ZafRedZone = d.RedDelta,
-                cp.GreenZone = CEILING(cp.GreenZone + d.GreenDelta),
-                cp.YellowZone = CEILING(cp.YellowZone + d.YellowDelta),
-                cp.RedZoneBase = CEILING(cp.RedZoneBase + d.RedDelta)
+                cp.GreenZone = cp.GreenZone + d.GreenDelta,
+                cp.YellowZone = cp.YellowZone + d.YellowDelta,
+                cp.RedZoneBase = cp.RedZoneBase + d.RedDelta
             FROM dbo.CenterProducts cp
             JOIN Deltas d ON d.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType <> 1 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct});

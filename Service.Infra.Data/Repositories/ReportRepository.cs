@@ -414,6 +414,27 @@ namespace Service.Infra.Data.Repositories
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        // Snapshot counts by color for the dashboard's "current state" donut/bar — takes the caller's own
+        // IQueryable (already $filter-composed, same as ReportController.InventoryBufferManagement does before
+        // paging) and groups it by NetflowBufferColor/ExecutionBufferColor rather than materializing every row.
+        // Both fields are plain inline CASE-translatable expressions inside GetInventoryBufferManagementQueryable
+        // (see the comment above it), so a GroupBy composed on top translates to SQL the same way $orderby does —
+        // unlike the Ignore()'d CenterProduct properties that broke $filter composition (2026-09-15 bug above).
+        public async Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default)
+        {
+            var netflow = await query
+                .GroupBy(r => r.NetflowBufferColor)
+                .Select(g => new BufferColorSummaryRow { Color = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            var execution = await query
+                .GroupBy(r => r.ExecutionBufferColor)
+                .Select(g => new BufferColorSummaryRow { Color = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            return new InventoryBufferManagementColorSummaryResult { Netflow = netflow, Execution = execution };
+        }
+
         // Feeds AllocationGroupService's efficient-distribution ("DE") algorithm: only the current user's
         // approved Workspace items for the given group, with Netflow/TopOfGreen/Moq/PackQuantity already
         // computed by the shared inventory-buffer queryable, so that math stays a single source of truth.
@@ -521,7 +542,7 @@ namespace Service.Infra.Data.Repositories
 
             var centerProduct = await _context.CenterProduct
                 .Where(cp => cp.deletedAt == null && cp.IdCenter == idCenter && cp.IdProduct == idProduct)
-                .Select(cp => new { cp.Stock, cp.QualifiedDemand, cp.Adu, cp.RedZoneBase, cp.RedZoneSafe, cp.YellowZone, cp.GreenZone })
+                .Select(cp => new { cp.Stock, cp.QualifiedDemand, cp.Adu, cp.RedZoneBase, cp.RedZoneSafe, cp.RedZone, cp.YellowZone, cp.GreenZone })
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (centerProduct != null)
@@ -548,9 +569,7 @@ namespace Service.Infra.Data.Repositories
                     Adu = centerProduct.Adu,
                     RedSafeZone = centerProduct.RedZoneSafe,
                     RedBaseZone = centerProduct.RedZoneBase,
-                    RedZone = centerProduct.RedZoneSafe.HasValue && centerProduct.RedZoneBase.HasValue
-                        ? centerProduct.RedZoneSafe.Value + centerProduct.RedZoneBase.Value
-                        : (decimal?)null,
+                    RedZone = centerProduct.RedZone,
                     YellowZone = centerProduct.YellowZone,
                     GreenZone = centerProduct.GreenZone,
                     InventoryDays = centerProduct.Adu.HasValue && centerProduct.Adu.Value != 0 ? stock / centerProduct.Adu.Value : null,
@@ -829,21 +848,17 @@ namespace Service.Infra.Data.Repositories
             decimal? stock, decimal? qualifiedDemand, decimal? openInbounds,
             decimal? redBaseZone, decimal? redSafeZone, decimal? yellowZone, decimal? greenZone)
         {
-            var topOfRed = (redBaseZone ?? 0) + (redSafeZone ?? 0);
 
             var netflow = UtilsDdmrp.CalculateNetflow(stock ?? 0, qualifiedDemand ?? 0, openInbounds ?? 0);
-            var topOfYellow = topOfRed + (yellowZone ?? 0);
-            var topOfGreen = topOfYellow + (greenZone ?? 0);
-            var netflowColor = UtilsDdmrp.CalculateBufferColor(netflow, topOfRed, topOfYellow, topOfGreen);
+            var (netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen) = UtilsDdmrp.CalculateNetflowTops(redBaseZone ?? 0, redSafeZone ?? 0, yellowZone ?? 0,
+                greenZone ?? 0);
+            
+            var (executionRedZone, executionYellowZone, executionGreenZone) = UtilsDdmrp.CalculateExecutionZone(netflowTopOfRed, yellowZone??0);
+            var (executionTopOfRed, executionTopOfYellow, executionTopOfGreen) = UtilsDdmrp.CalculateExecutionTops(executionRedZone, executionYellowZone, executionGreenZone);
 
-            var redZoneExecution = Math.Ceiling(topOfRed / 2);
-            var yellowZoneExecution = redZoneExecution;
-            var greenZoneExecution = yellowZone ?? 0;
-            var topOfRedExecution = redZoneExecution;
-            var topOfYellowExecution = redZoneExecution + yellowZoneExecution;
-            var topOfGreenExecution = topOfYellowExecution + greenZoneExecution;
-            var executionColor = UtilsDdmrp.CalculateBufferColor(stock ?? 0, topOfRedExecution, topOfYellowExecution, topOfGreenExecution);
-
+            var netflowColor = UtilsDdmrp.CalculateBufferColor(netflow, netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen);
+            var executionColor = UtilsDdmrp.CalculateBufferColor(stock ?? 0, executionTopOfRed, executionTopOfYellow, executionTopOfGreen);
+            
             return (netflowColor, executionColor);
         }
 
@@ -980,34 +995,30 @@ namespace Service.Infra.Data.Repositories
 
                     foreach (var h in group)
                     {
-                        var netflowRedZone = (h.RedBaseZone ?? 0) + (h.RedSafeZone ?? 0);
                         var netflowYellowZone = h.YellowZone ?? 0;
                         var netflowGreenZone = h.GreenZone ?? 0;
                         var availableStock = (h.Stock ?? 0) - (h.ReservedStock ?? 0);
-
-                        var executionRedZone = Math.Ceiling(netflowRedZone / 2);
-                        var executionYellowZone = executionRedZone;
-                        var executionGreenZone = netflowYellowZone;
+                        var (netflowRedZone, _, topOfGreenNetflow) = UtilsDdmrp.CalculateNetflowTops(h.RedBaseZone ?? 0, h.RedSafeZone ?? 0, netflowYellowZone, netflowGreenZone);
+                        var (executionRedZone, executionYellowZone, executionGreenZone) = UtilsDdmrp.CalculateExecutionZone(netflowRedZone, netflowYellowZone);
 
                         // Same formulas as CenterProduct.RedSafeAnalytical/YellowSafeAnalytical/GreenAnalytical/
                         // YellowExcessAnalytical/RedExcessAnalytical (as duplicated inline in
                         // GetInventoryBufferManagementQueryable above), fed netflowRedZone/netflowYellowZone/
                         // netflowGreenZone instead of CenterProduct's own RedZone/YellowZone/GreenZone.
-                        var redSafeAnalytical = Math.Ceiling(netflowRedZone / 2);
-                        var yellowSafeAnalytical = Math.Ceiling(netflowRedZone);
+                        var redSafeAnalytical = netflowRedZone / 2;
+                        var yellowSafeAnalytical = netflowRedZone;
                         // Matches CenterProduct.GreenAnalytical (GreenZone alone, not RedZone + GreenZone).
-                        var greenAnalytical = Math.Ceiling(netflowGreenZone);
+                        var greenAnalytical = netflowGreenZone;
                         var yellowExcessAnalytical = (netflowRedZone + netflowGreenZone) >= (netflowRedZone + netflowYellowZone)
                             ? 0
-                            : Math.Ceiling((netflowRedZone + netflowYellowZone) - (netflowRedZone + netflowGreenZone));
+                            : (netflowRedZone + netflowYellowZone) - (netflowRedZone + netflowGreenZone);
 
                         var netflow = UtilsDdmrp.CalculateNetflow(availableStock, h.QualifiedDemand ?? 0, h.OpenInbounds ?? 0);
                         var averageProjectedInventory = netflowRedZone + (netflowGreenZone / 2);
-                        var topOfGreenNetflow = netflowRedZone + netflowYellowZone + netflowGreenZone;
                         var excessStock = availableStock - topOfGreenNetflow > 0 ? availableStock - topOfGreenNetflow : 0;
                         var redExcessAnalytical = topOfGreenNetflow <= 0
                             ? 0
-                            : Math.Ceiling(topOfGreenNetflow - (netflowRedZone + netflowGreenZone + yellowExcessAnalytical));
+                            : topOfGreenNetflow - (netflowRedZone + netflowGreenZone + yellowExcessAnalytical);
 
                         row.ExecutionRedZone += executionRedZone;
                         row.ExecutionYellowZone += executionYellowZone;

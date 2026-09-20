@@ -208,15 +208,16 @@ public class ReportRepositoryTests
         Assert.Equal(11m, row.YellowZoneExecution);
         Assert.Equal(16m, row.GreenZoneExecution);
 
-        // Regression coverage for 2026-09-20's fix: the report's inline Analytical-zone formulas (duplicated
-        // for OData composability, see the comment above GetInventoryBufferManagementQueryable) must match
-        // CenterProduct's own computed properties exactly — GreenAnalytical in particular used to double-count
-        // RedZone here (RedZone + GreenZone) instead of just GreenZone, diverging from the entity.
-        Assert.Equal(centerProduct.RedSafeAnalytical, row.RedSafeAnalytical);
-        Assert.Equal(centerProduct.YellowSafeAnalytical, row.YellowSafeAnalytical);
-        Assert.Equal(centerProduct.GreenAnalytical, row.GreenAnalytical);
-        Assert.Equal(centerProduct.YellowExcessAnalytical, row.YellowExcessAnalytical);
-        Assert.Equal(centerProduct.RedExcessAnalytical, row.RedExcessAnalytical);
+        // 2026-09-20: rounding was moved to be display-only, kept exclusively in this report — CenterProduct's
+        // own computed properties (RedSafeAnalytical/etc.) are no longer rounded, so these assertions compare
+        // against the ceiled values directly instead of centerProduct.X (which would now be the raw, unrounded
+        // figure). RedZone (already ceiled, 21 = Ceiling(10.1 + 10.2)) and TopOfGreen (51 = Ceiling(51.0)) feed
+        // every Analytical figure below — both already rounded before this stage.
+        Assert.Equal(11m, row.RedSafeAnalytical); // Ceiling(21 / 2)
+        Assert.Equal(21m, row.YellowSafeAnalytical); // Ceiling(21)
+        Assert.Equal(16m, row.GreenAnalytical); // Ceiling(15.4)
+        Assert.Equal(0m, row.YellowExcessAnalytical); // (21+15.4) >= (21+15.3)
+        Assert.Equal(15m, row.RedExcessAnalytical); // Ceiling(51 - (21+15.4+0))
     }
 
     // Parity coverage: GetInventoryBufferManagementQueryable now computes Netflow/OrderQuantity/

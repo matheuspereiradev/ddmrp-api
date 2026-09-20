@@ -103,5 +103,29 @@ namespace Service.Domain.Utils
 
             return deliveryDate.Value.Date < today ? (today - deliveryDate.Value.Date).Days : 0;
         }
+
+        public static (decimal executionRedZone,decimal executionYellowZone,  decimal executionGreenZone ) CalculateExecutionZone(decimal redZoneNetflow, decimal yellowZoneNetflow)
+        {
+            var executionRedZone = redZoneNetflow / 2;
+            var executionYellowZone = redZoneNetflow / 2;
+            var executionGreenZone = yellowZoneNetflow;
+            return (executionRedZone, executionYellowZone, executionGreenZone);
+        }
+        
+        public static (decimal executionTopOfRed,decimal executionTopOfYellow,  decimal executionTopOfGreen ) CalculateExecutionTops(decimal redZone, decimal yellowZone, decimal greenZone)
+        {
+            var executionTopOfRed = redZone;
+            var executionTopOfYellow = executionTopOfRed + yellowZone;
+            var executionTopOfGreen = executionTopOfYellow +  greenZone;
+            return (executionTopOfRed, executionTopOfYellow, executionTopOfGreen);
+        }
+        
+        public static (decimal netflowTopOfRed,decimal netflowTopOfYellow,  decimal netflowTopOfGreen ) CalculateNetflowTops(decimal redBaseZone, decimal redSafeZone, decimal yellowZone, decimal greenZone)
+        {
+            var netflowTopOfRed = redBaseZone + redSafeZone;
+            var netflowTopOfYellow = netflowTopOfRed + yellowZone;
+            var netflowTopOfGreen = netflowTopOfYellow +  greenZone;
+            return (netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen);
+        }
     }
 }

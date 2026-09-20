@@ -86,9 +86,9 @@ namespace Service.Infra.Data.Calculation.Steps
             )
             UPDATE cp
             SET
-                cp.YellowZone = CEILING(IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(cp.LeadTime * cp.Adu < 0, 0, cp.LeadTime * cp.Adu))),
-                cp.GreenZone = CEILING(IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(cp.Moq < 0, 0, cp.Moq))),
-                cp.RedZoneBase = CEILING(IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu) < 0, 0, ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu))))
+                cp.YellowZone = IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(cp.LeadTime * cp.Adu < 0, 0, cp.LeadTime * cp.Adu)),
+                cp.GreenZone = IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(cp.Moq < 0, 0, cp.Moq)),
+                cp.RedZoneBase = IIF(ISNULL(ma.Value, 0) = 0, 0, IIF(ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu) < 0, 0, ISNULL(ma.Value, 0) - (cp.LeadTime * cp.Adu)))
             FROM dbo.CenterProducts cp
             LEFT JOIN MaxAccumulated ma ON ma.CenterProductId = cp.Id
             WHERE cp.deletedAt IS NULL AND cp.BufferType = 3 AND ({idCenterProduct} IS NULL OR cp.Id = {idCenterProduct})

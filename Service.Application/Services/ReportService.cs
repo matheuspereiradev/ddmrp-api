@@ -20,6 +20,9 @@ namespace Service.Application.Services
         public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable() =>
             _reportRepository.GetInventoryBufferManagementQueryable();
 
+        public Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default) =>
+            _reportRepository.SummarizeInventoryBufferManagementByColorAsync(query, cancellationToken);
+
         public Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default) =>
             _reportRepository.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
 
