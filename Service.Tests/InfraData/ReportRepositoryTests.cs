@@ -208,16 +208,65 @@ public class ReportRepositoryTests
         Assert.Equal(11m, row.YellowZoneExecution);
         Assert.Equal(16m, row.GreenZoneExecution);
 
-        // 2026-09-20: rounding was moved to be display-only, kept exclusively in this report — CenterProduct's
-        // own computed properties (RedSafeAnalytical/etc.) are no longer rounded, so these assertions compare
-        // against the ceiled values directly instead of centerProduct.X (which would now be the raw, unrounded
-        // figure). RedZone (already ceiled, 21 = Ceiling(10.1 + 10.2)) and TopOfGreen (51 = Ceiling(51.0)) feed
-        // every Analytical figure below — both already rounded before this stage.
-        Assert.Equal(11m, row.RedSafeAnalytical); // Ceiling(21 / 2)
-        Assert.Equal(21m, row.YellowSafeAnalytical); // Ceiling(21)
+        // 2026-09-20: every field here is rounded exactly once, from ITS OWN raw formula (never by summing
+        // other already-rounded fields) — see the fix below (GetInventoryBufferManagementQueryable_RoundingIsAppliedOnceAtTheEnd_NeverCompounded).
+        // RedZone/TopOfRed raw = 10.1 + 10.2 = 20.3 (ceiled to 21 only in the final projection); TopOfGreen raw = 51.0 exact.
+        Assert.Equal(11m, row.RedSafeAnalytical); // Ceiling(20.3 / 2) = Ceiling(10.15)
+        Assert.Equal(21m, row.YellowSafeAnalytical); // Ceiling(20.3)
         Assert.Equal(16m, row.GreenAnalytical); // Ceiling(15.4)
-        Assert.Equal(0m, row.YellowExcessAnalytical); // (21+15.4) >= (21+15.3)
-        Assert.Equal(15m, row.RedExcessAnalytical); // Ceiling(51 - (21+15.4+0))
+        Assert.Equal(0m, row.YellowExcessAnalytical); // (20.3+15.4) >= (20.3+15.3)
+        // Raw: TopOfGreen 51.0 - (RedZone 20.3 + GreenZone 15.4 + YellowExcessAnalytical 0) = 15.3, Ceiling = 16.
+        // NOT Ceiling(51 - (21+15.4+0)) = 15 — that would reuse the already-ceiled RedZone (21) mid-formula,
+        // the same double-rounding bug this test guards against.
+        Assert.Equal(16m, row.RedExcessAnalytical);
+
+        // TopOfRedExecution/TopOfYellowExecution/TopOfGreenExecution must be derived from the RAW RedZoneExecution/
+        // YellowZoneExecution/GreenZoneExecution (10.15 / 10.15 / 15.3), then ceiled once — not from the already-
+        // ceiled displayed RedZoneExecution/YellowZoneExecution (11 + 11 = 22, which would be wrong).
+        Assert.Equal(11m, row.TopOfRedExecution); // Ceiling(10.15)
+        Assert.Equal(21m, row.TopOfYellowExecution); // Ceiling(10.15 + 10.15) = Ceiling(20.3), matches TopOfRed (21) exactly
+        Assert.Equal(36m, row.TopOfGreenExecution); // Ceiling(10.15 + 10.15 + 15.3) = Ceiling(35.6)
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementQueryable_RoundingIsAppliedOnceAtTheEnd_NeverCompounded()
+    {
+        // Regression test for the exact scenario reported 2026-09-20: RedZoneBase 111 + RedZoneSafe 28 = RedZone/
+        // TopOfRed 139 (a whole number, no rounding needed for RedZone itself). The old, buggy code rounded
+        // RedZoneExecution and YellowZoneExecution independently (each Ceiling(139 / 2) = Ceiling(69.5) = 70) and
+        // then summed the two already-rounded halves for TopOfYellowExecution (70 + 70 = 140) — wrong, since
+        // TopOfYellowExecution must algebraically equal TopOfRed (139). Rounding must happen once, at the very
+        // end, from the raw (unrounded) sum (69.5 + 69.5 = 139), never from summing pre-rounded parts.
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 100m,
+            RedZoneBase = 111m,
+            RedZoneSafe = 28m,
+            YellowZone = 0m,
+            GreenZone = 0m
+        };
+
+        context.AddRange(center, product, centerProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var row = Assert.Single(await repository.GetInventoryBufferManagementQueryable().ToListAsync());
+
+        Assert.Equal(139m, row.RedZone);
+        Assert.Equal(139m, row.TopOfRed);
+        Assert.Equal(70m, row.RedZoneExecution); // Ceiling(139 / 2) = Ceiling(69.5), display-only
+        Assert.Equal(70m, row.YellowZoneExecution); // Ceiling(139 / 2) = Ceiling(69.5), display-only
+        Assert.Equal(139m, row.TopOfYellowExecution); // Ceiling(69.5 + 69.5) = Ceiling(139) — NOT 70 + 70 = 140
     }
 
     // Parity coverage: GetInventoryBufferManagementQueryable now computes Netflow/OrderQuantity/

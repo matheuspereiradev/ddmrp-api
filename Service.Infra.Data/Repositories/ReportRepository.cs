@@ -76,6 +76,10 @@ namespace Service.Infra.Data.Repositories
 
             // Zone tops, from CenterProduct.RedZoneBase/RedZoneSafe/YellowZone/GreenZone directly (not cp.TopOfRed/etc.) —
             // same formulas as CenterProduct.TopOfRed/TopOfYellow/TopOfGreen/RedZone.
+            // Kept RAW (no Math.Ceiling) all the way through this method — rounding intermediate values and then
+            // summing/dividing the rounded results compounds error (e.g. RedZone 139 -> Ceiling(139/2) twice = 70+70 = 140,
+            // instead of Ceiling(139) = 139). Math.Ceiling is applied exactly once, in the final projection below,
+            // per field, from that field's own raw formula — never from already-rounded intermediate values.
             var withZoneTops = withOrderTotals.Select(x => new
             {
                 x.Cp,
@@ -86,22 +90,22 @@ namespace Service.Infra.Data.Repositories
                 x.WorkspaceOptimizedQuantity,
                 x.WorkspaceApproved,
                 TopOfRed = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue
-                    ? (decimal?)Math.Ceiling(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value)
+                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value)
                     : null,
                 RedZone = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue
-                    ? (decimal?)Math.Ceiling(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value)
+                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value)
                     : null,
                 TopOfYellow = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue && x.Cp.YellowZone.HasValue
-                    ? (decimal?)Math.Ceiling(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value)
+                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value)
                     : null,
                 TopOfGreen = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue && x.Cp.YellowZone.HasValue && x.Cp.GreenZone.HasValue
-                    ? (decimal?)Math.Ceiling(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value + x.Cp.GreenZone.Value)
+                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value + x.Cp.GreenZone.Value)
                     : null,
-                GreenZoneExecution = x.Cp.YellowZone.HasValue ? (decimal?)Math.Ceiling(x.Cp.YellowZone.Value) : null
+                GreenZoneExecution = x.Cp.YellowZone.HasValue ? (decimal?)x.Cp.YellowZone.Value : null
             });
 
-            // Execution zones + analytical zones, from withZoneTops' TopOfRed/RedZone (not cp.RedZoneExecution/etc.) —
-            // same formulas as CenterProduct.RedZoneExecution/YellowZoneExecution/RedSafeAnalytical/etc.
+            // Execution zones + analytical zones, from withZoneTops' (raw) TopOfRed/RedZone (not cp.RedZoneExecution/etc.) —
+            // same formulas as CenterProduct.RedZoneExecution/YellowZoneExecution/RedSafeAnalytical/etc., still unrounded.
             var withExecutionZones = withZoneTops.Select(x => new
             {
                 x.Cp,
@@ -116,23 +120,23 @@ namespace Service.Infra.Data.Repositories
                 x.TopOfYellow,
                 x.TopOfGreen,
                 x.GreenZoneExecution,
-                RedZoneExecution = x.TopOfRed.HasValue ? (decimal?)Math.Ceiling(x.TopOfRed.Value / 2) : null,
-                YellowZoneExecution = x.TopOfRed.HasValue ? (decimal?)Math.Ceiling(x.TopOfRed.Value / 2) : null,
-                RedSafeAnalytical = x.RedZone.HasValue ? (decimal?)Math.Ceiling(x.RedZone.Value / 2) : null,
-                YellowSafeAnalytical = x.RedZone.HasValue ? (decimal?)Math.Ceiling(x.RedZone.Value) : null,
+                RedZoneExecution = x.TopOfRed.HasValue ? (decimal?)(x.TopOfRed.Value / 2) : null,
+                YellowZoneExecution = x.TopOfRed.HasValue ? (decimal?)(x.TopOfRed.Value / 2) : null,
+                RedSafeAnalytical = x.RedZone.HasValue ? (decimal?)(x.RedZone.Value / 2) : null,
+                YellowSafeAnalytical = x.RedZone.HasValue ? (decimal?)x.RedZone.Value : null,
                 // Matches CenterProduct.GreenAnalytical (GreenZone alone, not RedZone + GreenZone) — fixed
                 // 2026-09-20, this used to double-count RedZone here, diverging from the entity's own formula.
-                GreenAnalytical = x.Cp.GreenZone.HasValue ? (decimal?)Math.Ceiling(x.Cp.GreenZone.Value) : null,
-                // UtilsDdmrp: 0 when (RedZone + GreenZone) >= (RedZone + YellowZone), else CEILING((RedZone + YellowZone) - (RedZone + GreenZone))
+                GreenAnalytical = x.Cp.GreenZone.HasValue ? (decimal?)x.Cp.GreenZone.Value : null,
+                // UtilsDdmrp: 0 when (RedZone + GreenZone) >= (RedZone + YellowZone), else (RedZone + YellowZone) - (RedZone + GreenZone)
                 YellowExcessAnalytical = x.RedZone.HasValue && x.Cp.YellowZone.HasValue && x.Cp.GreenZone.HasValue
                     ? ((x.RedZone.Value + x.Cp.GreenZone.Value) >= (x.RedZone.Value + x.Cp.YellowZone.Value)
                         ? (decimal?)0m
-                        : (decimal?)Math.Ceiling((x.RedZone.Value + x.Cp.YellowZone.Value) - (x.RedZone.Value + x.Cp.GreenZone.Value)))
+                        : (decimal?)((x.RedZone.Value + x.Cp.YellowZone.Value) - (x.RedZone.Value + x.Cp.GreenZone.Value)))
                     : null
             });
 
-            // Top-of-zone for the execution set, from withExecutionZones' RedZoneExecution/YellowZoneExecution/GreenZoneExecution —
-            // same formulas as CenterProduct.TopOfRedExecution/TopOfYellowExecution/TopOfGreenExecution.
+            // Top-of-zone for the execution set, from withExecutionZones' (raw) RedZoneExecution/YellowZoneExecution/GreenZoneExecution —
+            // same formulas as CenterProduct.TopOfRedExecution/TopOfYellowExecution/TopOfGreenExecution, still unrounded.
             var withExecutionTops = withExecutionZones.Select(x => new
             {
                 x.Cp,
@@ -153,18 +157,18 @@ namespace Service.Infra.Data.Repositories
                 x.YellowSafeAnalytical,
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
-                // UtilsDdmrp: 0 when TopOfGreen <= 0, else CEILING(TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical))
+                // UtilsDdmrp: 0 when TopOfGreen <= 0, else TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical)
                 RedExcessAnalytical = x.TopOfGreen.HasValue && x.RedZone.HasValue && x.Cp.GreenZone.HasValue && x.YellowExcessAnalytical.HasValue
                     ? (x.TopOfGreen.Value <= 0
                         ? (decimal?)0m
-                        : (decimal?)Math.Ceiling(x.TopOfGreen.Value - (x.RedZone.Value + x.Cp.GreenZone.Value + x.YellowExcessAnalytical.Value)))
+                        : (decimal?)(x.TopOfGreen.Value - (x.RedZone.Value + x.Cp.GreenZone.Value + x.YellowExcessAnalytical.Value)))
                     : null,
-                TopOfRedExecution = x.RedZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value) : null,
+                TopOfRedExecution = x.RedZoneExecution,
                 TopOfYellowExecution = x.RedZoneExecution.HasValue && x.YellowZoneExecution.HasValue
-                    ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value + x.YellowZoneExecution.Value)
+                    ? (decimal?)(x.RedZoneExecution.Value + x.YellowZoneExecution.Value)
                     : null,
                 TopOfGreenExecution = x.RedZoneExecution.HasValue && x.YellowZoneExecution.HasValue && x.GreenZoneExecution.HasValue
-                    ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value + x.YellowZoneExecution.Value + x.GreenZoneExecution.Value)
+                    ? (decimal?)(x.RedZoneExecution.Value + x.YellowZoneExecution.Value + x.GreenZoneExecution.Value)
                     : null
             });
 
@@ -321,23 +325,27 @@ namespace Service.Infra.Data.Repositories
                 FixedBufferProfile = x.Cp.FixedBufferProfile,
                 RedZoneBase = x.Cp.RedZoneBase,
                 RedZoneSafe = x.Cp.RedZoneSafe,
-                RedZone = x.RedZone,
+                // Rounding is display-only and happens exactly here, once, per field, from that field's own raw
+                // value computed above — never by summing other fields that were already rounded (that's what
+                // caused RedZoneExecution/YellowZoneExecution, each independently ceiled, to sum to more than
+                // Ceiling(TopOfYellowExecution)'s own raw total; fixed 2026-09-20).
+                RedZone = x.RedZone.HasValue ? (decimal?)Math.Ceiling(x.RedZone.Value) : null,
                 YellowZone = x.Cp.YellowZone,
                 GreenZone = x.Cp.GreenZone,
-                TopOfRed = x.TopOfRed,
-                TopOfYellow = x.TopOfYellow,
-                TopOfGreen = x.TopOfGreen,
-                RedZoneExecution = x.RedZoneExecution,
-                YellowZoneExecution = x.YellowZoneExecution,
-                GreenZoneExecution = x.GreenZoneExecution,
-                TopOfRedExecution = x.TopOfRedExecution,
-                TopOfYellowExecution = x.TopOfYellowExecution,
-                TopOfGreenExecution = x.TopOfGreenExecution,
-                RedSafeAnalytical = x.RedSafeAnalytical,
-                YellowSafeAnalytical = x.YellowSafeAnalytical,
-                GreenAnalytical = x.GreenAnalytical,
-                YellowExcessAnalytical = x.YellowExcessAnalytical,
-                RedExcessAnalytical = x.RedExcessAnalytical,
+                TopOfRed = x.TopOfRed.HasValue ? (decimal?)Math.Ceiling(x.TopOfRed.Value) : null,
+                TopOfYellow = x.TopOfYellow.HasValue ? (decimal?)Math.Ceiling(x.TopOfYellow.Value) : null,
+                TopOfGreen = x.TopOfGreen.HasValue ? (decimal?)Math.Ceiling(x.TopOfGreen.Value) : null,
+                RedZoneExecution = x.RedZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value) : null,
+                YellowZoneExecution = x.YellowZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.YellowZoneExecution.Value) : null,
+                GreenZoneExecution = x.GreenZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.GreenZoneExecution.Value) : null,
+                TopOfRedExecution = x.TopOfRedExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfRedExecution.Value) : null,
+                TopOfYellowExecution = x.TopOfYellowExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfYellowExecution.Value) : null,
+                TopOfGreenExecution = x.TopOfGreenExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfGreenExecution.Value) : null,
+                RedSafeAnalytical = x.RedSafeAnalytical.HasValue ? (decimal?)Math.Ceiling(x.RedSafeAnalytical.Value) : null,
+                YellowSafeAnalytical = x.YellowSafeAnalytical.HasValue ? (decimal?)Math.Ceiling(x.YellowSafeAnalytical.Value) : null,
+                GreenAnalytical = x.GreenAnalytical.HasValue ? (decimal?)Math.Ceiling(x.GreenAnalytical.Value) : null,
+                YellowExcessAnalytical = x.YellowExcessAnalytical.HasValue ? (decimal?)Math.Ceiling(x.YellowExcessAnalytical.Value) : null,
+                RedExcessAnalytical = x.RedExcessAnalytical.HasValue ? (decimal?)Math.Ceiling(x.RedExcessAnalytical.Value) : null,
                 UseDafOnGreenZone = x.Cp.UseDafOnGreenZone,
                 CustomLeadTimeFactor = x.Cp.CustomLeadTimeFactor,
                 CustomVariabilityFactor = x.Cp.CustomVariabilityFactor,
