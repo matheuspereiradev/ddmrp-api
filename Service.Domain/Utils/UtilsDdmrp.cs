@@ -53,6 +53,33 @@ namespace Service.Domain.Utils
 
             return BufferColor.Green;
         }
+        
+        
+        public static AnalyticalBufferColor CalculateAnalyticalBufferColor(decimal stock, decimal topOfRedSafeAnalytical, decimal topOfYellowSafeAnalytical, decimal topOfGreenAnalytical, decimal topOfYellowExcessAnalytical, decimal topOfRedExcessAnalytical)
+        {
+            if (topOfRedExcessAnalytical == 0)
+                return AnalyticalBufferColor.NoColor;
+
+            if (stock <= 0)
+                return AnalyticalBufferColor.NoColor;
+
+            if (stock <= topOfRedSafeAnalytical)
+                return AnalyticalBufferColor.RedSafe;
+
+            if (stock <= topOfYellowSafeAnalytical)
+                return AnalyticalBufferColor.YellowSafe;
+
+            if (stock <= topOfGreenAnalytical)
+                return AnalyticalBufferColor.Green;
+
+            if (stock <= topOfYellowExcessAnalytical)
+                return AnalyticalBufferColor.YellowExcess;
+            
+            if (stock <= topOfRedExcessAnalytical)
+                return AnalyticalBufferColor.RedExcess;
+
+            return AnalyticalBufferColor.Blue;
+        }
 
         public static decimal CalculateCoverageDays(decimal availableStock, decimal adu)
         {
@@ -126,6 +153,36 @@ namespace Service.Domain.Utils
             var netflowTopOfYellow = netflowTopOfRed + yellowZone;
             var netflowTopOfGreen = netflowTopOfYellow +  greenZone;
             return (netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen);
+        }
+
+        public static (decimal redSafeAnalytical, decimal yellowSafeAnalytical, decimal greenAnalytical, decimal yellowExcessAnalytical, decimal redExcessAnalytical) CalculateAnaliticalZone(decimal redZone, decimal yellowZone, decimal greenZone)
+        {
+            var redSafeAnalytical = redZone / 2;
+            var yellowSafeAnalytical = redZone / 2;
+            var greenAnalytical = greenZone;
+            var yellowExcessAnalytical = greenZone >= yellowZone
+                ? 0
+                : yellowZone - greenZone;
+            var redExcessAnalytical = (redZone + yellowZone + greenZone) <= 0
+                ? 0
+                : (redZone + yellowZone + greenZone) - (redZone + greenZone + yellowExcessAnalytical);
+            return (redSafeAnalytical, yellowSafeAnalytical, greenAnalytical, yellowExcessAnalytical,
+                redExcessAnalytical);
+
+        }
+        
+        public static (decimal topOfRedSafeAnalytical, decimal topOfYellowSafeAnalytical, decimal topOfGreenAnalytical, decimal topOfYellowExcessAnalytical, decimal topOfRedExcessAnalytical) CalculateAnalyticalTops(decimal redSafeAnalytical, decimal yellowSafeAnalytical, decimal greenAnalytical, decimal yellowExcessAnalytical, decimal redExcessAnalytical)
+        {
+            
+            var topOfRedSafeAnalytical = redSafeAnalytical;
+            var topOfYellowSafeAnalytical = topOfRedSafeAnalytical + yellowSafeAnalytical;
+            var topOfGreenAnalytical = topOfYellowSafeAnalytical + greenAnalytical;
+            var topOfYellowExcessAnalytical = topOfGreenAnalytical + yellowExcessAnalytical;
+            var topOfRedExcessAnalytical = topOfYellowExcessAnalytical + redExcessAnalytical;
+            
+            return (topOfRedSafeAnalytical, topOfYellowSafeAnalytical, topOfGreenAnalytical, topOfYellowExcessAnalytical,
+                topOfRedExcessAnalytical);
+
         }
     }
 }

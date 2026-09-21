@@ -18,6 +18,7 @@ namespace Service.Domain.Report.Results
         public decimal AvailableStock { get; set; }
         public decimal Netflow { get; set; }
         public decimal ExcessStock { get; set; }
+        public decimal ExcessStockAnalytical { get; set; }
         public decimal MinimumOscillationRange { get; set; }
         public decimal MaximumOscillationRange { get; set; }
     }

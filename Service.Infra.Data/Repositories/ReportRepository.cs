@@ -52,24 +52,30 @@ namespace Service.Infra.Data.Repositories
                 {
                     Cp = cp,
                     Inbounds = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && !o.IsFictional)
+                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter &&
+                                    o.IdProduct == cp.IdProduct && !o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
                     FictionalInbounds = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && o.IsFictional)
+                        .Where(o => o.deletedAt == null && o.IsInbound && o.IdDestinyCenter == cp.IdCenter &&
+                                    o.IdProduct == cp.IdProduct && o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
                     Outbounds = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && !o.IsFictional)
+                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter &&
+                                    o.IdProduct == cp.IdProduct && !o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
                     FictionalOutbounds = _context.Order
-                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter && o.IdProduct == cp.IdProduct && o.IsFictional)
+                        .Where(o => o.deletedAt == null && o.IsOutbound && o.IdOriginCenter == cp.IdCenter &&
+                                    o.IdProduct == cp.IdProduct && o.IsFictional)
                         .Sum(o => (decimal?)(o.Quantity - o.DeliveredQuantity)) ?? 0,
                     // Left join to the current user's Workspace row for this CenterProduct (one per user+product+center).
                     WorkspaceOptimizedQuantity = _context.Workspace
-                        .Where(w => w.deletedAt == null && w.IdCenter == cp.IdCenter && w.IdProduct == cp.IdProduct && w.IdUser == currentUserId)
+                        .Where(w => w.deletedAt == null && w.IdCenter == cp.IdCenter && w.IdProduct == cp.IdProduct &&
+                                    w.IdUser == currentUserId)
                         .Select(w => (decimal?)w.OptimizedQuantity)
                         .FirstOrDefault(),
                     WorkspaceApproved = _context.Workspace
-                        .Where(w => w.deletedAt == null && w.IdCenter == cp.IdCenter && w.IdProduct == cp.IdProduct && w.IdUser == currentUserId)
+                        .Where(w => w.deletedAt == null && w.IdCenter == cp.IdCenter && w.IdProduct == cp.IdProduct &&
+                                    w.IdUser == currentUserId)
                         .Select(w => (bool?)w.Approved)
                         .FirstOrDefault()
                 });
@@ -98,8 +104,10 @@ namespace Service.Infra.Data.Repositories
                 TopOfYellow = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue && x.Cp.YellowZone.HasValue
                     ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value)
                     : null,
-                TopOfGreen = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue && x.Cp.YellowZone.HasValue && x.Cp.GreenZone.HasValue
-                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value + x.Cp.GreenZone.Value)
+                TopOfGreen = x.Cp.RedZoneBase.HasValue && x.Cp.RedZoneSafe.HasValue && x.Cp.YellowZone.HasValue &&
+                             x.Cp.GreenZone.HasValue
+                    ? (decimal?)(x.Cp.RedZoneBase.Value + x.Cp.RedZoneSafe.Value + x.Cp.YellowZone.Value +
+                                 x.Cp.GreenZone.Value)
                     : null,
                 GreenZoneExecution = x.Cp.YellowZone.HasValue ? (decimal?)x.Cp.YellowZone.Value : null
             });
@@ -122,16 +130,16 @@ namespace Service.Infra.Data.Repositories
                 x.GreenZoneExecution,
                 RedZoneExecution = x.TopOfRed.HasValue ? (decimal?)(x.TopOfRed.Value / 2) : null,
                 YellowZoneExecution = x.TopOfRed.HasValue ? (decimal?)(x.TopOfRed.Value / 2) : null,
+                // UtilsDdmrp.CalculateAnaliticalZone, inlined — can't call it here since this method must stay
+                // one IQueryable chain for OData's $filter/$orderby to compose into SQL (see the OData pitfall
+                // note above GetInventoryBufferManagementQueryable's declaration).
                 RedSafeAnalytical = x.RedZone.HasValue ? (decimal?)(x.RedZone.Value / 2) : null,
-                YellowSafeAnalytical = x.RedZone.HasValue ? (decimal?)x.RedZone.Value : null,
-                // Matches CenterProduct.GreenAnalytical (GreenZone alone, not RedZone + GreenZone) — fixed
-                // 2026-09-20, this used to double-count RedZone here, diverging from the entity's own formula.
+                YellowSafeAnalytical = x.RedZone.HasValue ? (decimal?)(x.RedZone.Value / 2) : null,
                 GreenAnalytical = x.Cp.GreenZone.HasValue ? (decimal?)x.Cp.GreenZone.Value : null,
-                // UtilsDdmrp: 0 when (RedZone + GreenZone) >= (RedZone + YellowZone), else (RedZone + YellowZone) - (RedZone + GreenZone)
-                YellowExcessAnalytical = x.RedZone.HasValue && x.Cp.YellowZone.HasValue && x.Cp.GreenZone.HasValue
-                    ? ((x.RedZone.Value + x.Cp.GreenZone.Value) >= (x.RedZone.Value + x.Cp.YellowZone.Value)
+                YellowExcessAnalytical = x.Cp.YellowZone.HasValue && x.Cp.GreenZone.HasValue
+                    ? (x.Cp.GreenZone.Value >= x.Cp.YellowZone.Value
                         ? (decimal?)0m
-                        : (decimal?)((x.RedZone.Value + x.Cp.YellowZone.Value) - (x.RedZone.Value + x.Cp.GreenZone.Value)))
+                        : (decimal?)(x.Cp.YellowZone.Value - x.Cp.GreenZone.Value))
                     : null
             });
 
@@ -157,18 +165,37 @@ namespace Service.Infra.Data.Repositories
                 x.YellowSafeAnalytical,
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
-                // UtilsDdmrp: 0 when TopOfGreen <= 0, else TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical)
-                RedExcessAnalytical = x.TopOfGreen.HasValue && x.RedZone.HasValue && x.Cp.GreenZone.HasValue && x.YellowExcessAnalytical.HasValue
+                // UtilsDdmrp.CalculateAnaliticalZone, inlined (see the OData pitfall note above this method):
+                // 0 when TopOfGreen <= 0, else TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical).
+                RedExcessAnalytical = x.TopOfGreen.HasValue && x.RedZone.HasValue && x.Cp.GreenZone.HasValue &&
+                                      x.YellowExcessAnalytical.HasValue
                     ? (x.TopOfGreen.Value <= 0
                         ? (decimal?)0m
-                        : (decimal?)(x.TopOfGreen.Value - (x.RedZone.Value + x.Cp.GreenZone.Value + x.YellowExcessAnalytical.Value)))
+                        : (decimal?)(x.TopOfGreen.Value -
+                                     (x.RedZone.Value + x.Cp.GreenZone.Value + x.YellowExcessAnalytical.Value)))
                     : null,
                 TopOfRedExecution = x.RedZoneExecution,
                 TopOfYellowExecution = x.RedZoneExecution.HasValue && x.YellowZoneExecution.HasValue
                     ? (decimal?)(x.RedZoneExecution.Value + x.YellowZoneExecution.Value)
                     : null,
-                TopOfGreenExecution = x.RedZoneExecution.HasValue && x.YellowZoneExecution.HasValue && x.GreenZoneExecution.HasValue
+                TopOfGreenExecution = x.RedZoneExecution.HasValue && x.YellowZoneExecution.HasValue &&
+                                      x.GreenZoneExecution.HasValue
                     ? (decimal?)(x.RedZoneExecution.Value + x.YellowZoneExecution.Value + x.GreenZoneExecution.Value)
+                    : null,
+                // UtilsDdmrp.CalculateAnalyticalTops, inlined (see the OData pitfall note above this method):
+                // cumulative sum of the analytical zones, same order as CalculateAnalyticalTops' parameters.
+                TopOfRedSafeAnalytical = x.RedSafeAnalytical,
+                TopOfYellowSafeAnalytical = x.RedSafeAnalytical.HasValue && x.YellowSafeAnalytical.HasValue
+                    ? (decimal?)(x.RedSafeAnalytical.Value + x.YellowSafeAnalytical.Value)
+                    : null,
+                TopOfGreenAnalytical = x.RedSafeAnalytical.HasValue && x.YellowSafeAnalytical.HasValue &&
+                                       x.GreenAnalytical.HasValue
+                    ? (decimal?)(x.RedSafeAnalytical.Value + x.YellowSafeAnalytical.Value + x.GreenAnalytical.Value)
+                    : null,
+                TopOfYellowExcessAnalytical = x.RedSafeAnalytical.HasValue && x.YellowSafeAnalytical.HasValue &&
+                                              x.GreenAnalytical.HasValue && x.YellowExcessAnalytical.HasValue
+                    ? (decimal?)(x.RedSafeAnalytical.Value + x.YellowSafeAnalytical.Value + x.GreenAnalytical.Value +
+                                 x.YellowExcessAnalytical.Value)
                     : null
             });
 
@@ -197,6 +224,15 @@ namespace Service.Infra.Data.Repositories
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
                 x.RedExcessAnalytical,
+                x.TopOfRedSafeAnalytical,
+                x.TopOfYellowSafeAnalytical,
+                x.TopOfGreenAnalytical,
+                x.TopOfYellowExcessAnalytical,
+                // UtilsDdmrp.CalculateAnalyticalTops, inlined: last of the 5, needs RedExcessAnalytical which is
+                // only available as a sibling from the previous stage (see the comment above withExecutionTops).
+                TopOfRedExcessAnalytical = x.TopOfYellowExcessAnalytical.HasValue && x.RedExcessAnalytical.HasValue
+                    ? (decimal?)(x.TopOfYellowExcessAnalytical.Value + x.RedExcessAnalytical.Value)
+                    : null,
                 Netflow = (x.Cp.Stock - x.Cp.ReservedStock) + x.Inbounds - (x.Cp.QualifiedDemand ?? 0)
             });
 
@@ -225,6 +261,11 @@ namespace Service.Infra.Data.Repositories
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
                 x.RedExcessAnalytical,
+                x.TopOfRedSafeAnalytical,
+                x.TopOfYellowSafeAnalytical,
+                x.TopOfGreenAnalytical,
+                x.TopOfYellowExcessAnalytical,
+                x.TopOfRedExcessAnalytical,
                 x.Netflow,
                 OrderQuantity = x.Netflow < (x.TopOfYellow ?? 0) ? (x.TopOfGreen ?? 0) - x.Netflow : 0,
                 // UtilsDdmrp.CalculateSimulatedNetflow(netflow, approved, workspaceOptimizedQuantity)
@@ -255,13 +296,20 @@ namespace Service.Infra.Data.Repositories
                 x.GreenAnalytical,
                 x.YellowExcessAnalytical,
                 x.RedExcessAnalytical,
+                x.TopOfRedSafeAnalytical,
+                x.TopOfYellowSafeAnalytical,
+                x.TopOfGreenAnalytical,
+                x.TopOfYellowExcessAnalytical,
+                x.TopOfRedExcessAnalytical,
                 x.Netflow,
                 x.OrderQuantity,
                 x.SimulatedNetflow,
                 // UtilsDdmrp.CalculateOptimizedOrderQuantity — the system-suggested value, before any Workspace override
                 SystemOptimizedOrderQuantity = x.Cp.PackQuantity == 0
                     ? 0
-                    : (x.OrderQuantity < x.Cp.Moq ? 0 : Math.Floor(x.OrderQuantity / x.Cp.PackQuantity) * x.Cp.PackQuantity),
+                    : (x.OrderQuantity < x.Cp.Moq
+                        ? 0
+                        : Math.Floor(x.OrderQuantity / x.Cp.PackQuantity) * x.Cp.PackQuantity),
                 // UtilsDdmrp.CalculateBufferPercentage(topOfGreen, delta: netflow)
                 NetflowBufferPercentage = (x.TopOfGreen ?? 0) == 0 ? 0 : x.Netflow / (x.TopOfGreen ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: netflow, topOfRed, topOfYellow, topOfGreen)
@@ -272,7 +320,8 @@ namespace Service.Infra.Data.Repositories
                     : x.Netflow <= (x.TopOfYellow ?? 0) ? BufferColor.Yellow
                     : BufferColor.Green,
                 // UtilsDdmrp.CalculateBufferPercentage(topOfGreen, delta: simulatedNetflow)
-                SimulatedNetflowBufferPercentage = (x.TopOfGreen ?? 0) == 0 ? 0 : x.SimulatedNetflow / (x.TopOfGreen ?? 0),
+                SimulatedNetflowBufferPercentage =
+                    (x.TopOfGreen ?? 0) == 0 ? 0 : x.SimulatedNetflow / (x.TopOfGreen ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: simulatedNetflow, topOfRed, topOfYellow, topOfGreen)
                 SimulatedNetflowBufferColor = (x.TopOfGreen ?? 0) == 0 ? BufferColor.NoColor
                     : x.SimulatedNetflow <= 0 ? BufferColor.Black
@@ -283,14 +332,25 @@ namespace Service.Infra.Data.Repositories
                 // UtilsDdmrp.CalculateCoverageDays(availableStock: Stock - ReservedStock, adu)
                 CoverageDays = (x.Cp.Adu ?? 0) > 0 ? (x.Cp.Stock - x.Cp.ReservedStock) / (x.Cp.Adu ?? 0) : 0,
                 // UtilsDdmrp.CalculateBufferPercentage(topOfGreen: topOfYellowExecution, delta: Stock)
-                ExecutionBufferPercentage = (x.TopOfYellowExecution ?? 0) == 0 ? 0 : x.Cp.Stock / (x.TopOfYellowExecution ?? 0),
+                ExecutionBufferPercentage =
+                    (x.TopOfYellowExecution ?? 0) == 0 ? 0 : x.Cp.Stock / (x.TopOfYellowExecution ?? 0),
                 // UtilsDdmrp.CalculateBufferColor(quantity: Stock, topOfRedExecution, topOfYellowExecution, topOfGreenExecution)
                 ExecutionBufferColor = (x.TopOfGreenExecution ?? 0) == 0 ? BufferColor.NoColor
                     : x.Cp.Stock <= 0 ? BufferColor.Black
                     : x.Cp.Stock > (x.TopOfGreenExecution ?? 0) ? BufferColor.Blue
                     : x.Cp.Stock <= (x.TopOfRedExecution ?? 0) ? BufferColor.Red
                     : x.Cp.Stock <= (x.TopOfYellowExecution ?? 0) ? BufferColor.Yellow
-                    : BufferColor.Green
+                    : BufferColor.Green,
+                // UtilsDdmrp.CalculateAnalyticalBufferColor(stock, topOfRedSafeAnalytical, topOfYellowSafeAnalytical,
+                // topOfGreenAnalytical, topOfYellowExcessAnalytical, topOfRedExcessAnalytical)
+                AnalyticalBufferColor = (x.TopOfRedExcessAnalytical ?? 0) == 0 ? AnalyticalBufferColor.NoColor
+                    : x.Cp.Stock <= 0 ? AnalyticalBufferColor.NoColor
+                    : x.Cp.Stock <= (x.TopOfRedSafeAnalytical ?? 0) ? AnalyticalBufferColor.RedSafe
+                    : x.Cp.Stock <= (x.TopOfYellowSafeAnalytical ?? 0) ? AnalyticalBufferColor.YellowSafe
+                    : x.Cp.Stock <= (x.TopOfGreenAnalytical ?? 0) ? AnalyticalBufferColor.Green
+                    : x.Cp.Stock <= (x.TopOfYellowExcessAnalytical ?? 0) ? AnalyticalBufferColor.YellowExcess
+                    : x.Cp.Stock <= (x.TopOfRedExcessAnalytical ?? 0) ? AnalyticalBufferColor.RedExcess
+                    : AnalyticalBufferColor.Blue
             });
 
             return withDerivedMetrics.Select(x => new InventoryBufferManagementRow
@@ -335,23 +395,58 @@ namespace Service.Infra.Data.Repositories
                 TopOfRed = x.TopOfRed.HasValue ? (decimal?)Math.Ceiling(x.TopOfRed.Value) : null,
                 TopOfYellow = x.TopOfYellow.HasValue ? (decimal?)Math.Ceiling(x.TopOfYellow.Value) : null,
                 TopOfGreen = x.TopOfGreen.HasValue ? (decimal?)Math.Ceiling(x.TopOfGreen.Value) : null,
-                RedZoneExecution = x.RedZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value) : null,
-                YellowZoneExecution = x.YellowZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.YellowZoneExecution.Value) : null,
-                GreenZoneExecution = x.GreenZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.GreenZoneExecution.Value) : null,
-                TopOfRedExecution = x.TopOfRedExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfRedExecution.Value) : null,
-                TopOfYellowExecution = x.TopOfYellowExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfYellowExecution.Value) : null,
-                TopOfGreenExecution = x.TopOfGreenExecution.HasValue ? (decimal?)Math.Ceiling(x.TopOfGreenExecution.Value) : null,
-                RedSafeAnalytical = x.RedSafeAnalytical.HasValue ? (decimal?)Math.Ceiling(x.RedSafeAnalytical.Value) : null,
-                YellowSafeAnalytical = x.YellowSafeAnalytical.HasValue ? (decimal?)Math.Ceiling(x.YellowSafeAnalytical.Value) : null,
+                RedZoneExecution =
+                    x.RedZoneExecution.HasValue ? (decimal?)Math.Ceiling(x.RedZoneExecution.Value) : null,
+                YellowZoneExecution = x.YellowZoneExecution.HasValue
+                    ? (decimal?)Math.Ceiling(x.YellowZoneExecution.Value)
+                    : null,
+                GreenZoneExecution = x.GreenZoneExecution.HasValue
+                    ? (decimal?)Math.Ceiling(x.GreenZoneExecution.Value)
+                    : null,
+                TopOfRedExecution = x.TopOfRedExecution.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfRedExecution.Value)
+                    : null,
+                TopOfYellowExecution = x.TopOfYellowExecution.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfYellowExecution.Value)
+                    : null,
+                TopOfGreenExecution = x.TopOfGreenExecution.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfGreenExecution.Value)
+                    : null,
+                RedSafeAnalytical = x.RedSafeAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.RedSafeAnalytical.Value)
+                    : null,
+                YellowSafeAnalytical = x.YellowSafeAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.YellowSafeAnalytical.Value)
+                    : null,
                 GreenAnalytical = x.GreenAnalytical.HasValue ? (decimal?)Math.Ceiling(x.GreenAnalytical.Value) : null,
-                YellowExcessAnalytical = x.YellowExcessAnalytical.HasValue ? (decimal?)Math.Ceiling(x.YellowExcessAnalytical.Value) : null,
-                RedExcessAnalytical = x.RedExcessAnalytical.HasValue ? (decimal?)Math.Ceiling(x.RedExcessAnalytical.Value) : null,
+                YellowExcessAnalytical = x.YellowExcessAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.YellowExcessAnalytical.Value)
+                    : null,
+                RedExcessAnalytical = x.RedExcessAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.RedExcessAnalytical.Value)
+                    : null,
+                TopOfRedSafeAnalytical = x.TopOfRedSafeAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfRedSafeAnalytical.Value)
+                    : null,
+                TopOfYellowSafeAnalytical = x.TopOfYellowSafeAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfYellowSafeAnalytical.Value)
+                    : null,
+                TopOfGreenAnalytical = x.TopOfGreenAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfGreenAnalytical.Value)
+                    : null,
+                TopOfYellowExcessAnalytical = x.TopOfYellowExcessAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfYellowExcessAnalytical.Value)
+                    : null,
+                TopOfRedExcessAnalytical = x.TopOfRedExcessAnalytical.HasValue
+                    ? (decimal?)Math.Ceiling(x.TopOfRedExcessAnalytical.Value)
+                    : null,
                 UseDafOnGreenZone = x.Cp.UseDafOnGreenZone,
                 CustomLeadTimeFactor = x.Cp.CustomLeadTimeFactor,
                 CustomVariabilityFactor = x.Cp.CustomVariabilityFactor,
                 GreenZoneParametrizationUseMoq = x.Cp.GreenZoneParametrizationUseMoq,
                 GreenZoneParametrizationUseAduXFrequency = x.Cp.GreenZoneParametrizationUseAduXFrequency,
-                GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime = x.Cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime,
+                GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime =
+                    x.Cp.GreenZoneParametrizationUseAduXLeadTimeXFactLeadTime,
                 BufferType = x.Cp.BufferType,
                 ZafRedZone = x.Cp.ZafRedZone,
                 ZafYellowZone = x.Cp.ZafYellowZone,
@@ -384,12 +479,18 @@ namespace Service.Infra.Data.Repositories
                 ProductWorkCenter = x.Cp.Product.WorkCenter,
 
                 ProviderCode = x.Cp.Provider != null && x.Cp.Provider.deletedAt == null ? x.Cp.Provider.Code : null,
-                ProviderDescription = x.Cp.Provider != null && x.Cp.Provider.deletedAt == null ? x.Cp.Provider.Description : null,
+                ProviderDescription = x.Cp.Provider != null && x.Cp.Provider.deletedAt == null
+                    ? x.Cp.Provider.Description
+                    : null,
 
-                BufferProfileName = x.Cp.BufferProfile != null && x.Cp.BufferProfile.deletedAt == null ? x.Cp.BufferProfile.ProfileName : null,
+                BufferProfileName = x.Cp.BufferProfile != null && x.Cp.BufferProfile.deletedAt == null
+                    ? x.Cp.BufferProfile.ProfileName
+                    : null,
                 TagName = x.Cp.Tag != null && x.Cp.Tag.deletedAt == null ? x.Cp.Tag.Name : null,
                 ReasonName = x.Cp.Reason != null && x.Cp.Reason.deletedAt == null ? x.Cp.Reason.Name : null,
-                AllocationGroupName = x.Cp.AllocationGroup != null && x.Cp.AllocationGroup.deletedAt == null ? x.Cp.AllocationGroup.Name : null,
+                AllocationGroupName = x.Cp.AllocationGroup != null && x.Cp.AllocationGroup.deletedAt == null
+                    ? x.Cp.AllocationGroup.Name
+                    : null,
 
                 Inbounds = x.Inbounds,
                 FictionalInbounds = x.FictionalInbounds,
@@ -408,14 +509,16 @@ namespace Service.Infra.Data.Repositories
                 SimulatedNetflowBufferColor = x.SimulatedNetflowBufferColor,
                 CoverageDays = x.CoverageDays,
                 ExecutionBufferPercentage = x.ExecutionBufferPercentage,
-                ExecutionBufferColor = x.ExecutionBufferColor
+                ExecutionBufferColor = x.ExecutionBufferColor,
+                AnalyticalBufferColor = x.AnalyticalBufferColor
             });
         }
 
         // Reuses GetInventoryBufferManagementQueryable() so the Workspace-scoped SimulatedNetflow* fields
         // (left-joined to the current user's Workspace row inside that method) stay a single source of truth —
         // used by WorkspaceService to return the post-update simulated buffer for one CenterProduct.
-        public async Task<InventoryBufferManagementRow?> GetInventoryBufferManagementRowAsync(int idCenter, int idProduct, CancellationToken cancellationToken = default)
+        public async Task<InventoryBufferManagementRow?> GetInventoryBufferManagementRowAsync(int idCenter,
+            int idProduct, CancellationToken cancellationToken = default)
         {
             return await GetInventoryBufferManagementQueryable()
                 .Where(r => r.IdCenter == idCenter && r.IdProduct == idProduct)
@@ -428,7 +531,8 @@ namespace Service.Infra.Data.Repositories
         // Both fields are plain inline CASE-translatable expressions inside GetInventoryBufferManagementQueryable
         // (see the comment above it), so a GroupBy composed on top translates to SQL the same way $orderby does —
         // unlike the Ignore()'d CenterProduct properties that broke $filter composition (2026-09-15 bug above).
-        public async Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default)
+        public async Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(
+            IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default)
         {
             var netflow = await query
                 .GroupBy(r => r.NetflowBufferColor)
@@ -440,20 +544,28 @@ namespace Service.Infra.Data.Repositories
                 .Select(g => new BufferColorSummaryRow { Color = g.Key, Count = g.Count() })
                 .ToListAsync(cancellationToken);
 
-            return new InventoryBufferManagementColorSummaryResult { Netflow = netflow, Execution = execution };
+            var analytical = await query
+                .GroupBy(r => r.AnalyticalBufferColor)
+                .Select(g => new AnalyticalBufferColorSummaryRow { Color = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            return new InventoryBufferManagementColorSummaryResult
+                { Netflow = netflow, Execution = execution, Analytical = analytical };
         }
 
         // Feeds AllocationGroupService's efficient-distribution ("DE") algorithm: only the current user's
         // approved Workspace items for the given group, with Netflow/TopOfGreen/Moq/PackQuantity already
         // computed by the shared inventory-buffer queryable, so that math stays a single source of truth.
-        public async Task<List<InventoryBufferManagementRow>> GetApprovedByAllocationGroupAsync(int idAllocationGroup, CancellationToken cancellationToken = default)
+        public async Task<List<InventoryBufferManagementRow>> GetApprovedByAllocationGroupAsync(int idAllocationGroup,
+            CancellationToken cancellationToken = default)
         {
             return await GetInventoryBufferManagementQueryable()
                 .Where(r => r.IdAllocationGroup == idAllocationGroup && r.Approved)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default)
+        public async Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct,
+            CancellationToken cancellationToken = default)
         {
             var query = _context.Order
                 .Where(o => o.deletedAt == null && o.Quantity > o.DeliveredQuantity && o.IsInbound && !o.IsFictional);
@@ -472,15 +584,24 @@ namespace Service.Infra.Data.Repositories
 
                     IdPartner = o.IdPartner,
                     PartnerCode = o.Partner != null && o.Partner.deletedAt == null ? o.Partner.Code : null,
-                    PartnerDescription = o.Partner != null && o.Partner.deletedAt == null ? o.Partner.Description : null,
+                    PartnerDescription =
+                        o.Partner != null && o.Partner.deletedAt == null ? o.Partner.Description : null,
 
                     IdDestinyCenter = o.IdDestinyCenter,
-                    DestinyCenterCode = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null ? o.DestinyCenter.Code : null,
-                    DestinyCenterDescription = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null ? o.DestinyCenter.Description : null,
+                    DestinyCenterCode = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null
+                        ? o.DestinyCenter.Code
+                        : null,
+                    DestinyCenterDescription = o.DestinyCenter != null && o.DestinyCenter.deletedAt == null
+                        ? o.DestinyCenter.Description
+                        : null,
 
                     IdOriginCenter = o.IdOriginCenter,
-                    OriginCenterCode = o.OriginCenter != null && o.OriginCenter.deletedAt == null ? o.OriginCenter.Code : null,
-                    OriginCenterDescription = o.OriginCenter != null && o.OriginCenter.deletedAt == null ? o.OriginCenter.Description : null,
+                    OriginCenterCode = o.OriginCenter != null && o.OriginCenter.deletedAt == null
+                        ? o.OriginCenter.Code
+                        : null,
+                    OriginCenterDescription = o.OriginCenter != null && o.OriginCenter.deletedAt == null
+                        ? o.OriginCenter.Description
+                        : null,
 
                     IdProduct = o.IdProduct,
                     ProductReference = o.Product.Reference,
@@ -523,10 +644,12 @@ namespace Service.Infra.Data.Repositories
         // unioned with one "today" row built live from CenterProduct + Order — History only gets a row once the
         // Robot has run for that day, so "today" (before that day's run) has no History row yet and is filled
         // in from the current CenterProduct state instead.
-        public async Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct, DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default)
+        public async Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct,
+            DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default)
         {
             var rows = await _context.History
-                .Where(h => h.deletedAt == null && h.IdCenter == idCenter && h.IdProduct == idProduct && h.Date >= dateStart && h.Date <= dateEnd)
+                .Where(h => h.deletedAt == null && h.IdCenter == idCenter && h.IdProduct == idProduct &&
+                            h.Date >= dateStart && h.Date <= dateEnd)
                 .Select(h => new InventoryHistoryRow
                 {
                     Date = h.Date,
@@ -534,33 +657,46 @@ namespace Service.Infra.Data.Repositories
                     QualifiedDemand = h.QualifiedDemand,
                     OrdersInTransit = h.OpenInbounds,
                     Consumption = h.Consumption,
-                    StockTotal = h.Stock.HasValue && h.OpenInbounds.HasValue ? h.Stock.Value + h.OpenInbounds.Value : (decimal?)null,
+                    StockTotal = h.Stock.HasValue && h.OpenInbounds.HasValue
+                        ? h.Stock.Value + h.OpenInbounds.Value
+                        : (decimal?)null,
                     Adu = h.Adu,
                     RedSafeZone = h.RedSafeZone,
                     RedBaseZone = h.RedBaseZone,
-                    RedZone = h.RedSafeZone.HasValue && h.RedBaseZone.HasValue ? h.RedSafeZone.Value + h.RedBaseZone.Value : (decimal?)null,
+                    RedZone = h.RedSafeZone.HasValue && h.RedBaseZone.HasValue
+                        ? h.RedSafeZone.Value + h.RedBaseZone.Value
+                        : (decimal?)null,
                     YellowZone = h.YellowZone,
                     GreenZone = h.GreenZone,
-                    InventoryDays = h.Stock.HasValue && h.Adu.HasValue && h.Adu.Value != 0 ? h.Stock.Value / h.Adu.Value : (decimal?)null
+                    InventoryDays = h.Stock.HasValue && h.Adu.HasValue && h.Adu.Value != 0
+                        ? h.Stock.Value / h.Adu.Value
+                        : (decimal?)null
                 })
                 .ToListAsync(cancellationToken);
 
             foreach (var row in rows)
-                row.Netflow = UtilsDdmrp.CalculateNetflow(row.Stock ?? 0, row.QualifiedDemand ?? 0, row.OrdersInTransit ?? 0);
+                row.Netflow =
+                    UtilsDdmrp.CalculateNetflow(row.Stock ?? 0, row.QualifiedDemand ?? 0, row.OrdersInTransit ?? 0);
 
             var centerProduct = await _context.CenterProduct
                 .Where(cp => cp.deletedAt == null && cp.IdCenter == idCenter && cp.IdProduct == idProduct)
-                .Select(cp => new { cp.Stock, cp.QualifiedDemand, cp.Adu, cp.RedZoneBase, cp.RedZoneSafe, cp.RedZone, cp.YellowZone, cp.GreenZone })
+                .Select(cp => new
+                {
+                    cp.Stock, cp.QualifiedDemand, cp.Adu, cp.RedZoneBase, cp.RedZoneSafe, cp.RedZone, cp.YellowZone,
+                    cp.GreenZone
+                })
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (centerProduct != null)
             {
                 var ordersInTransit = await _context.Order
-                    .Where(o => o.deletedAt == null && o.IsInbound && !o.IsFictional && o.IdDestinyCenter == idCenter && o.IdProduct == idProduct)
+                    .Where(o => o.deletedAt == null && o.IsInbound && !o.IsFictional && o.IdDestinyCenter == idCenter &&
+                                o.IdProduct == idProduct)
                     .SumAsync(o => (decimal?)(o.Quantity - o.DeliveredQuantity), cancellationToken) ?? 0;
 
                 var outbounds = await _context.Order
-                    .Where(o => o.deletedAt == null && o.IsOutbound && !o.IsFictional && o.IdOriginCenter == idCenter && o.IdProduct == idProduct)
+                    .Where(o => o.deletedAt == null && o.IsOutbound && !o.IsFictional && o.IdOriginCenter == idCenter &&
+                                o.IdProduct == idProduct)
                     .SumAsync(o => (decimal?)(o.Quantity - o.DeliveredQuantity), cancellationToken) ?? 0;
 
                 var stock = centerProduct.Stock;
@@ -580,7 +716,9 @@ namespace Service.Infra.Data.Repositories
                     RedZone = centerProduct.RedZone,
                     YellowZone = centerProduct.YellowZone,
                     GreenZone = centerProduct.GreenZone,
-                    InventoryDays = centerProduct.Adu.HasValue && centerProduct.Adu.Value != 0 ? stock / centerProduct.Adu.Value : null,
+                    InventoryDays = centerProduct.Adu.HasValue && centerProduct.Adu.Value != 0
+                        ? stock / centerProduct.Adu.Value
+                        : null,
                     Netflow = UtilsDdmrp.CalculateNetflow(stock, centerProduct.QualifiedDemand ?? 0, ordersInTransit)
                 });
             }
@@ -643,7 +781,8 @@ namespace Service.Infra.Data.Repositories
                 .Select(c => c.Date)
                 .ToListAsync(cancellationToken);
 
-            var forecasts = _context.Forecast.Where(f => f.deletedAt == null && f.IdProduct == idProduct && f.IdCenter == idCenter);
+            var forecasts = _context.Forecast.Where(f =>
+                f.deletedAt == null && f.IdProduct == idProduct && f.IdCenter == idCenter);
             var workingDays = _context.Calendar.Where(c => c.IsWorkingDay);
 
             var withBusinessDayCount = forecasts.Select(f => new
@@ -655,14 +794,14 @@ namespace Service.Infra.Data.Repositories
             });
 
             var forecastByDate = await (
-                from f in withBusinessDayCount
-                from d in _context.Calendar
-                where d.Date >= f.StartDate && d.Date <= f.EndDate && d.Date >= dateStart && d.Date <= dateEnd
-                select new
-                {
-                    d.Date,
-                    Value = d.IsWorkingDay && f.BusinessDayCount > 0 ? f.Value / f.BusinessDayCount : 0
-                })
+                    from f in withBusinessDayCount
+                    from d in _context.Calendar
+                    where d.Date >= f.StartDate && d.Date <= f.EndDate && d.Date >= dateStart && d.Date <= dateEnd
+                    select new
+                    {
+                        d.Date,
+                        Value = d.IsWorkingDay && f.BusinessDayCount > 0 ? f.Value / f.BusinessDayCount : 0
+                    })
                 .GroupBy(x => x.Date)
                 .Select(g => new { Date = g.Key, Value = g.Sum(x => x.Value) })
                 .ToDictionaryAsync(x => x.Date, x => x.Value, cancellationToken);
@@ -670,11 +809,14 @@ namespace Service.Infra.Data.Repositories
             var today = DateTime.Today;
 
             var inboundByDate = await _context.Order
-                .Where(o => o.deletedAt == null && o.IsInbound && (useFictionalOrders || !o.IsFictional) && o.IdProduct == idProduct
-                    && o.IdDestinyCenter == idCenter && o.DeliveryDate.HasValue)
+                .Where(o => o.deletedAt == null && o.IsInbound && (useFictionalOrders || !o.IsFictional) &&
+                            o.IdProduct == idProduct
+                            && o.IdDestinyCenter == idCenter && o.DeliveryDate.HasValue)
                 .Select(o => new
                 {
-                    EffectiveDate = accumulateInboundsToday && o.DeliveryDate!.Value < today ? today : o.DeliveryDate!.Value,
+                    EffectiveDate = accumulateInboundsToday && o.DeliveryDate!.Value < today
+                        ? today
+                        : o.DeliveryDate!.Value,
                     Pending = o.Quantity - o.DeliveredQuantity
                 })
                 .Where(x => x.EffectiveDate >= dateStart && x.EffectiveDate <= dateEnd)
@@ -683,11 +825,14 @@ namespace Service.Infra.Data.Repositories
                 .ToDictionaryAsync(x => x.Date, x => x.Value, cancellationToken);
 
             var outboundByDate = await _context.Order
-                .Where(o => o.deletedAt == null && o.IsOutbound && (useFictionalOrders || !o.IsFictional) && o.IdProduct == idProduct
-                    && o.IdOriginCenter == idCenter && o.DeliveryDate.HasValue)
+                .Where(o => o.deletedAt == null && o.IsOutbound && (useFictionalOrders || !o.IsFictional) &&
+                            o.IdProduct == idProduct
+                            && o.IdOriginCenter == idCenter && o.DeliveryDate.HasValue)
                 .Select(o => new
                 {
-                    EffectiveDate = accumulateOutboundsToday && o.DeliveryDate!.Value < today ? today : o.DeliveryDate!.Value,
+                    EffectiveDate = accumulateOutboundsToday && o.DeliveryDate!.Value < today
+                        ? today
+                        : o.DeliveryDate!.Value,
                     Pending = o.Quantity - o.DeliveredQuantity
                 })
                 .Where(x => x.EffectiveDate >= dateStart && x.EffectiveDate <= dateEnd)
@@ -738,7 +883,8 @@ namespace Service.Infra.Data.Repositories
                     Outbound = outbound,
                     OpeningStock = openingStock,
                     ClosingStock = closingStock,
-                    ExecutionBufferColor = UtilsDdmrp.CalculateBufferColor(closingStock, topOfRedExecution, topOfYellowExecution, topOfGreenExecution)
+                    ExecutionBufferColor = UtilsDdmrp.CalculateBufferColor(closingStock, topOfRedExecution,
+                        topOfYellowExecution, topOfGreenExecution)
                 });
 
                 stock = closingStock;
@@ -770,9 +916,9 @@ namespace Service.Infra.Data.Repositories
         {
             var query = _context.History
                 .Where(h => h.deletedAt == null
-                    && h.Date >= dateStart && h.Date <= dateEnd
-                    && h.Product.deletedAt == null
-                    && h.Center.deletedAt == null);
+                            && h.Date >= dateStart && h.Date <= dateEnd
+                            && h.Product.deletedAt == null
+                            && h.Center.deletedAt == null);
 
             if (idCenters != null && idCenters.Length > 0)
                 query = query.Where(h => idCenters.Contains(h.IdCenter));
@@ -815,7 +961,8 @@ namespace Service.Infra.Data.Repositories
                     foreach (var h in group)
                     {
                         var (netflowColor, executionColor) = ComputeBufferColors(
-                            h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone, h.GreenZone);
+                            h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone,
+                            h.GreenZone);
                         var color = mode == BufferPenetrationMode.Execution ? executionColor : netflowColor;
 
                         switch (color)
@@ -837,7 +984,8 @@ namespace Service.Infra.Data.Repositories
                     row.DaysGreenPercentage = row.QuantityDays > 0 ? (decimal)row.DaysGreen / row.QuantityDays : 0;
                     row.DaysBluePercentage = row.QuantityDays > 0 ? (decimal)row.DaysBlue / row.QuantityDays : 0;
                     row.DaysNoColorPercentage = row.QuantityDays > 0 ? (decimal)row.DaysNoColor / row.QuantityDays : 0;
-                    row.DaysRedAndBlackPercentage = row.QuantityDays > 0 ? (decimal)row.DaysRedAndBlack / row.QuantityDays : 0;
+                    row.DaysRedAndBlackPercentage =
+                        row.QuantityDays > 0 ? (decimal)row.DaysRedAndBlack / row.QuantityDays : 0;
 
                     return row;
                 })
@@ -856,17 +1004,21 @@ namespace Service.Infra.Data.Repositories
             decimal? stock, decimal? qualifiedDemand, decimal? openInbounds,
             decimal? redBaseZone, decimal? redSafeZone, decimal? yellowZone, decimal? greenZone)
         {
-
             var netflow = UtilsDdmrp.CalculateNetflow(stock ?? 0, qualifiedDemand ?? 0, openInbounds ?? 0);
-            var (netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen) = UtilsDdmrp.CalculateNetflowTops(redBaseZone ?? 0, redSafeZone ?? 0, yellowZone ?? 0,
+            var (netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen) = UtilsDdmrp.CalculateNetflowTops(
+                redBaseZone ?? 0, redSafeZone ?? 0, yellowZone ?? 0,
                 greenZone ?? 0);
-            
-            var (executionRedZone, executionYellowZone, executionGreenZone) = UtilsDdmrp.CalculateExecutionZone(netflowTopOfRed, yellowZone??0);
-            var (executionTopOfRed, executionTopOfYellow, executionTopOfGreen) = UtilsDdmrp.CalculateExecutionTops(executionRedZone, executionYellowZone, executionGreenZone);
 
-            var netflowColor = UtilsDdmrp.CalculateBufferColor(netflow, netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen);
-            var executionColor = UtilsDdmrp.CalculateBufferColor(stock ?? 0, executionTopOfRed, executionTopOfYellow, executionTopOfGreen);
-            
+            var (executionRedZone, executionYellowZone, executionGreenZone) =
+                UtilsDdmrp.CalculateExecutionZone(netflowTopOfRed, yellowZone ?? 0);
+            var (executionTopOfRed, executionTopOfYellow, executionTopOfGreen) =
+                UtilsDdmrp.CalculateExecutionTops(executionRedZone, executionYellowZone, executionGreenZone);
+
+            var netflowColor =
+                UtilsDdmrp.CalculateBufferColor(netflow, netflowTopOfRed, netflowTopOfYellow, netflowTopOfGreen);
+            var executionColor = UtilsDdmrp.CalculateBufferColor(stock ?? 0, executionTopOfRed, executionTopOfYellow,
+                executionTopOfGreen);
+
             return (netflowColor, executionColor);
         }
 
@@ -887,9 +1039,9 @@ namespace Service.Infra.Data.Repositories
         {
             var query = _context.History
                 .Where(h => h.deletedAt == null
-                    && h.Date >= dateStart && h.Date <= dateEnd
-                    && h.Product.deletedAt == null
-                    && h.Center.deletedAt == null);
+                            && h.Date >= dateStart && h.Date <= dateEnd
+                            && h.Product.deletedAt == null
+                            && h.Center.deletedAt == null);
 
             if (idCenters != null && idCenters.Length > 0)
                 query = query.Where(h => idCenters.Contains(h.IdCenter));
@@ -915,7 +1067,8 @@ namespace Service.Infra.Data.Repositories
                 .Select(h =>
                 {
                     var (netflowColor, executionColor) = ComputeBufferColors(
-                        h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone, h.GreenZone);
+                        h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone,
+                        h.GreenZone);
                     return new { h.Date, NetflowColor = netflowColor, ExecutionColor = executionColor };
                 })
                 .ToList();
@@ -976,11 +1129,11 @@ namespace Service.Infra.Data.Repositories
         {
             var historyRows = await _context.History
                 .Where(h => h.deletedAt == null
-                    && h.Date >= dateStart && h.Date <= dateEnd
-                    && idCenters.Contains(h.IdCenter)
-                    && h.Product.deletedAt == null
-                    && h.Center.deletedAt == null
-                    && ((h.RedBaseZone ?? 0) + (h.RedSafeZone ?? 0)) > 0)
+                            && h.Date >= dateStart && h.Date <= dateEnd
+                            && idCenters.Contains(h.IdCenter)
+                            && h.Product.deletedAt == null
+                            && h.Center.deletedAt == null
+                            && ((h.RedBaseZone ?? 0) + (h.RedSafeZone ?? 0)) > 0)
                 .Select(h => new
                 {
                     h.Date,
@@ -1006,27 +1159,26 @@ namespace Service.Infra.Data.Repositories
                         var netflowYellowZone = h.YellowZone ?? 0;
                         var netflowGreenZone = h.GreenZone ?? 0;
                         var availableStock = (h.Stock ?? 0) - (h.ReservedStock ?? 0);
-                        var (netflowRedZone, _, topOfGreenNetflow) = UtilsDdmrp.CalculateNetflowTops(h.RedBaseZone ?? 0, h.RedSafeZone ?? 0, netflowYellowZone, netflowGreenZone);
-                        var (executionRedZone, executionYellowZone, executionGreenZone) = UtilsDdmrp.CalculateExecutionZone(netflowRedZone, netflowYellowZone);
+                        var (netflowRedZone, _, topOfGreenNetflow) = UtilsDdmrp.CalculateNetflowTops(h.RedBaseZone ?? 0,
+                            h.RedSafeZone ?? 0, netflowYellowZone, netflowGreenZone);
+                        var (executionRedZone, executionYellowZone, executionGreenZone) =
+                            UtilsDdmrp.CalculateExecutionZone(netflowRedZone, netflowYellowZone);
 
-                        // Same formulas as CenterProduct.RedSafeAnalytical/YellowSafeAnalytical/GreenAnalytical/
-                        // YellowExcessAnalytical/RedExcessAnalytical (as duplicated inline in
-                        // GetInventoryBufferManagementQueryable above), fed netflowRedZone/netflowYellowZone/
-                        // netflowGreenZone instead of CenterProduct's own RedZone/YellowZone/GreenZone.
-                        var redSafeAnalytical = netflowRedZone / 2;
-                        var yellowSafeAnalytical = netflowRedZone;
-                        // Matches CenterProduct.GreenAnalytical (GreenZone alone, not RedZone + GreenZone).
-                        var greenAnalytical = netflowGreenZone;
-                        var yellowExcessAnalytical = (netflowRedZone + netflowGreenZone) >= (netflowRedZone + netflowYellowZone)
-                            ? 0
-                            : (netflowRedZone + netflowYellowZone) - (netflowRedZone + netflowGreenZone);
+                        var (redSafeAnalytical, yellowSafeAnalytical, greenAnalytical, yellowExcessAnalytical,
+                                redExcessAnalytical) =
+                            UtilsDdmrp.CalculateAnaliticalZone(netflowRedZone, netflowYellowZone, netflowGreenZone);
 
-                        var netflow = UtilsDdmrp.CalculateNetflow(availableStock, h.QualifiedDemand ?? 0, h.OpenInbounds ?? 0);
+
+                        var netflow = UtilsDdmrp.CalculateNetflow(availableStock, h.QualifiedDemand ?? 0,
+                            h.OpenInbounds ?? 0);
                         var averageProjectedInventory = netflowRedZone + (netflowGreenZone / 2);
-                        var excessStock = availableStock - topOfGreenNetflow > 0 ? availableStock - topOfGreenNetflow : 0;
-                        var redExcessAnalytical = topOfGreenNetflow <= 0
-                            ? 0
-                            : topOfGreenNetflow - (netflowRedZone + netflowGreenZone + yellowExcessAnalytical);
+                        var excessStock = availableStock - topOfGreenNetflow > 0
+                            ? availableStock - topOfGreenNetflow
+                            : 0;
+                        
+                        var excessStockAnalytical = availableStock - (netflowGreenZone + netflowRedZone) > 0
+                            ? availableStock - (netflowGreenZone + netflowRedZone)
+                            : 0;
 
                         row.ExecutionRedZone += executionRedZone;
                         row.ExecutionYellowZone += executionYellowZone;
@@ -1043,6 +1195,7 @@ namespace Service.Infra.Data.Repositories
                         row.AvailableStock += availableStock;
                         row.Netflow += netflow;
                         row.ExcessStock += excessStock;
+                        row.ExcessStockAnalytical += excessStockAnalytical;
                         row.MinimumOscillationRange += netflowRedZone;
                         row.MaximumOscillationRange += netflowRedZone + netflowGreenZone;
                     }
@@ -1058,20 +1211,27 @@ namespace Service.Infra.Data.Repositories
         private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)
         {
             var idProducts = rows.Select(r => r.IdProduct).Distinct().ToList();
-            var idCenters = rows.Where(r => r.IdDestinyCenter.HasValue).Select(r => r.IdDestinyCenter!.Value).Distinct().ToList();
+            var idCenters = rows.Where(r => r.IdDestinyCenter.HasValue).Select(r => r.IdDestinyCenter!.Value).Distinct()
+                .ToList();
 
             if (idProducts.Count == 0 || idCenters.Count == 0)
                 return;
 
             var referenceOrders = await _context.Order
                 .Where(o => o.deletedAt == null && o.Quantity > o.DeliveredQuantity && o.IsInbound && !o.IsFictional
-                    && o.IdDestinyCenter.HasValue && idProducts.Contains(o.IdProduct) && idCenters.Contains(o.IdDestinyCenter!.Value))
+                            && o.IdDestinyCenter.HasValue && idProducts.Contains(o.IdProduct) &&
+                            idCenters.Contains(o.IdDestinyCenter!.Value))
                 .Select(o => new { o.Id, o.IdProduct, o.IdDestinyCenter, o.DeliveryDate, o.PendingQuantity })
                 .ToListAsync(cancellationToken);
 
             var centerProducts = await _context.CenterProduct
-                .Where(cp => cp.deletedAt == null && idProducts.Contains(cp.IdProduct) && idCenters.Contains(cp.IdCenter))
-                .Select(cp => new { cp.IdProduct, cp.IdCenter, cp.Stock, cp.TopOfRedExecution, cp.TopOfYellowExecution, cp.TopOfGreenExecution })
+                .Where(cp =>
+                    cp.deletedAt == null && idProducts.Contains(cp.IdProduct) && idCenters.Contains(cp.IdCenter))
+                .Select(cp => new
+                {
+                    cp.IdProduct, cp.IdCenter, cp.Stock, cp.TopOfRedExecution, cp.TopOfYellowExecution,
+                    cp.TopOfGreenExecution
+                })
                 .ToListAsync(cancellationToken);
 
             var centerProductLookup = centerProducts.ToDictionary(cp => (cp.IdProduct, cp.IdCenter));
@@ -1089,7 +1249,8 @@ namespace Service.Infra.Data.Repositories
 
                 var pendingFromEarlierOrders = referenceOrders
                     .Where(o => o.IdProduct == row.IdProduct && o.IdDestinyCenter == row.IdDestinyCenter
-                        && o.Id < row.Id && o.DeliveryDate.HasValue && o.DeliveryDate.Value <= row.DeliveryDate.Value)
+                                                             && o.Id < row.Id && o.DeliveryDate.HasValue &&
+                                                             o.DeliveryDate.Value <= row.DeliveryDate.Value)
                     .Sum(o => o.PendingQuantity);
 
                 var quantity = centerProduct.Stock + pendingFromEarlierOrders;

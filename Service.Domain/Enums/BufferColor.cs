@@ -9,4 +9,15 @@ namespace Service.Domain.Enums
         Black,
         NoColor
     }
+    
+    public enum AnalyticalBufferColor
+    {
+        RedSafe,
+        YellowSafe,
+        Green,
+        RedExcess,
+        YellowExcess,
+        NoColor,
+        Blue
+    }
 }

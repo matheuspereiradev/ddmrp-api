@@ -361,27 +361,44 @@ TopOfYellowExecution  = RedZoneExecution + YellowZoneExecution
 TopOfGreenExecution   = RedZoneExecution + YellowZoneExecution + GreenZoneExecution
 
 RedSafeAnalytical       = RedZone / 2
-YellowSafeAnalytical    = RedZone
-GreenAnalytical         = GreenZone                                         (GreenZone puro, não soma RedZone — corrigido 2026-09-20,
-                                                                                ver nota de correção abaixo)
+YellowSafeAnalytical    = RedZone / 2                                       (igual a RedSafeAnalytical — mesma "duplicata literal" de RedZoneExecution/YellowZoneExecution)
+GreenAnalytical         = GreenZone                                         (GreenZone puro, não soma RedZone)
 
-YellowExcessAnalytical  = (RedZone + GreenZone) >= (RedZone + YellowZone) ? 0
-                            : (RedZone + YellowZone) - (RedZone + GreenZone)
-                          (o RedZone se cancela dos dois lados — equivale a GreenZone >= YellowZone ? 0 : YellowZone - GreenZone)
+YellowExcessAnalytical  = GreenZone >= YellowZone ? 0 : YellowZone - GreenZone
 
 RedExcessAnalytical     = TopOfGreen <= 0 ? 0
                             : TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical)
-                          (equivale a MIN(YellowZone, GreenZone) — TopOfGreen - RedZone - GreenZone = YellowZone,
+                          (equivale a MIN(YellowZone, GreenZone) quando TopOfGreen > 0 — TopOfGreen - RedZone - GreenZone = YellowZone,
                            e subtrair YellowExcessAnalytical remove o excedente de Yellow sobre Green quando houver)
 ```
 
-**Corrigido 2026-09-20** — fórmulas anteriores (`RedZone / 2` pra ambos, `RedZone + YellowZone` pra `YellowExcessAnalytical`) estavam incorretas/provisórias; as de cima são as definitivas. `RedExcessAnalytical` depende de `YellowExcessAnalytical` já calculado, então no `ReportRepository` isso exige um estágio `.Select()` a mais (`YellowExcessAnalytical` calculado em `withExecutionZones`, `RedExcessAnalytical` só no estágio seguinte, `withExecutionTops`, onde `TopOfGreen` e `YellowExcessAnalytical` já estão disponíveis) — mesma razão pela qual `Netflow`/`OrderQuantity`/etc. já são divididos em vários estágios encadeados.
+**`UtilsDdmrp.CalculateAnaliticalZone(decimal redZone, decimal yellowZone, decimal greenZone)`** implementa as 5 fórmulas acima num único método tuple-returning (`(redSafeAnalytical, yellowSafeAnalytical, greenAnalytical, yellowExcessAnalytical, redExcessAnalytical)`), mesmo padrão de `CalculateExecutionZone`/`CalculateNetflowTops` — calcula `TopOfGreen` internamente como `redZone + yellowZone + greenZone` (não recebe um parâmetro separado). Usar esse método sempre que possível em código C# pós-materialização que já tem `redZone`/`yellowZone`/`greenZone` como variáveis soltas (não vindas de uma instância de `CenterProduct`), como `GetAccumulatedBufferHistoryAsync` (alimentado por `NetflowRedZone`/`NetflowYellowZone`/`NetflowGreenZone`). **Não** chamável dentro de `GetInventoryBufferManagementQueryable` (precisa permanecer uma única cadeia `IQueryable` pra composição OData — ver a nota de pitfall mais abaixo), onde as mesmas 5 fórmulas continuam duplicadas inline (e `RedExcessAnalytical`, por depender de `YellowExcessAnalytical` já calculado, ainda exige um estágio `.Select()` a mais — `YellowExcessAnalytical` em `withExecutionZones`, `RedExcessAnalytical` só no estágio seguinte, `withExecutionTops`, onde `TopOfGreen` e `YellowExcessAnalytical` já estão disponíveis); nem faz sentido nas próprias propriedades computadas de `CenterProduct` (que já expõem cada campo individualmente, sem instanciar tupla) — mesmo precedente de `TopOfRed`/`RedZoneExecution`/etc., que também têm equivalentes em `UtilsDdmrp` mas a entidade não os chama.
 
-**Segunda correção, mesmo dia**: `GreenAnalytical` no `ReportRepository` (`GetInventoryBufferManagementQueryable`'s `withExecutionZones`) estava calculando `RedZone + GreenZone`, divergindo da propriedade computada da entidade `CenterProduct.GreenAnalytical` (`GreenZone` puro, a fórmula acima e a correta) — a divergência não afetava `YellowExcessAnalytical`/`RedExcessAnalytical` (ambos recalculam `RedZone + GreenZone` cru, não leem a variável `GreenAnalytical`), só o próprio campo `GreenAnalytical`. Corrigido no report pra usar `CenterProduct.GreenZone` isoladamente, igual à entidade; `AccumulatedBufferHistoryRow.GreenAnalytical` (ver `Report accumulatedBufferHistory` abaixo) tinha o mesmo erro copiado e foi corrigido junto.
+**Histórico de correções, todas em 2026-09-20** (fórmulas anteriores, incorretas/provisórias, substituídas pelas de cima): (1) `YellowSafeAnalytical` era `RedZone` puro, corrigido pra `RedZone / 2`; (2) `GreenAnalytical` no `ReportRepository` (`GetInventoryBufferManagementQueryable`'s `withExecutionZones`, e também em `AccumulatedBufferHistoryRow`) calculava `RedZone + GreenZone`, corrigido pra `GreenZone` puro, igual à entidade; (3) `YellowExcessAnalytical` tinha o termo `RedZone` nos dois lados da comparação (cancelava matematicamente, mas ficou removido da fórmula por clareza); (4) `RedExcessAnalytical` foi brevemente simplificado pro valor `GreenZone` puro (eliminando a dependência de `TopOfGreen`/`YellowExcessAnalytical`), depois revertido no mesmo dia de volta pra `TopOfGreen <= 0 ? 0 : TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical)` — a fórmula de cima é a definitiva.
 
 **Arredondamento passou a ser só de exibição** (2026-09-20, revogando a regra "arredondamento para cima sempre" de 2026-09-14 abaixo): nenhum calculation step nem nenhuma propriedade computada de `CenterProduct` arredonda mais — `RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` e todas as derivadas (`RedZone`, `TopOfRed`/`TopOfYellow`/`TopOfGreen`, `*Execution`, `*Analytical`) ficam com o valor decimal cru (`HasPrecision(18,4)`). O único lugar que ainda arredonda pra cima é `GetInventoryBufferManagementQueryable` (reimplementação inline das mesmas fórmulas, por causa da composição OData — ver nota mais abaixo) — `withZoneTops`/`withExecutionZones`/`withExecutionTops` continuam envolvendo cada resultado em `Math.Ceiling`, propositalmente, só pra exibição nesse relatório. `ComputeBufferColors` (usado por `bufferPenetration`/`itemsByBufferColorHistory`) e `GetAccumulatedBufferHistoryAsync` (`accumulatedBufferHistory`) foram ajustados pra não arredondar mais, alinhados com a entidade. `ReportRepositoryTests.GetInventoryBufferManagementQueryable_RoundsDerivedZonesUp` agora compara `row.X` contra valores arredondados fixos (não mais contra `centerProduct.X`, que ficou cru) — a divergência entre entidade (crua) e esse report (arredondado) é esperada e intencional, não deve ser "corrigida".
 
 **Campos envolvidos**: `CenterProduct.RedZoneBase`/`RedZoneSafe`/`YellowZone`/`GreenZone` (as únicas colunas físicas da cadeia — tudo mais deriva delas, agora sem arredondamento em nenhum step/ZAF/BAF, ver seções acima). `TopOfYellowExecution` é o denominador de `ExecutionBuffer` (acima), agora cru. As colunas `*Analytical` ainda não alimentam nenhum relatório/cálculo além de aparecerem cruas em `CenterProductGetDto`/`InventoryBufferManagementRow` — reservadas pra leitura "Buffer Analítica" ainda não escopada (ver `TODO.md`).
+
+### Topos e cor da zona analítica (`TopOf*Analytical`, `AnalyticalBufferColor`) — adicionado 2026-09-20
+
+Mesmo padrão de `TopOfRed`/`TopOfYellow`/`TopOfGreen` (soma acumulada de baixo pra cima) e de `NetflowBufferColor`/`ExecutionBufferColor` (classificação por faixa), só que em cima das 5 zonas analíticas em vez das 3 zonas normais/de execução:
+
+```
+TopOfRedSafeAnalytical      = RedSafeAnalytical
+TopOfYellowSafeAnalytical   = RedSafeAnalytical + YellowSafeAnalytical
+TopOfGreenAnalytical        = RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical
+TopOfYellowExcessAnalytical = RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical + YellowExcessAnalytical
+TopOfRedExcessAnalytical    = RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical + YellowExcessAnalytical + RedExcessAnalytical
+```
+
+**`UtilsDdmrp.CalculateAnalyticalTops(redSafeAnalytical, yellowSafeAnalytical, greenAnalytical, yellowExcessAnalytical, redExcessAnalytical)`** implementa as 5 fórmulas acima num único método tuple-returning (`(topOfRedSafeAnalytical, topOfYellowSafeAnalytical, topOfGreenAnalytical, topOfYellowExcessAnalytical, topOfRedExcessAnalytical)`), mesmo padrão de `CalculateNetflowTops`/`CalculateExecutionTops`.
+
+**`UtilsDdmrp.CalculateAnalyticalBufferColor(decimal stock, decimal topOfRedSafeAnalytical, decimal topOfYellowSafeAnalytical, decimal topOfGreenAnalytical, decimal topOfYellowExcessAnalytical, decimal topOfRedExcessAnalytical)`** classifica `stock` (mesmo termo usado por `ExecutionBufferColor`, não o `Netflow`) contra os 5 topos, retornando `Service.Domain.Enums.AnalyticalBufferColor` (`RedSafe`/`YellowSafe`/`Green`/`YellowExcess`/`RedExcess`/`Blue`/`NoColor` — enum novo, não reaproveita `BufferColor`, já que tem faixas diferentes): `NoColor` quando `TopOfRedExcessAnalytical = 0` (buffer analítico ainda não computado) OU `stock <= 0` (aqui sem uma cor de ruptura própria — `NoColor`, não `Black`, diferente de `CalculateBufferColor`), senão `RedSafe`/`YellowSafe`/`Green`/`YellowExcess`/`RedExcess` conforme a primeira faixa (`<=`) que `stock` alcançar, e `Blue` acima de `TopOfRedExcessAnalytical` (excesso além de todas as zonas analíticas).
+
+**Report `inventoryBufferManagement`**: exposto como `TopOfRedSafeAnalytical`/`TopOfYellowSafeAnalytical`/`TopOfGreenAnalytical`/`TopOfYellowExcessAnalytical`/`TopOfRedExcessAnalytical` (arredondados pra cima, mesma convenção de exibição de `TopOfRed`/`TopOfYellowExecution`/etc. — ver "Arredondamento passou a ser só de exibição" acima) e `AnalyticalBufferColor`, todos calculados inline em `ReportRepository.GetInventoryBufferManagementQueryable` a partir dos valores crus (`RedSafeAnalytical`/etc., já existentes na cadeia `withExecutionZones`/`withExecutionTops`) — mesma convenção de expressão SQL-translatável do resto do método, não uma chamada a `UtilsDdmrp` pós-materialização (mesma razão de sempre: precisa continuar uma única cadeia `IQueryable` pra composição OData). `TopOfRedExcessAnalytical` só pode ser calculado no estágio seguinte a `withExecutionTops` (`withNetflow`), já que depende de `RedExcessAnalytical`, que é uma propriedade irmã calculada só no fim de `withExecutionTops` (não dá pra referenciar dentro do mesmo `Select`, mesma limitação documentada em `RedExcessAnalytical`/`YellowExcessAnalytical` acima).
+
+**Resumo por cor** (`GET /api/report/inventoryBufferManagement/colorSummary`): `InventoryBufferManagementColorSummaryResult.Analytical` (lista de `AnalyticalBufferColorSummaryRow { Color, Count }`, novo — `BufferColorSummaryRow` não serve porque `Color` lá é `BufferColor`, não `AnalyticalBufferColor`), populado agrupando a mesma `IQueryable` recebida por `SummarizeInventoryBufferManagementByColorAsync` por `AnalyticalBufferColor`, ao lado de `Netflow`/`Execution` (mesmos já existentes).
 
 ## ZAF — ajuste de zona (`CenterProduct.ZafRedZone`/`ZafYellowZone`/`ZafGreenZone`)
 
@@ -894,16 +911,14 @@ Para cada linha de History qualificada (RedBaseZone+RedSafeZone > 0, IdCenter em
                                      (mesma fórmula de CenterProduct.RedZoneExecution/YellowZoneExecution/GreenZoneExecution
                                       e do ComputeBufferColors dos dois reports acima)
 
-    RedSafeAnalytical(item,dia)    = NetflowRedZone(item,dia) / 2
-    YellowSafeAnalytical(item,dia) = NetflowRedZone(item,dia)
-    GreenAnalytical(item,dia)      = NetflowGreenZone(item,dia)                     (GreenZone puro, não soma NetflowRedZone)
-    YellowExcessAnalytical(item,dia) = 0,
-        se (NetflowRedZone+NetflowGreenZone) >= (NetflowRedZone+NetflowYellowZone)
-                                       = (NetflowRedZone+NetflowYellowZone) - (NetflowRedZone+NetflowGreenZone),
-        caso contrário
+    (RedSafeAnalytical(item,dia), YellowSafeAnalytical(item,dia), GreenAnalytical(item,dia),
+     YellowExcessAnalytical(item,dia), RedExcessAnalytical(item,dia)) =
+        UtilsDdmrp.CalculateAnaliticalZone(NetflowRedZone(item,dia), NetflowYellowZone(item,dia), NetflowGreenZone(item,dia))
                                      (mesmas fórmulas de CenterProduct.RedSafeAnalytical/YellowSafeAnalytical/
-                                      GreenAnalytical/YellowExcessAnalytical, iguais às duplicadas inline em
-                                      GetInventoryBufferManagementQueryable — sem arredondamento, 2026-09-20)
+                                      GreenAnalytical/YellowExcessAnalytical/RedExcessAnalytical — ver a seção
+                                      "CenterProduct — zonas derivadas" acima para a definição de cada uma;
+                                      RedExcessAnalytical depende de TopOfGreenNetflow, calculado internamente
+                                      pelo próprio CalculateAnaliticalZone como NetflowRedZone+NetflowYellowZone+NetflowGreenZone)
 
     Netflow(item,dia) = UtilsDdmrp.CalculateNetflow(AvailableStock(item,dia), QualifiedDemand ?? 0, OpenInbounds ?? 0)
 
@@ -913,10 +928,9 @@ Para cada linha de History qualificada (RedBaseZone+RedSafeZone > 0, IdCenter em
     ExcessStock(item,dia)       = AvailableStock(item,dia) - TopOfGreenNetflow(item,dia),   se > 0
                                  = 0,                                                        caso contrário
 
-    RedExcessAnalytical(item,dia) = 0,                                    se TopOfGreenNetflow(item,dia) <= 0
-                                   = TopOfGreenNetflow(item,dia) - (NetflowRedZone(item,dia)
-                                       + NetflowGreenZone(item,dia) + YellowExcessAnalytical(item,dia)),
-                                     caso contrário
+    ExcessStockAnalytical(item,dia) = AvailableStock(item,dia) - (NetflowRedZone(item,dia) + NetflowGreenZone(item,dia)),   se > 0
+                                     = 0,                                                                                    caso contrário
+                                     (igual a ExcessStock, mas sem a zona amarela — "estoque excesso analítico")
 
     MinimumOscillationRange(item,dia) = NetflowRedZone(item,dia)
     MaximumOscillationRange(item,dia) = NetflowRedZone(item,dia) + NetflowGreenZone(item,dia)
@@ -926,15 +940,16 @@ Agrupado por Date (soma entre todos os itens — todo IdProduct/IdCenter qualifi
     NetflowRedZone / NetflowYellowZone / NetflowGreenZone                 = SUM(...)
     RedSafeAnalytical / YellowSafeAnalytical / GreenAnalytical            = SUM(...)
     YellowExcessAnalytical / RedExcessAnalytical                         = SUM(...)
-    AverageProjectedInventory / AvailableStock / Netflow / ExcessStock    = SUM(...)
+    AverageProjectedInventory / AvailableStock / Netflow / ExcessStock / ExcessStockAnalytical = SUM(...)
     MinimumOscillationRange / MaximumOscillationRange                     = SUM(...)
 ```
 
 - **Usa `AvailableStock` (`Stock - ReservedStock`), não `Stock` cru** (2026-09-20, ajustado depois do report já existir) — em todo lugar que a fórmula original usaria `Stock` (linha da própria linha de saída, `Netflow`, `ExcessStock`), é `AvailableStock` que entra, mesma convenção já usada em `InventoryBufferManagementRow.Netflow`/`CoverageDays` (`Stock - ReservedStock` alimentando o cálculo). Nulos em `Stock`/`ReservedStock` tratados como `0`, mesmo padrão do resto do report.
-- **Zonas analíticas adicionadas 2026-09-20** (`RedSafeAnalytical`/`YellowSafeAnalytical`/`GreenAnalytical`/`YellowExcessAnalytical`/`RedExcessAnalytical`) — reaproveitam as mesmas fórmulas já duplicadas inline em `GetInventoryBufferManagementQueryable` (ver `withExecutionZones`/`withExecutionTops` em `ReportRepository.cs`), alimentadas por `NetflowRedZone`/`NetflowYellowZone`/`NetflowGreenZone` (equivalentes deste report a `CenterProduct.RedZone`/`YellowZone`/`GreenZone`) em vez das colunas do `CenterProduct`. **`GreenAnalytical` corrigido no mesmo dia** (junto com a correção equivalente em `GetInventoryBufferManagementQueryable`, ver a seção "CenterProduct — zonas derivadas" acima) — era `NetflowRedZone + NetflowGreenZone`, copiando o mesmo erro que existia no report de `inventoryBufferManagement`; agora é `NetflowGreenZone` puro, batendo com `CenterProduct.GreenAnalytical`.
+- **Zonas analíticas adicionadas 2026-09-20** (`RedSafeAnalytical`/`YellowSafeAnalytical`/`GreenAnalytical`/`YellowExcessAnalytical`/`RedExcessAnalytical`) — alimentadas por `NetflowRedZone`/`NetflowYellowZone`/`NetflowGreenZone` (equivalentes deste report a `CenterProduct.RedZone`/`YellowZone`/`GreenZone`) em vez das colunas do `CenterProduct`. Diferente de `GetInventoryBufferManagementQueryable` (que precisa duplicar a fórmula inline por causa da composição OData — ver a nota de pitfall mais abaixo), este método é código C# comum pós-materialização (já itera `List<History>` em memória), então chama `UtilsDdmrp.CalculateAnaliticalZone(...)` diretamente — mesmo padrão já usado ali pra `CalculateNetflowTops`/`CalculateExecutionZone`. **`GreenAnalytical` teve um erro corrigido no mesmo dia** (junto com a correção equivalente em `GetInventoryBufferManagementQueryable`, ver a seção "CenterProduct — zonas derivadas" acima) — era `NetflowRedZone + NetflowGreenZone`; a fórmula final (`GreenZone` puro) agora vem só do helper.
 - **`AverageProjectedInventory = NetflowRedZone + NetflowGreenZone/2`** é a fórmula DDMRP padrão de "estoque médio projetado" (Average Projected On-Hand) — usa metade da zona verde, não a zona amarela.
-- **`MaximumOscillationRange` soma só `NetflowRedZone + NetflowGreenZone`, sem a zona amarela** — dado exatamente como especificado, não é o `TopOfGreen` completo (`Red + Yellow + Green`, que aqui é só `TopOfGreenNetflow`, usado internamente pra calcular `ExcessStock`/`RedExcessAnalytical`, e não aparece como campo próprio na linha final).
-- **`ExecutionYellowZone` é sempre idêntico a `ExecutionRedZone`, e `RedExcessAnalytical` costuma coincidir com `RedSafeAnalytical`** só quando `YellowExcessAnalytical = 0` — mesma duplicação intencional já documentada em `CenterProduct.RedZoneExecution`/`YellowZoneExecution` e em `bufferPenetration`'s modo `Execution`, não é um erro de cópia.
+- **`MaximumOscillationRange` soma só `NetflowRedZone + NetflowGreenZone`, sem a zona amarela** — dado exatamente como especificado, não é o `TopOfGreen` completo (`Red + Yellow + Green`, que aqui é só `TopOfGreenNetflow`, calculado tanto separadamente pra `ExcessStock` quanto internamente por `CalculateAnaliticalZone` pra `RedExcessAnalytical`, e não aparece como campo próprio na linha final).
+- **`ExcessStockAnalytical` adicionado 2026-09-20** — variante de `ExcessStock` que ignora a zona amarela (`AvailableStock - (NetflowRedZone + NetflowGreenZone)`, em vez de `AvailableStock - TopOfGreenNetflow`), floor em `0` do mesmo jeito. Não usa `UtilsDdmrp` (é uma conta simples, sem helper dedicado) — calculado inline no mesmo `foreach` que já calcula `excessStock`.
+- **`ExecutionYellowZone` é sempre idêntico a `ExecutionRedZone`** — mesma duplicação intencional já documentada em `CenterProduct.RedZoneExecution`/`YellowZoneExecution` e em `bufferPenetration`'s modo `Execution`, não é um erro de cópia. **`RedExcessAnalytical` equivale a `MIN(NetflowYellowZone, NetflowGreenZone)`** quando `TopOfGreenNetflow > 0` (`0` caso contrário) — ver a derivação na seção "CenterProduct — zonas derivadas" acima.
 - **O relatório final não tem `IdProduct`/`IdCenter`** — o agrupamento é só por `Date`, então a linha resultante é a soma de todos os pares `(IdProduto, IdCentro)` qualificados naquele dia entre os centros informados; não dá pra saber pelo relatório quantos itens ou quais centros/produtos entraram na soma de um dia específico.
 - Sem linha "hoje" injetada e sem `mode` (sempre soma tanto as zonas de execução quanto as de netflow/analítica na mesma linha, ao contrário de `bufferPenetration`/`itemsByBufferColorHistory` que escolhem/separam por perspectiva).
 - **Campos envolvidos**: `History.IdProduct`/`IdCenter`/`Date`/`Stock`/`ReservedStock`/`QualifiedDemand`/`OpenInbounds`/`RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone`, `Product.deletedAt` (inner-join, não aparece no row), `Center.deletedAt` (idem).

@@ -54,12 +54,10 @@ namespace Service.Domain.Entities
         public decimal? TopOfYellowExecution => RedZoneExecution.HasValue && YellowZoneExecution.HasValue ? RedZoneExecution.Value + YellowZoneExecution.Value : (decimal?)null;
         public decimal? TopOfGreenExecution => RedZoneExecution.HasValue && YellowZoneExecution.HasValue && GreenZoneExecution.HasValue ? RedZoneExecution.Value + YellowZoneExecution.Value + GreenZoneExecution.Value : (decimal?)null;
         public decimal? RedSafeAnalytical => RedZone.HasValue ? RedZone.Value / 2 : (decimal?)null;
-        public decimal? YellowSafeAnalytical => RedZone.HasValue ? RedZone.Value : (decimal?)null;
+        public decimal? YellowSafeAnalytical => RedZone.HasValue ? RedZone.Value / 2 : (decimal?)null;
         public decimal? GreenAnalytical => GreenZone.HasValue ? GreenZone.Value : (decimal?)null;
-        public decimal? YellowExcessAnalytical => RedZone.HasValue && YellowZone.HasValue && GreenZone.HasValue
-            ? ((RedZone.Value + GreenZone.Value) >= (RedZone.Value + YellowZone.Value)
-                ? 0
-                : (RedZone.Value + YellowZone.Value) - (RedZone.Value + GreenZone.Value))
+        public decimal? YellowExcessAnalytical => YellowZone.HasValue && GreenZone.HasValue
+            ? (GreenZone.Value >= YellowZone.Value ? 0 : YellowZone.Value - GreenZone.Value)
             : (decimal?)null;
         public decimal? RedExcessAnalytical => TopOfGreen.HasValue && RedZone.HasValue && GreenZone.HasValue && YellowExcessAnalytical.HasValue
             ? (TopOfGreen.Value <= 0

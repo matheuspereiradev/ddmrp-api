@@ -212,9 +212,9 @@ public class ReportRepositoryTests
         // other already-rounded fields) — see the fix below (GetInventoryBufferManagementQueryable_RoundingIsAppliedOnceAtTheEnd_NeverCompounded).
         // RedZone/TopOfRed raw = 10.1 + 10.2 = 20.3 (ceiled to 21 only in the final projection); TopOfGreen raw = 51.0 exact.
         Assert.Equal(11m, row.RedSafeAnalytical); // Ceiling(20.3 / 2) = Ceiling(10.15)
-        Assert.Equal(21m, row.YellowSafeAnalytical); // Ceiling(20.3)
+        Assert.Equal(11m, row.YellowSafeAnalytical); // Ceiling(20.3 / 2) = Ceiling(10.15)
         Assert.Equal(16m, row.GreenAnalytical); // Ceiling(15.4)
-        Assert.Equal(0m, row.YellowExcessAnalytical); // (20.3+15.4) >= (20.3+15.3)
+        Assert.Equal(0m, row.YellowExcessAnalytical); // GreenZone 15.4 >= YellowZone 15.3
         // Raw: TopOfGreen 51.0 - (RedZone 20.3 + GreenZone 15.4 + YellowExcessAnalytical 0) = 15.3, Ceiling = 16.
         // NOT Ceiling(51 - (21+15.4+0)) = 15 — that would reuse the already-ceiled RedZone (21) mid-formula,
         // the same double-rounding bug this test guards against.
@@ -226,6 +226,18 @@ public class ReportRepositoryTests
         Assert.Equal(11m, row.TopOfRedExecution); // Ceiling(10.15)
         Assert.Equal(21m, row.TopOfYellowExecution); // Ceiling(10.15 + 10.15) = Ceiling(20.3), matches TopOfRed (21) exactly
         Assert.Equal(36m, row.TopOfGreenExecution); // Ceiling(10.15 + 10.15 + 15.3) = Ceiling(35.6)
+
+        // TopOf*Analytical: same cumulative-sum-of-raw-values-then-ceil-once rule, from RedSafeAnalytical
+        // (raw 10.15) / YellowSafeAnalytical (raw 10.15) / GreenAnalytical (raw 15.4) / YellowExcessAnalytical
+        // (raw 0) / RedExcessAnalytical (raw 15.3) — never from the already-ceiled displayed values above.
+        Assert.Equal(11m, row.TopOfRedSafeAnalytical); // Ceiling(10.15)
+        Assert.Equal(21m, row.TopOfYellowSafeAnalytical); // Ceiling(10.15 + 10.15) = Ceiling(20.3)
+        Assert.Equal(36m, row.TopOfGreenAnalytical); // Ceiling(20.3 + 15.4) = Ceiling(35.7)
+        Assert.Equal(36m, row.TopOfYellowExcessAnalytical); // Ceiling(35.7 + 0)
+        // The 5 analytical zones always sum to the raw TopOfGreen (51.0 exact) by construction, so this must
+        // equal row.TopOfGreen (both 51) even though each was ceiled from a different raw path.
+        Assert.Equal(51m, row.TopOfRedExcessAnalytical); // Ceiling(35.7 + 15.3) = Ceiling(51.0)
+        Assert.Equal(row.TopOfGreen, row.TopOfRedExcessAnalytical);
     }
 
     [Fact]
@@ -351,6 +363,11 @@ public class ReportRepositoryTests
         Assert.Equal(
             UtilsDdmrp.CalculateBufferColor(row.Stock, row.TopOfRedExecution ?? 0, row.TopOfYellowExecution ?? 0, row.TopOfGreenExecution ?? 0),
             row.ExecutionBufferColor);
+        Assert.Equal(
+            UtilsDdmrp.CalculateAnalyticalBufferColor(row.Stock, row.TopOfRedSafeAnalytical ?? 0,
+                row.TopOfYellowSafeAnalytical ?? 0, row.TopOfGreenAnalytical ?? 0,
+                row.TopOfYellowExcessAnalytical ?? 0, row.TopOfRedExcessAnalytical ?? 0),
+            row.AnalyticalBufferColor);
 
         var expectedColor = scenario switch
         {
@@ -474,6 +491,65 @@ public class ReportRepositoryTests
             .Where(r => r.TopOfGreen > 90)
             .ToListAsync();
         Assert.Equal(10m, Assert.Single(byZoneTop).Stock);
+
+        // Same composition check for the analytical fields added 2026-09-20 — TopOfRedExcessAnalytical is
+        // built the same "raw physical columns, threaded through the .Select() chain" way as TopOfGreen, so
+        // it must survive an external .Where() the same way (it doesn't reference any Ignore()'d CenterProduct
+        // computed property, but a regression here would mean a future edit reintroduced that mistake).
+        var byAnalyticalColor = await repository.GetInventoryBufferManagementQueryable()
+            .Where(r => r.AnalyticalBufferColor == AnalyticalBufferColor.RedSafe)
+            .ToListAsync();
+        Assert.Equal(10m, Assert.Single(byAnalyticalColor).Stock);
+    }
+
+    // Snapshot counts by color for the dashboard — covers the Analytical grouping added 2026-09-20 alongside
+    // the pre-existing Netflow/Execution ones.
+    [Fact]
+    public async Task SummarizeInventoryBufferManagementByColorAsync_GroupsByEachColorIncludingAnalytical()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var otherProduct = new Product { Id = 2, Reference = "REF2", Description = "Product 2", UnitOfMeasure = "UN" };
+        // Red on every axis: low stock relative to a big buffer.
+        var redCenterProduct = new CenterProduct
+        {
+            Id = 1,
+            IdProduct = product.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 10m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
+        };
+        // No buffer computed yet — NoColor on every axis.
+        var noColorCenterProduct = new CenterProduct
+        {
+            Id = 2,
+            IdProduct = otherProduct.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 10m
+        };
+
+        context.AddRange(center, product, otherProduct, redCenterProduct, noColorCenterProduct);
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var result = await repository.SummarizeInventoryBufferManagementByColorAsync(
+            repository.GetInventoryBufferManagementQueryable());
+
+        Assert.Equal(2, result.Netflow.Sum(r => r.Count));
+        Assert.Equal(2, result.Execution.Sum(r => r.Count));
+        Assert.Equal(2, result.Analytical.Sum(r => r.Count));
+        Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.RedSafe && r.Count == 1);
+        Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.NoColor && r.Count == 1);
     }
 
     [Fact]
@@ -512,6 +588,7 @@ public class ReportRepositoryTests
         Assert.Equal(BufferColor.NoColor, row.NetflowBufferColor);
         Assert.Equal(BufferColor.NoColor, row.SimulatedNetflowBufferColor);
         Assert.Equal(BufferColor.NoColor, row.ExecutionBufferColor);
+        Assert.Equal(AnalyticalBufferColor.NoColor, row.AnalyticalBufferColor);
         Assert.Equal(0m, row.NetflowBufferPercentage);
         Assert.Equal(0m, row.SimulatedNetflowBufferPercentage);
         Assert.Equal(0m, row.ExecutionBufferPercentage);
@@ -1131,12 +1208,14 @@ public class ReportRepositoryTests
         Assert.Equal(30m, row1.NetflowRedZone); // 20 + 10
         Assert.Equal(40m, row1.NetflowYellowZone); // 30 + 10
         Assert.Equal(50m, row1.NetflowGreenZone); // 40 + 10
-        // product1@center1: RedSafeAnalytical=Ceiling(20/2)=10, YellowSafeAnalytical=Ceiling(20)=20,
-        // GreenAnalytical=Ceiling(40)=40 (GreenZone alone, matches CenterProduct.GreenAnalytical),
-        // YellowExcessAnalytical=0 (60>=50), RedExcessAnalytical=Ceiling(90-60)=30.
-        // product2@center2: RedSafeAnalytical=5, YellowSafeAnalytical=10, GreenAnalytical=Ceiling(10)=10, YellowExcessAnalytical=0 (20>=20), RedExcessAnalytical=Ceiling(30-20)=10.
+        // product1@center1: RedSafeAnalytical=20/2=10, YellowSafeAnalytical=20/2=10,
+        // GreenAnalytical=40 (GreenZone alone, matches CenterProduct.GreenAnalytical),
+        // YellowExcessAnalytical=0 (green 40 >= yellow 30), TopOfGreenNetflow=20+30+40=90,
+        // RedExcessAnalytical=90-(20+40+0)=30.
+        // product2@center2: RedSafeAnalytical=5, YellowSafeAnalytical=5, GreenAnalytical=10, YellowExcessAnalytical=0 (green 10 >= yellow 10),
+        // TopOfGreenNetflow=10+10+10=30, RedExcessAnalytical=30-(10+10+0)=10.
         Assert.Equal(15m, row1.RedSafeAnalytical); // 10 + 5
-        Assert.Equal(30m, row1.YellowSafeAnalytical); // 20 + 10
+        Assert.Equal(15m, row1.YellowSafeAnalytical); // 10 + 5
         Assert.Equal(50m, row1.GreenAnalytical); // 40 + 10
         Assert.Equal(0m, row1.YellowExcessAnalytical); // 0 + 0
         Assert.Equal(40m, row1.RedExcessAnalytical); // 30 + 10
@@ -1147,6 +1226,8 @@ public class ReportRepositoryTests
         Assert.Equal(105m, row1.Netflow);
         // ExcessStock: product1 (100 - (20+30+40)=100-90=10, >0) + product2 (20 - (10+10+10)=20-30=-10, floored to 0)
         Assert.Equal(10m, row1.ExcessStock);
+        // ExcessStockAnalytical (no yellow zone): product1 (100 - (20+40)=40, >0) + product2 (20 - (10+10)=0, not >0)
+        Assert.Equal(40m, row1.ExcessStockAnalytical);
         Assert.Equal(30m, row1.MinimumOscillationRange); // 20 + 10
         Assert.Equal(80m, row1.MaximumOscillationRange); // (20+40) + (10+10)
 
@@ -1157,15 +1238,16 @@ public class ReportRepositoryTests
         Assert.Equal(20m, row2.NetflowRedZone);
         Assert.Equal(10m, row2.NetflowYellowZone);
         Assert.Equal(10m, row2.NetflowGreenZone);
-        Assert.Equal(10m, row2.RedSafeAnalytical); // Ceiling(20/2)
-        Assert.Equal(20m, row2.YellowSafeAnalytical); // Ceiling(20)
-        Assert.Equal(10m, row2.GreenAnalytical); // Ceiling(10), GreenZone alone
-        Assert.Equal(0m, row2.YellowExcessAnalytical); // 30 >= 30
-        Assert.Equal(10m, row2.RedExcessAnalytical); // Ceiling(40-30)
+        Assert.Equal(10m, row2.RedSafeAnalytical); // 20/2
+        Assert.Equal(10m, row2.YellowSafeAnalytical); // 20/2
+        Assert.Equal(10m, row2.GreenAnalytical); // GreenZone alone
+        Assert.Equal(0m, row2.YellowExcessAnalytical); // green 10 >= yellow 10
+        Assert.Equal(10m, row2.RedExcessAnalytical); // TopOfGreenNetflow 40 - (20+10+0)
         Assert.Equal(25m, row2.AverageProjectedInventory); // 20 + 10/2
         Assert.Equal(50m, row2.AvailableStock);
         Assert.Equal(50m, row2.Netflow); // no QualifiedDemand/OpenInbounds
         Assert.Equal(10m, row2.ExcessStock); // 50 - (20+10+10)=10
+        Assert.Equal(20m, row2.ExcessStockAnalytical); // 50 - (20+10)=20
         Assert.Equal(20m, row2.MinimumOscillationRange);
         Assert.Equal(30m, row2.MaximumOscillationRange); // 20 + 10
     }
@@ -1202,7 +1284,7 @@ public class ReportRepositoryTests
 
         var row = Assert.Single(await repository.GetAccumulatedBufferHistoryAsync(day, day, new[] { center.Id }));
 
-        Assert.Equal(15m, row.YellowExcessAnalytical); // (10+20) - (10+5) = 15
+        Assert.Equal(15m, row.YellowExcessAnalytical); // 20 - 5 = 15 (yellow - green)
         Assert.Equal(5m, row.RedExcessAnalytical); // topOfGreenNetflow 35 - (10+5+15) = 5
     }
 

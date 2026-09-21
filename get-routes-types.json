@@ -40,6 +40,7 @@
     "DiscardStatus": ["NotReviewed", "Reviewed", "Discarded"],
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
     "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
+    "AnalyticalBufferColor": ["RedSafe", "YellowSafe", "Green", "RedExcess", "YellowExcess", "NoColor", "Blue"],
     "PriorizedAllocationStopCondition": ["Zero", "Moq", "OnePackQuantity"],
     "PriorizedAllocationAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"],
     "BufferPenetrationMode": ["Netflow", "Execution"]
@@ -349,10 +350,10 @@
         "topOfYellowExecution": "number | null",
         "topOfGreenExecution": "number | null",
         "redSafeAnalytical": "number | null (ceiling(RedZone/2))",
-        "yellowSafeAnalytical": "number | null (ceiling(RedZone))",
+        "yellowSafeAnalytical": "number | null (ceiling(RedZone/2))",
         "greenAnalytical": "number | null (ceiling(GreenZone) — GreenZone alone, not RedZone + GreenZone)",
-        "yellowExcessAnalytical": "number | null",
-        "redExcessAnalytical": "number | null (renamed from redSafeExcessAnalytical 2026-09-20)",
+        "yellowExcessAnalytical": "number | null (0 if GreenZone >= YellowZone, else YellowZone - GreenZone)",
+        "redExcessAnalytical": "number | null (0 if TopOfGreen <= 0, else TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical); renamed from redSafeExcessAnalytical 2026-09-20)",
         "useDafOnGreenZone": "boolean",
         "customLeadTimeFactor": "number",
         "customVariabilityFactor": "number",
@@ -632,10 +633,15 @@
         "topOfYellowExecution": "number | null",
         "topOfGreenExecution": "number | null",
         "redSafeAnalytical": "number | null (ceiling(RedZone/2))",
-        "yellowSafeAnalytical": "number | null (ceiling(RedZone))",
+        "yellowSafeAnalytical": "number | null (ceiling(RedZone/2))",
         "greenAnalytical": "number | null (ceiling(GreenZone) — GreenZone alone, not RedZone + GreenZone)",
-        "yellowExcessAnalytical": "number | null",
-        "redExcessAnalytical": "number | null (renamed from redSafeExcessAnalytical 2026-09-20)",
+        "yellowExcessAnalytical": "number | null (0 if GreenZone >= YellowZone, else YellowZone - GreenZone)",
+        "redExcessAnalytical": "number | null (0 if TopOfGreen <= 0, else TopOfGreen - (RedZone + GreenZone + YellowExcessAnalytical); renamed from redSafeExcessAnalytical 2026-09-20)",
+        "topOfRedSafeAnalytical": "number | null (ceiling(RedSafeAnalytical); added 2026-09-20)",
+        "topOfYellowSafeAnalytical": "number | null (ceiling(RedSafeAnalytical + YellowSafeAnalytical); added 2026-09-20)",
+        "topOfGreenAnalytical": "number | null (ceiling(RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical); added 2026-09-20)",
+        "topOfYellowExcessAnalytical": "number | null (ceiling(RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical + YellowExcessAnalytical); added 2026-09-20)",
+        "topOfRedExcessAnalytical": "number | null (ceiling(RedSafeAnalytical + YellowSafeAnalytical + GreenAnalytical + YellowExcessAnalytical + RedExcessAnalytical); added 2026-09-20)",
         "useDafOnGreenZone": "boolean",
         "customLeadTimeFactor": "number",
         "customVariabilityFactor": "number",
@@ -692,7 +698,22 @@
         "simulatedNetflowBufferColor": "BufferColor (enum string) (same zone classification as netflowBufferColor, but against SimulatedNetflow instead of Netflow)",
         "coverageDays": "number (computed via UtilsDdmrp.CalculateCoverageDays(availableStock, adu) — uses availableStock = stock - reservedStock, not raw stock)",
         "executionBufferPercentage": "number (still computed against raw stock, not availableStock)",
-        "executionBufferColor": "BufferColor (enum string) (still computed against raw stock, not availableStock)"
+        "executionBufferColor": "BufferColor (enum string) (still computed against raw stock, not availableStock)",
+        "analyticalBufferColor": "AnalyticalBufferColor (enum string) (computed via UtilsDdmrp.CalculateAnalyticalBufferColor against raw stock and the 5 topOf*Analytical fields; NoColor when topOfRedExcessAnalytical = 0 or stock <= 0, no separate stockout color unlike BufferColor; added 2026-09-20)"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/report/inventoryBufferManagement/colorSummary",
+      "auth": true,
+      "queryParams": {
+        "$filter": "string (optional, same OData filter expression accepted by inventoryBufferManagement — only $filter is allowed here, $orderby/$top/$skip/$count are rejected)"
+      },
+      "responseData": "ApiResponseDto<InventoryBufferManagementColorSummaryResult> (normal envelope, unlike inventoryBufferManagement — no $top/$skip/$count so no ODataResult needed). Snapshot counts by color, grouped over the same (optionally $filter-ed) CenterProduct set as inventoryBufferManagement, not historical.",
+      "itemShape": {
+        "netflow": "BufferColorSummaryRow[] — [{ color: BufferColor (enum string), count: number }], one row per distinct netflowBufferColor value present",
+        "execution": "BufferColorSummaryRow[] — same shape, grouped by executionBufferColor",
+        "analytical": "AnalyticalBufferColorSummaryRow[] — [{ color: AnalyticalBufferColor (enum string), count: number }], grouped by analyticalBufferColor; added 2026-09-20"
       }
     },
     {
@@ -884,14 +905,15 @@
         "netflowYellowZone": "number (sum of YellowZone across qualifying items)",
         "netflowGreenZone": "number (sum of GreenZone across qualifying items)",
         "redSafeAnalytical": "number (sum of ceiling(netflowRedZone/2) per item — same formula as CenterProduct.RedSafeAnalytical, fed netflowRedZone)",
-        "yellowSafeAnalytical": "number (sum of ceiling(netflowRedZone) per item)",
+        "yellowSafeAnalytical": "number (sum of ceiling(netflowRedZone/2) per item)",
         "greenAnalytical": "number (sum of ceiling(netflowGreenZone) per item — matches CenterProduct.GreenAnalytical, GreenZone alone, not RedZone + GreenZone)",
-        "yellowExcessAnalytical": "number (sum per item of: 0 if (netflowRedZone+netflowGreenZone) >= (netflowRedZone+netflowYellowZone), else ceiling((netflowRedZone+netflowYellowZone) - (netflowRedZone+netflowGreenZone)))",
-        "redExcessAnalytical": "number (sum per item of: 0 if topOfGreenNetflow <= 0, else ceiling(topOfGreenNetflow - (netflowRedZone+netflowGreenZone+yellowExcessAnalytical)), where topOfGreenNetflow = netflowRedZone+netflowYellowZone+netflowGreenZone)",
+        "yellowExcessAnalytical": "number (sum per item of: 0 if netflowGreenZone >= netflowYellowZone, else netflowYellowZone - netflowGreenZone)",
+        "redExcessAnalytical": "number (sum per item of: 0 if topOfGreenNetflow <= 0, else topOfGreenNetflow - (netflowRedZone+netflowGreenZone+yellowExcessAnalytical), where topOfGreenNetflow = netflowRedZone+netflowYellowZone+netflowGreenZone)",
         "averageProjectedInventory": "number (sum of netflowRedZone + netflowGreenZone/2 per item — DDMRP Average Projected On-Hand formula)",
         "availableStock": "number (sum of (History.Stock - History.ReservedStock) across qualifying items, nulls treated as 0 — NOT raw Stock)",
         "netflow": "number (sum of UtilsDdmrp.CalculateNetflow(AvailableStock, QualifiedDemand, OpenInbounds) per item)",
         "excessStock": "number (sum of max(0, AvailableStock - (netflowRedZone+netflowYellowZone+netflowGreenZone)) per item)",
+        "excessStockAnalytical": "number (sum of max(0, AvailableStock - (netflowRedZone+netflowGreenZone)) per item — same as excessStock but without the yellow zone)",
         "minimumOscillationRange": "number (sum of netflowRedZone per item)",
         "maximumOscillationRange": "number (sum of netflowRedZone + netflowGreenZone per item — note: yellow is NOT included)"
       }

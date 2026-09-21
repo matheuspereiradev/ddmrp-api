@@ -51,6 +51,11 @@ namespace Service.Domain.Report.Results
         public decimal? GreenAnalytical { get; set; }
         public decimal? YellowExcessAnalytical { get; set; }
         public decimal? RedExcessAnalytical { get; set; }
+        public decimal? TopOfRedSafeAnalytical { get; set; }
+        public decimal? TopOfYellowSafeAnalytical { get; set; }
+        public decimal? TopOfGreenAnalytical { get; set; }
+        public decimal? TopOfYellowExcessAnalytical { get; set; }
+        public decimal? TopOfRedExcessAnalytical { get; set; }
         public bool UseDafOnGreenZone { get; set; }
         public decimal CustomLeadTimeFactor { get; set; }
         public decimal CustomVariabilityFactor { get; set; }
@@ -114,5 +119,6 @@ namespace Service.Domain.Report.Results
         public decimal CoverageDays { get; set; }
         public decimal ExecutionBufferPercentage { get; set; }
         public BufferColor ExecutionBufferColor { get; set; }
+        public AnalyticalBufferColor AnalyticalBufferColor { get; set; }
     }
 }
