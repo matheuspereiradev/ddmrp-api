@@ -40,7 +40,7 @@
     "DiscardStatus": ["NotReviewed", "Reviewed", "Discarded"],
     "OrderType": ["ProductionOrder", "Transfer", "PurchaseOrder", "SaleOrder"],
     "BufferColor": ["Red", "Yellow", "Green", "Blue", "Black", "NoColor"],
-    "AnalyticalBufferColor": ["RedSafe", "YellowSafe", "Green", "RedExcess", "YellowExcess", "NoColor", "Blue"],
+    "AnalyticalBufferColor": ["RedSafe", "YellowSafe", "Green", "RedExcess", "YellowExcess", "NoColor", "Blue", "Black"],
     "PriorizedAllocationStopCondition": ["Zero", "Moq", "OnePackQuantity"],
     "PriorizedAllocationAdjustmentType": ["Unit", "Weight", "Volume", "Value", "Pallet"],
     "BufferPenetrationMode": ["Netflow", "Execution"]
@@ -699,7 +699,7 @@
         "coverageDays": "number (computed via UtilsDdmrp.CalculateCoverageDays(availableStock, adu) — uses availableStock = stock - reservedStock, not raw stock)",
         "executionBufferPercentage": "number (still computed against raw stock, not availableStock)",
         "executionBufferColor": "BufferColor (enum string) (still computed against raw stock, not availableStock)",
-        "analyticalBufferColor": "AnalyticalBufferColor (enum string) (computed via UtilsDdmrp.CalculateAnalyticalBufferColor against raw stock and the 5 topOf*Analytical fields; NoColor when topOfRedExcessAnalytical = 0 or stock <= 0, no separate stockout color unlike BufferColor; added 2026-09-20)"
+        "analyticalBufferColor": "AnalyticalBufferColor (enum string) (computed via UtilsDdmrp.CalculateAnalyticalBufferColor against raw stock and the 5 topOf*Analytical fields; NoColor when topOfRedExcessAnalytical = 0 (buffer not computed yet), Black when stock <= 0 (stockout, buffer already computed); added 2026-09-20, Black split out from NoColor same day)"
       }
     },
     {

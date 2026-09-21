@@ -344,7 +344,7 @@ namespace Service.Infra.Data.Repositories
                 // UtilsDdmrp.CalculateAnalyticalBufferColor(stock, topOfRedSafeAnalytical, topOfYellowSafeAnalytical,
                 // topOfGreenAnalytical, topOfYellowExcessAnalytical, topOfRedExcessAnalytical)
                 AnalyticalBufferColor = (x.TopOfRedExcessAnalytical ?? 0) == 0 ? AnalyticalBufferColor.NoColor
-                    : x.Cp.Stock <= 0 ? AnalyticalBufferColor.NoColor
+                    : x.Cp.Stock <= 0 ? AnalyticalBufferColor.Black
                     : x.Cp.Stock <= (x.TopOfRedSafeAnalytical ?? 0) ? AnalyticalBufferColor.RedSafe
                     : x.Cp.Stock <= (x.TopOfYellowSafeAnalytical ?? 0) ? AnalyticalBufferColor.YellowSafe
                     : x.Cp.Stock <= (x.TopOfGreenAnalytical ?? 0) ? AnalyticalBufferColor.Green

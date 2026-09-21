@@ -382,7 +382,12 @@ public class ReportRepositoryTests
         Assert.Equal(expectedColor, row.SimulatedNetflowBufferColor);
 
         if (scenario == "Black-Zero")
+        {
             Assert.Equal(BufferColor.Black, row.ExecutionBufferColor); // Stock = 0 too, same quantity <= 0 boundary
+            // AnalyticalBufferColor: added 2026-09-20, same "stock <= 0" boundary as ExecutionBufferColor —
+            // buffer IS computed here (TopOfRedExcessAnalytical > 0), so this is Black, not the NoColor branch.
+            Assert.Equal(AnalyticalBufferColor.Black, row.AnalyticalBufferColor);
+        }
 
         if (scenario == "Red-PackQuantityZero")
             Assert.Equal(0m, row.OptimizedOrderQuantity);
@@ -512,6 +517,7 @@ public class ReportRepositoryTests
         var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
         var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
         var otherProduct = new Product { Id = 2, Reference = "REF2", Description = "Product 2", UnitOfMeasure = "UN" };
+        var thirdProduct = new Product { Id = 3, Reference = "REF3", Description = "Product 3", UnitOfMeasure = "UN" };
         // Red on every axis: low stock relative to a big buffer.
         var redCenterProduct = new CenterProduct
         {
@@ -536,8 +542,23 @@ public class ReportRepositoryTests
             Moq = 5m,
             Stock = 10m
         };
+        // Stockout (Stock = 0) with a computed buffer — Black on every axis (added 2026-09-20 for AnalyticalBufferColor).
+        var blackCenterProduct = new CenterProduct
+        {
+            Id = 3,
+            IdProduct = thirdProduct.Id,
+            IdCenter = center.Id,
+            PackQuantity = 10m,
+            Moq = 5m,
+            Stock = 0m,
+            RedZoneBase = 20m,
+            RedZoneSafe = 20m,
+            YellowZone = 30m,
+            GreenZone = 30m
+        };
 
-        context.AddRange(center, product, otherProduct, redCenterProduct, noColorCenterProduct);
+        context.AddRange(center, product, otherProduct, thirdProduct, redCenterProduct, noColorCenterProduct,
+            blackCenterProduct);
         await context.SaveChangesAsync();
 
         var repository = CreateRepository(context);
@@ -545,11 +566,12 @@ public class ReportRepositoryTests
         var result = await repository.SummarizeInventoryBufferManagementByColorAsync(
             repository.GetInventoryBufferManagementQueryable());
 
-        Assert.Equal(2, result.Netflow.Sum(r => r.Count));
-        Assert.Equal(2, result.Execution.Sum(r => r.Count));
-        Assert.Equal(2, result.Analytical.Sum(r => r.Count));
+        Assert.Equal(3, result.Netflow.Sum(r => r.Count));
+        Assert.Equal(3, result.Execution.Sum(r => r.Count));
+        Assert.Equal(3, result.Analytical.Sum(r => r.Count));
         Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.RedSafe && r.Count == 1);
         Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.NoColor && r.Count == 1);
+        Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.Black && r.Count == 1);
     }
 
     [Fact]

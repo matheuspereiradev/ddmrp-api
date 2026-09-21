@@ -18,6 +18,7 @@ namespace Service.Domain.Enums
         RedExcess,
         YellowExcess,
         NoColor,
-        Blue
+        Blue,
+        Black
     }
 }

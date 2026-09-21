@@ -61,7 +61,7 @@ namespace Service.Domain.Utils
                 return AnalyticalBufferColor.NoColor;
 
             if (stock <= 0)
-                return AnalyticalBufferColor.NoColor;
+                return AnalyticalBufferColor.Black;
 
             if (stock <= topOfRedSafeAnalytical)
                 return AnalyticalBufferColor.RedSafe;
