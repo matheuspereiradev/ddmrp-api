@@ -55,11 +55,12 @@ namespace Service.API.Controllers
         [SkipApiResponseWrapper]
         public async Task<ActionResult<ODataResult<InventoryBufferManagementRow>>> InventoryBufferManagement(
             ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
+            [FromQuery] int[]? selectedCenters,
             CancellationToken cancellationToken)
         {
             queryOptions.Validate(InventoryBufferManagementValidationSettings);
 
-            var query = _reportService.GetInventoryBufferManagementQueryable();
+            var query = _reportService.GetInventoryBufferManagementQueryable(selectedCenters);
             var settings = new ODataQuerySettings();
 
             if (queryOptions.Filter != null)
@@ -91,11 +92,12 @@ namespace Service.API.Controllers
         [Authorize]
         public async Task<ActionResult> InventoryBufferManagementColorSummary(
             ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
+            [FromQuery] int[]? selectedCenters,
             CancellationToken cancellationToken)
         {
             queryOptions.Validate(ColorSummaryValidationSettings);
 
-            var query = _reportService.GetInventoryBufferManagementQueryable();
+            var query = _reportService.GetInventoryBufferManagementQueryable(selectedCenters);
             if (queryOptions.Filter != null)
                 query = (IQueryable<InventoryBufferManagementRow>)queryOptions.Filter.ApplyTo(query, new ODataQuerySettings());
 

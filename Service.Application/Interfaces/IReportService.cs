@@ -5,7 +5,7 @@ namespace Service.Application.Interfaces
 {
     public interface IReportService
     {
-        IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable();
+        IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable(int[]? selectedCenters = null);
         Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default);
         Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default);
         Task<List<InventoryHistoryRow>> GetInventoryHistoryAsync(int idCenter, int idProduct, DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken = default);

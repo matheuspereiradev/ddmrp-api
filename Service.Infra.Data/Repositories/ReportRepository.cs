@@ -42,12 +42,14 @@ namespace Service.Infra.Data.Repositories
         // parity theory below still passes, and a `.Where()` composed on top of the resulting IQueryable no
         // longer throws) — this is *not* a "materialize instead" workaround, it removes the property
         // indirection that was the actual problem.
-        public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable()
+        public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable(int[]? selectedCenters = null)
         {
             var currentUserId = _currentUser.UserId;
 
+            // Master filter, applied before any OData $filter can compose on top — an idCenter filter for a center outside selectedCenters still returns nothing.
             var withOrderTotals = _context.CenterProduct
-                .Where(cp => cp.deletedAt == null && cp.Center.deletedAt == null && cp.Product.deletedAt == null)
+                .Where(cp => cp.deletedAt == null && cp.Center.deletedAt == null && cp.Product.deletedAt == null &&
+                             (selectedCenters == null || selectedCenters.Length == 0 || selectedCenters.Contains(cp.IdCenter)))
                 .Select(cp => new
                 {
                     Cp = cp,

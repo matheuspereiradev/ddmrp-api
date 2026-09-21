@@ -586,7 +586,8 @@
         "$orderby": "string (optional, e.g. $orderby=stock desc)",
         "$top": "number (optional, max 500)",
         "$skip": "number (optional)",
-        "$count": "boolean (optional, adds @odata.count to the response)"
+        "$count": "boolean (optional, adds @odata.count to the response)",
+        "selectedCenters": "number[] (optional, e.g. selectedCenters=1&selectedCenters=2) — master center filter, applied before $filter and not overridable by it: rows outside this list never appear, even if $filter asks for idCenter eq 3 on a center not in the list. Omit or send empty to not restrict."
       },
       "responseData": "See 'odataEnvelope' above — NOT ApiResponseDto<T>, NOT a PagedList. { value: InventoryBufferManagementRow[], '@odata.count'?: number }",
       "itemShape": {
@@ -707,7 +708,8 @@
       "route": "/api/report/inventoryBufferManagement/colorSummary",
       "auth": true,
       "queryParams": {
-        "$filter": "string (optional, same OData filter expression accepted by inventoryBufferManagement — only $filter is allowed here, $orderby/$top/$skip/$count are rejected)"
+        "$filter": "string (optional, same OData filter expression accepted by inventoryBufferManagement — only $filter is allowed here, $orderby/$top/$skip/$count are rejected)",
+        "selectedCenters": "number[] (optional, same master center filter as inventoryBufferManagement, applied the same way before $filter)"
       },
       "responseData": "ApiResponseDto<InventoryBufferManagementColorSummaryResult> (normal envelope, unlike inventoryBufferManagement — no $top/$skip/$count so no ODataResult needed). Snapshot counts by color, grouped over the same (optionally $filter-ed) CenterProduct set as inventoryBufferManagement, not historical.",
       "itemShape": {

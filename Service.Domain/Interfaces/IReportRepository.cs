@@ -5,7 +5,7 @@ namespace Service.Domain.Interfaces
 {
     public interface IReportRepository
     {
-        IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable();
+        IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable(int[]? selectedCenters = null);
         Task<InventoryBufferManagementRow?> GetInventoryBufferManagementRowAsync(int idCenter, int idProduct, CancellationToken cancellationToken = default);
         Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default);
         Task<List<InventoryBufferManagementRow>> GetApprovedByAllocationGroupAsync(int idAllocationGroup, CancellationToken cancellationToken = default);

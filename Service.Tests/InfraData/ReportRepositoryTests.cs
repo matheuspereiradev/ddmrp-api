@@ -87,6 +87,42 @@ public class ReportRepositoryTests
     }
 
     [Fact]
+    public async Task GetInventoryBufferManagementQueryable_SelectedCenters_RestrictsToThoseCentersOnly()
+    {
+        await using var context = CreateContext();
+
+        var center1 = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var center2 = new Center { Id = 2, Code = "C2", Description = "Center 2" };
+        var center3 = new Center { Id = 3, Code = "C3", Description = "Center 3" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+
+        context.AddRange(
+            center1, center2, center3, product,
+            new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center1.Id, PackQuantity = 1m, Moq = 1m, Stock = 10m },
+            new CenterProduct { Id = 2, IdProduct = product.Id, IdCenter = center2.Id, PackQuantity = 1m, Moq = 1m, Stock = 20m },
+            new CenterProduct { Id = 3, IdProduct = product.Id, IdCenter = center3.Id, PackQuantity = 1m, Moq = 1m, Stock = 30m });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var restricted = await repository.GetInventoryBufferManagementQueryable(selectedCenters: [1, 2]).ToListAsync();
+        Assert.Equal(2, restricted.Count);
+        Assert.All(restricted, r => Assert.Contains(r.IdCenter, new[] { 1, 2 }));
+
+        var restrictedFilteredForExcludedCenter = await repository.GetInventoryBufferManagementQueryable(selectedCenters: [1, 2])
+            .Where(r => r.IdCenter == 3)
+            .ToListAsync();
+        Assert.Empty(restrictedFilteredForExcludedCenter);
+
+        var unrestricted = await repository.GetInventoryBufferManagementQueryable().ToListAsync();
+        Assert.Equal(3, unrestricted.Count);
+
+        var emptySelection = await repository.GetInventoryBufferManagementQueryable(selectedCenters: []).ToListAsync();
+        Assert.Equal(3, emptySelection.Count);
+    }
+
+    [Fact]
     public async Task GetInventoryBufferManagementQueryable_OptimizedOrderQuantity_UsesWorkspaceOverride_ForCurrentUserOnly()
     {
         await using var context = CreateContext();

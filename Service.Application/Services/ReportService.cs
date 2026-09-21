@@ -17,8 +17,8 @@ namespace Service.Application.Services
             _centerProductRepository = centerProductRepository;
         }
 
-        public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable() =>
-            _reportRepository.GetInventoryBufferManagementQueryable();
+        public IQueryable<InventoryBufferManagementRow> GetInventoryBufferManagementQueryable(int[]? selectedCenters = null) =>
+            _reportRepository.GetInventoryBufferManagementQueryable(selectedCenters);
 
         public Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default) =>
             _reportRepository.SummarizeInventoryBufferManagementByColorAsync(query, cancellationToken);
