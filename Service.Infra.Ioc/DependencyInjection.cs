@@ -2,6 +2,7 @@
 using Service.Application.Services;
 using Service.Domain.Account;
 using Service.Domain.Interfaces;
+using Service.Infra.Data.Ai;
 using Service.Infra.Data.Calculation;
 using Service.Infra.Data.Calculation.Steps;
 using Service.Infra.Data.Context;
@@ -75,6 +76,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IOrderRepository, OrderRepository>();
             services.AddScoped<IReportRepository, ReportRepository>();
             services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
+            services.AddScoped<ISettingRepository, SettingRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -128,6 +130,17 @@ namespace Service.Infra.Ioc
             services.AddScoped<IReportService, ReportService>();
 
             services.AddScoped<IRobotService, RobotService>();
+
+            services.AddSingleton(_ =>
+            {
+                var client = new HttpClient();
+                var baseUrl = configuration["AiConnector:Url"];
+                if (!string.IsNullOrEmpty(baseUrl))
+                    client.BaseAddress = new Uri(baseUrl.EndsWith("/") ? baseUrl : baseUrl + "/");
+                return client;
+            });
+            services.AddScoped<IAiConnectorClient, AiConnectorClient>();
+            services.AddScoped<IAiService, AiService>();
 
             return services;
         }

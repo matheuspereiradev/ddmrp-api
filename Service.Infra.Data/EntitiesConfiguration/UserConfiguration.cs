@@ -17,6 +17,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(u => u.Name).IsRequired().HasMaxLength(100);
             builder.Property(u => u.Email).IsRequired().HasMaxLength(100);
             builder.Property(u => u.Password).IsRequired().HasMaxLength(300);
+            builder.Property(u => u.ThreadId).HasMaxLength(100);
 
             builder.Property(u => u.IdRole).IsRequired();
 

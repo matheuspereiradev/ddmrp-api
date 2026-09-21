@@ -9,5 +9,7 @@ namespace Service.Domain.Entities
         public bool FridayIsWorkingDay { get; set; } = true;
         public bool SaturdayIsWorkingDay { get; set; } = false;
         public bool SundayIsWorkingDay { get; set; } = false;
+        public string? ClientName { get; set; }
+        public string? WorkspaceId { get; set; }
     }
 }

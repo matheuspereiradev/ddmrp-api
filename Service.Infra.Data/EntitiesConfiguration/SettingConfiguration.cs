@@ -19,6 +19,8 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(s => s.FridayIsWorkingDay).IsRequired().HasDefaultValue(true);
             builder.Property(s => s.SaturdayIsWorkingDay).IsRequired().HasDefaultValue(false);
             builder.Property(s => s.SundayIsWorkingDay).IsRequired().HasDefaultValue(false);
+            builder.Property(s => s.ClientName).HasMaxLength(100);
+            builder.Property(s => s.WorkspaceId).HasMaxLength(100);
 
             // Single global config row — seeded here (not via a CRUD endpoint, none exists yet)
             // so the Forecast daily-explosion logic always has a row to read.
