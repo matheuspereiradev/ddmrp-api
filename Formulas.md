@@ -839,7 +839,8 @@ Para cada linha de History no intervalo [dateStart, dateEnd]:
     Se mode = Netflow:
         YellowZoneTop(dia) = TopOfRed(dia) + (YellowZone ?? 0)
         GreenZoneTop(dia)  = YellowZoneTop(dia) + (GreenZone ?? 0)
-        Quantity(dia)      = Netflow(dia) = UtilsDdmrp.CalculateNetflow(Stock ?? 0, QualifiedDemand ?? 0, OpenInbounds ?? 0)
+        Quantity(dia)      = Stock ?? 0   (mudou 2026-09-21: QualifiedDemand/OpenInbounds são ignorados nesse
+                                            report, apesar do nome "Netflow" — NÃO usa UtilsDdmrp.CalculateNetflow)
         Color(dia)         = UtilsDdmrp.CalculateBufferColor(Quantity(dia), TopOfRed(dia), YellowZoneTop(dia), GreenZoneTop(dia))
 
     Se mode = Execution:
@@ -859,7 +860,7 @@ Agrupado por (IdProduct, IdCenter):
     DaysRedAndBlackPercentage = DaysRedAndBlack / QuantityDays,   0 se QuantityDays = 0
 ```
 
-- **`Execution` usa só o `Stock` do dia como quantidade — nunca `Netflow`** (confirmado explicitamente 2026-09-19): `QualifiedDemand`/`OpenInbounds` daquele dia são completamente ignorados nessa modalidade, diferente de `Netflow` onde os três compõem a quantidade via `CalculateNetflow`.
+- **Os dois modos (`Netflow` e `Execution`) usam só o `Stock` do dia como quantidade** (mudou 2026-09-21 — antes só `Execution` ignorava `QualifiedDemand`/`OpenInbounds`; agora `ComputeBufferColors` é sempre chamado com `qualifiedDemand=0`/`openInbounds=0` nesse report especificamente, então nem `Netflow` usa `UtilsDdmrp.CalculateNetflow`). Essa é uma particularidade do report `bufferPenetration` — `itemsByBufferColorHistory`, abaixo, continua chamando `ComputeBufferColors` com os valores reais de `QualifiedDemand`/`OpenInbounds`. A diferença entre os dois modos aqui passa a ser só o conjunto de zonas usado (Netflow tops vs. zonas de execução), não mais a quantidade.
 - **As zonas de execução são derivadas de `TopOfRed`/`YellowZone`, mesma fórmula de `CenterProduct.RedZoneExecution`/`YellowZoneExecution`/`GreenZoneExecution`** (ver seção "CenterProduct — zonas derivadas" acima): `RedZoneExecution = YellowZoneExecution = TopOfRed / 2` (sem arredondamento — 2026-09-20, ver a nota "Arredondamento passou a ser só de exibição" lá), `GreenZoneExecution` é o valor puro de `YellowZone` (não `GreenZone`) — não são colunas próprias de `History`, são recalculadas por dia a partir das mesmas colunas snapshot (`RedBaseZone`/`RedSafeZone`/`YellowZone`) que alimentam o modo `Netflow`.
 - **Zonas nulas contam como `NoColor`, não são excluídas do `QuantityDays`**: um dia de `History` sem `RedBaseZone`/`RedSafeZone`/`YellowZone`/`GreenZone` (zona ainda não calculada naquele dia) faz o topo de verde do modo escolhido ficar `0`, que `CalculateBufferColor` já resolve pra `NoColor` (checado antes de qualquer outra condição) — confirmado explicitamente 2026-09-19, esse dia ainda soma pro `QuantityDays` do par.
 - **`DaysRedAndBlack`/`DaysRedAndBlackPercentage` não são uma cor nova** — são a soma de `DaysRed` + `DaysBlack` (dias em ruptura ou na zona vermelha), calculada em cima da contagem por dia, não uma classificação própria de `CalculateBufferColor`.

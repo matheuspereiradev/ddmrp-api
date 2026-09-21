@@ -962,8 +962,9 @@ namespace Service.Infra.Data.Repositories
 
                     foreach (var h in group)
                     {
+                        //nesse relaório e semonete nesse relatório a cor de netflow usa apenas stock, por isso envio 0 em qualified demand e inbounds
                         var (netflowColor, executionColor) = ComputeBufferColors(
-                            h.Stock, h.QualifiedDemand, h.OpenInbounds, h.RedBaseZone, h.RedSafeZone, h.YellowZone,
+                            h.Stock, 0, 0, h.RedBaseZone, h.RedSafeZone, h.YellowZone,
                             h.GreenZone);
                         var color = mode == BufferPenetrationMode.Execution ? executionColor : netflowColor;
 

@@ -992,8 +992,10 @@ public class ReportRepositoryTests
 
         var start = new DateTime(2026, 1, 1);
 
-        // RedZone (RedBaseZone+RedSafeZone) = 20, TopOfYellow = 40, TopOfGreen = 60 (OpenInbounds/QualifiedDemand
-        // are 0 on every row, so Netflow == Stock and the expected color is easy to reason about per day).
+        // RedZone (RedBaseZone+RedSafeZone) = 20, TopOfYellow = 40, TopOfGreen = 60. Netflow mode in this
+        // report uses Stock directly as the quantity (QualifiedDemand/OpenInbounds are ignored here — see
+        // GetBufferPenetrationAsync_NetflowMode_IgnoresQualifiedDemandAndOpenInbounds_UsingStockOnly below),
+        // so the expected color per day is easy to reason about from Stock alone.
         context.History.AddRange(
             new History { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Date = start, Consumption = 0, Stock = 50, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Green
             new History { Id = 2, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(1), Consumption = 0, Stock = 30, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Yellow
@@ -1033,6 +1035,48 @@ public class ReportRepositoryTests
         Assert.Equal(1m / 6m, row.DaysBluePercentage);
         Assert.Equal(1m / 6m, row.DaysNoColorPercentage);
         Assert.Equal(2m / 6m, row.DaysRedAndBlackPercentage);
+    }
+
+    [Fact]
+    public async Task GetBufferPenetrationAsync_NetflowMode_IgnoresQualifiedDemandAndOpenInbounds_UsingStockOnly()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        context.AddRange(center, product);
+
+        var start = new DateTime(2026, 1, 1);
+
+        // TopOfRed (RedBaseZone+RedSafeZone) = 20, TopOfYellow = 40, TopOfGreen = 60. QualifiedDemand/OpenInbounds
+        // are set to large, mismatched values on purpose: unlike UtilsDdmrp.CalculateNetflow's normal
+        // Stock+Inbounds-QualifiedDemand formula, this report's Netflow mode ignores them entirely and
+        // classifies by Stock alone (confirmed 2026-09-21) — the annotated color is what each row would get
+        // if QualifiedDemand/OpenInbounds were NOT ignored, to prove the assertions below only make sense
+        // once they are.
+        context.History.AddRange(
+            new History { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Date = start, Consumption = 0, Stock = 50, QualifiedDemand = 1000, OpenInbounds = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Green by Stock alone; Black if QualifiedDemand applied
+            new History { Id = 2, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(1), Consumption = 0, Stock = 30, QualifiedDemand = 0, OpenInbounds = 1000, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Yellow by Stock alone; Blue if OpenInbounds applied
+            new History { Id = 3, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(2), Consumption = 0, Stock = 10, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Red
+            new History { Id = 4, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(3), Consumption = 0, Stock = 0, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 }, // Black
+            new History { Id = 5, IdProduct = product.Id, IdCenter = center.Id, Date = start.AddDays(4), Consumption = 0, Stock = 70, RedBaseZone = 10, RedSafeZone = 10, YellowZone = 20, GreenZone = 20 } // Blue
+        );
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetBufferPenetrationAsync(start, start.AddDays(4), null, null);
+
+        var row = Assert.Single(rows);
+
+        Assert.Equal(5, row.QuantityDays);
+        Assert.Equal(1, row.DaysGreen);
+        Assert.Equal(1, row.DaysYellow);
+        Assert.Equal(1, row.DaysRed);
+        Assert.Equal(1, row.DaysBlack);
+        Assert.Equal(1, row.DaysBlue);
+        Assert.Equal(0, row.DaysNoColor);
     }
 
     [Fact]
