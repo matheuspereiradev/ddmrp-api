@@ -243,7 +243,7 @@ Nenhum destes valores é digitado manualmente — todos vêm do cálculo diário
 
 ### 7.1 Consumo médio diário (ADU)
 Quantas unidades do item são, em média, consumidas por dia. Dependendo de quantos "dias de histórico" e "dias futuros" estão configurados no item (aba Configuração de Buffer):
-- **Histórico** (só dias de histórico configurados): soma o consumo real dos últimos N dias válidos (não descartados na revisão) e divide sempre por N — mesmo que o item seja novo e não tenha N dias de dado ainda. Um dia marcado como "Descartado" não conta; a janela busca mais um dia anterior até completar N dias válidos. Sem nenhum dado válido, o resultado é zero.
+- **Histórico** (só dias de histórico configurados): soma o consumo real dos últimos N dias não descartados e divide sempre por N — mesmo que o item seja novo e não tenha N dias de dado ainda. Um dia marcado como "Descartado" não conta; a janela busca mais um dia anterior até completar N dias válidos. Sem nenhum dado válido, o resultado é zero.
 - **Futuro** (só dias futuros configurados): usa a Previsão de Demanda dos próximos N dias corridos, já fracionada dia a dia (ver [7.6](#76-como-a-previsão-de-demanda-é-aberta-dia-a-dia)) — dias não úteis contam como zero, mas o divisor continua sendo N dias corridos.
 - **Misto** (ambos configurados): média simples entre o valor do Histórico e o valor do Futuro.
 - Se nenhum dos dois estiver configurado, o ADU fica em branco.
