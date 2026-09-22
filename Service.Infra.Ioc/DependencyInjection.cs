@@ -60,6 +60,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICenterRepository, CenterRepository>();
             services.AddScoped<IProductRepository, ProductRepository>();
             services.AddScoped<IForecastRepository, ForecastRepository>();
+            services.AddScoped<IForecastAIRepository, ForecastAIRepository>();
             services.AddScoped<IHistoryRepository, HistoryRepository>();
             services.AddScoped<IPartnerRepository, PartnerRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
@@ -83,6 +84,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ICenterService, CenterService>();
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IForecastService, ForecastService>();
+            services.AddScoped<IForecastAIService, ForecastAIService>();
             services.AddScoped<IHistoryService, HistoryService>();
             services.AddScoped<IPartnerService, PartnerService>();
             services.AddScoped<ITagService, TagService>();

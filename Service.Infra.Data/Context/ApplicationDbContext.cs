@@ -17,6 +17,7 @@ namespace Service.Infra.Data.Context
         public DbSet<Center> Center { get; set; }
         public DbSet<Product> Product { get; set; }
         public DbSet<Forecast> Forecast { get; set; }
+        public DbSet<ForecastAI> ForecastAI { get; set; }
         public DbSet<History> History { get; set; }
         public DbSet<Partner> Partner { get; set; }
         public DbSet<Tag> Tag { get; set; }

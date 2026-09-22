@@ -89,5 +89,15 @@ namespace Service.Infra.Data.Repositories
 
             return await PaginationHelper.CreateAsync(query, pageNumber, pageSize, cancellationToken);
         }
+
+        public async Task<Forecast> GetByProductCenterAndPeriodAsync(int idProduct, int idCenter, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
+        {
+            return await ApplyIncludes(_dbSet.AsQueryable())
+                .FirstOrDefaultAsync(f => f.deletedAt == null
+                    && f.IdProduct == idProduct
+                    && f.IdCenter == idCenter
+                    && f.StartDate == startDate
+                    && f.EndDate == endDate, cancellationToken);
+        }
     }
 }
