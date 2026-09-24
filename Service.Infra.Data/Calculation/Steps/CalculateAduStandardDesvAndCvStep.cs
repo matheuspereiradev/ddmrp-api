@@ -76,21 +76,24 @@ namespace Service.Infra.Data.Calculation.Steps
             ForecastBusinessDays AS (
                 -- How many business days each Forecast's own [StartDate, EndDate] window covers —
                 -- its Value is split evenly across exactly those days (Forecast is monthly/interval-based,
-                -- not one row per day — see CLAUDE.md's Forecast bullet).
+                -- not one row per day — see CLAUDE.md's Forecast bullet). A day with a matching Holiday
+                -- is excluded even if Calendar.IsWorkingDay = 1 (Holiday overrides Calendar to non-working,
+                -- never the other way — see CLAUDE.md's Holiday bullet).
                 SELECT
                     f.Id AS ForecastId,
                     COUNT(wc.Date) AS BusinessDayCount
                 FROM dbo.Forecasts f
                 JOIN dbo.Calendar wc
                     ON wc.Date >= f.StartDate AND wc.Date <= f.EndDate AND wc.IsWorkingDay = 1
-                WHERE f.deletedAt IS NULL
+                LEFT JOIN dbo.Holidays hol ON hol.Date = wc.Date
+                WHERE f.deletedAt IS NULL AND hol.Id IS NULL
                 GROUP BY f.Id
             ),
             FutureAdu AS (
                 SELECT
                     cp.Id AS CenterProductId,
                     ISNULL(SUM(
-                        CASE WHEN wc.IsWorkingDay = 1 AND ISNULL(fbd.BusinessDayCount, 0) > 0
+                        CASE WHEN wc.IsWorkingDay = 1 AND holFuture.Id IS NULL AND ISNULL(fbd.BusinessDayCount, 0) > 0
                             THEN f.Value / fbd.BusinessDayCount
                             ELSE 0
                         END
@@ -98,6 +101,7 @@ namespace Service.Infra.Data.Calculation.Steps
                 FROM dbo.CenterProducts cp
                 JOIN dbo.Calendar wc
                     ON wc.Date > @Today AND wc.Date <= DATEADD(DAY, cp.FutureAduDays, @Today)
+                LEFT JOIN dbo.Holidays holFuture ON holFuture.Date = wc.Date
                 LEFT JOIN dbo.Forecasts f
                     ON f.IdProduct = cp.IdProduct
                     AND f.IdCenter = cp.IdCenter

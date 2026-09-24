@@ -860,6 +860,38 @@ public class ReportRepositoryTests
     }
 
     [Fact]
+    public async Task GetProjectedStockAlertAsync_TreatsHolidayDateAsNonBusinessDay_EvenWhenCalendarMarksItWorkingDay()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var product = new Product { Id = 1, Reference = "REF1", Description = "Product 1", UnitOfMeasure = "UN" };
+        var centerProduct = new CenterProduct { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Adu = 5m, Stock = 100m };
+
+        context.AddRange(center, product, centerProduct);
+
+        context.Calendar.AddRange(
+            new Calendar { Date = new DateTime(2026, 9, 1), DayOfWeekNumber = 2, IsWorkingDay = true },
+            new Calendar { Date = new DateTime(2026, 9, 2), DayOfWeekNumber = 3, IsWorkingDay = true },
+            new Calendar { Date = new DateTime(2026, 9, 3), DayOfWeekNumber = 4, IsWorkingDay = true });
+
+        context.Holiday.Add(new Holiday { Id = 1, Name = "Company Holiday", Date = new DateTime(2026, 9, 2) });
+
+        context.Forecast.Add(new Forecast { Id = 1, IdProduct = product.Id, IdCenter = center.Id, Value = 30m, StartDate = new DateTime(2026, 9, 1), EndDate = new DateTime(2026, 9, 3) });
+
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var rows = await repository.GetProjectedStockAlertAsync(center.Id, product.Id, new DateTime(2026, 9, 1), new DateTime(2026, 9, 3));
+
+        // Business day count drops from 3 to 2 (Sept 2 excluded), so Value 30 splits into 15/day instead of 10/day.
+        Assert.Equal(15m, rows[0].ProjectedConsumption);
+        Assert.Equal(0m, rows[1].ProjectedConsumption);
+        Assert.Equal(15m, rows[2].ProjectedConsumption);
+    }
+
+    [Fact]
     public async Task GetProjectedStockAlertAsync_UseFictionalOrdersTogglesWhetherFictionalOrdersCount()
     {
         await using var context = CreateContext();

@@ -34,6 +34,7 @@ namespace Service.Infra.Data.Context
         public DbSet<Workspace> Workspace { get; set; }
         public DbSet<Setting> Setting { get; set; }
         public DbSet<Calendar> Calendar { get; set; }
+        public DbSet<Holiday> Holiday { get; set; }
         public DbSet<Permission> Permission { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
 

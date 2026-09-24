@@ -33,7 +33,15 @@ namespace Service.Infra.Data.Repositories
             if (idCenter.HasValue)
                 forecasts = forecasts.Where(f => f.IdCenter == idCenter.Value);
 
-            var workingDays = _context.Calendar.Where(c => c.IsWorkingDay);
+            // A day is a business day only when Calendar.IsWorkingDay AND there's no matching Holiday
+            // (Holiday overrides Calendar to non-working, never the other way around) — see CLAUDE.md's
+            // Holiday bullet. Excluding holidays via LEFT JOIN + null-check, not a per-day EXISTS/subselect.
+            var workingDays =
+                from c in _context.Calendar
+                join h in _context.Holiday on c.Date equals h.Date into holidayGroup
+                from h in holidayGroup.DefaultIfEmpty()
+                where c.IsWorkingDay && h == null
+                select c;
 
             var withBusinessDayCount = forecasts.Select(f => new
             {
@@ -44,6 +52,8 @@ namespace Service.Infra.Data.Repositories
             var exploded =
                 from f in withBusinessDayCount
                 from d in _context.Calendar
+                join h in _context.Holiday on d.Date equals h.Date into dayHolidayGroup
+                from h in dayHolidayGroup.DefaultIfEmpty()
                 where d.Date >= f.Forecast.StartDate && d.Date <= f.Forecast.EndDate
                 select new ForecastDailyRow
                 {
@@ -51,7 +61,7 @@ namespace Service.Infra.Data.Repositories
                     IdProduct = f.Forecast.IdProduct,
                     IdCenter = f.Forecast.IdCenter,
                     Date = d.Date,
-                    Value = d.IsWorkingDay && f.BusinessDayCount > 0
+                    Value = d.IsWorkingDay && h == null && f.BusinessDayCount > 0
                         ? f.Forecast.Value / f.BusinessDayCount
                         : 0,
                     Product = f.Forecast.Product,

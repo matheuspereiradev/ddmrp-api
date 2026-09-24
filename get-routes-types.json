@@ -50,6 +50,7 @@
       "method": "GET",
       "route": "/api/user",
       "auth": true,
+      "permission": "user:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<UserGetDto>",
       "itemShape": {
@@ -64,6 +65,7 @@
       "method": "GET",
       "route": "/api/role",
       "auth": true,
+      "permission": "role:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<RoleGetDto>",
       "itemShape": {
@@ -75,6 +77,7 @@
       "method": "GET",
       "route": "/api/center",
       "auth": true,
+      "permission": "center:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<CenterGetDto>",
       "itemShape": {
@@ -89,6 +92,7 @@
       "method": "GET",
       "route": "/api/product",
       "auth": true,
+      "permission": "product:GET",
       "queryParams": { "idCenter": "number | null (optional filter)", "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<ProductGetDto>",
       "itemShape": {
@@ -114,6 +118,7 @@
       "method": "GET",
       "route": "/api/forecast",
       "auth": true,
+      "permission": "forecast:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -137,6 +142,7 @@
       "method": "GET",
       "route": "/api/forecast/grouped",
       "auth": true,
+      "permission": "forecast/grouped:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -161,6 +167,7 @@
       "method": "GET",
       "route": "/api/history",
       "auth": true,
+      "permission": "history:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -214,6 +221,7 @@
       "method": "GET",
       "route": "/api/partner",
       "auth": true,
+      "permission": "partner:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<PartnerGetDto>",
       "itemShape": {
@@ -224,8 +232,22 @@
     },
     {
       "method": "GET",
+      "route": "/api/holiday",
+      "auth": true,
+      "permission": "holiday:GET",
+      "queryParams": { "includePast": "boolean (default false) — when false, holidays with Date < today are excluded", "pageNumber": "number", "pageSize": "number" },
+      "responseData": "PagedList<HolidayGetDto>",
+      "itemShape": {
+        "id": "number",
+        "name": "string",
+        "date": "string (ISO date)"
+      }
+    },
+    {
+      "method": "GET",
       "route": "/api/tag",
       "auth": true,
+      "permission": "tag:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<TagGetDto>",
       "itemShape": {
@@ -238,6 +260,7 @@
       "method": "GET",
       "route": "/api/reason",
       "auth": true,
+      "permission": "reason:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<ReasonGetDto>",
       "itemShape": {
@@ -251,6 +274,7 @@
       "method": "GET",
       "route": "/api/allocationGroup",
       "auth": true,
+      "permission": "allocationgroup:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<AllocationGroupGetDto>",
       "itemShape": {
@@ -262,6 +286,7 @@
       "method": "GET",
       "route": "/api/allocationGroup/priorizedAllocation",
       "auth": true,
+      "permission": "allocationgroup/priorizedallocation:GET",
       "queryParams": {},
       "responseData": "PriorizedAllocationRow[]",
       "notes": "Scoped to the authenticated user's own Workspace rows (Approved = true), joined to CenterProduct (via IdProduct+IdCenter) for the AllocationGroup and to Product for Weight/Volume/Value/Pallet. A group's weighted metric (Weight/Volume/Value/Pallet) comes back null if ANY item contributing to that group is missing that Product property (or, for Pallet, has it as 0).",
@@ -279,6 +304,7 @@
       "method": "POST",
       "route": "/api/allocationGroup/priorizedAllocation/run",
       "auth": true,
+      "permission": "allocationgroup/priorizedallocation/run:POST",
       "requestBody": {
         "idGroup": "number",
         "limit": "number",
@@ -304,6 +330,7 @@
       "method": "GET",
       "route": "/api/centerProduct",
       "auth": true,
+      "permission": "centerproduct:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<CenterProductGetDto>",
       "itemShape": {
@@ -385,6 +412,7 @@
       "method": "GET",
       "route": "/api/masterBuffer",
       "auth": true,
+      "permission": "masterbuffer:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<MasterBufferGetDto>",
       "itemShape": {
@@ -404,6 +432,7 @@
       "method": "GET",
       "route": "/api/zoneAdjustmentFactor",
       "auth": true,
+      "permission": "zoneadjustmentfactor:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -430,6 +459,7 @@
       "method": "GET",
       "route": "/api/bufferAdjustmentFactor",
       "auth": true,
+      "permission": "bufferadjustmentfactor:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -463,6 +493,7 @@
       "method": "GET",
       "route": "/api/demandAdjustmentFactor",
       "auth": true,
+      "permission": "demandadjustmentfactor:GET",
       "queryParams": {
         "idProduct": "number | null (optional filter)",
         "idCenter": "number | null (optional filter)",
@@ -488,6 +519,7 @@
       "method": "GET",
       "route": "/api/bufferProfile",
       "auth": true,
+      "permission": "bufferprofile:GET",
       "queryParams": { "pageNumber": "number", "pageSize": "number" },
       "responseData": "PagedList<BufferProfileGetDto>",
       "itemShape": {
@@ -518,6 +550,7 @@
       "method": "GET",
       "route": "/api/note",
       "auth": true,
+      "permission": "note:GET",
       "queryParams": {
         "idCenterProduct": "number | null (optional filter)",
         "pageNumber": "number",
@@ -537,6 +570,7 @@
       "method": "GET",
       "route": "/api/order",
       "auth": true,
+      "permission": "order:GET",
       "queryParams": {
         "idDestinyCenter": "number | null (optional filter)",
         "idOriginCenter": "number | null (optional filter)",
@@ -580,6 +614,7 @@
       "method": "GET",
       "route": "/api/report/inventoryBufferManagement",
       "auth": true,
+      "permission": "report/inventorybuffermanagement:GET",
       "odata": true,
       "queryParams": {
         "$filter": "string (optional, OData filter expression, e.g. $filter=stock gt 100 and centerCode eq 'C1')",
@@ -707,6 +742,7 @@
       "method": "GET",
       "route": "/api/report/inventoryBufferManagement/colorSummary",
       "auth": true,
+      "permission": "report/inventorybuffermanagement/colorsummary:GET",
       "queryParams": {
         "$filter": "string (optional, same OData filter expression accepted by inventoryBufferManagement — only $filter is allowed here, $orderby/$top/$skip/$count are rejected)",
         "selectedCenters": "number[] (optional, same master center filter as inventoryBufferManagement, applied the same way before $filter)"
@@ -722,6 +758,7 @@
       "method": "GET",
       "route": "/api/report/openOrders/inbounds",
       "auth": true,
+      "permission": "report/openorders/inbounds:GET",
       "queryParams": {
         "idCenter": "number | null (matches idDestinyCenter)",
         "idProduct": "number | null"
@@ -767,6 +804,7 @@
       "method": "GET",
       "route": "/api/report/inventoryHistory",
       "auth": true,
+      "permission": "report/inventoryhistory:GET",
       "queryParams": {
         "idCenter": "number (required)",
         "idProduct": "number (required)",
@@ -795,6 +833,7 @@
       "method": "GET",
       "route": "/api/report/projectedStockAlert",
       "auth": true,
+      "permission": "report/projectedstockalert:GET",
       "queryParams": {
         "idCenter": "number (required)",
         "idProduct": "number (required)",
@@ -832,6 +871,7 @@
       "method": "GET",
       "route": "/api/report/bufferPenetration",
       "auth": true,
+      "permission": "report/bufferpenetration:GET",
       "queryParams": {
         "dateStart": "string (ISO date) (required)",
         "dateEnd": "string (ISO date) (required)",
@@ -867,6 +907,7 @@
       "method": "GET",
       "route": "/api/report/itemsByBufferColorHistory",
       "auth": true,
+      "permission": "report/itemsbybuffercolorhistory:GET",
       "queryParams": {
         "dateStart": "string (ISO date) (required)",
         "dateEnd": "string (ISO date) (required)",
@@ -892,6 +933,7 @@
       "method": "GET",
       "route": "/api/report/accumulatedBufferHistory",
       "auth": true,
+      "permission": "report/accumulatedbufferhistory:GET",
       "queryParams": {
         "dateStart": "string (ISO date) (required)",
         "dateEnd": "string (ISO date) (required)",
@@ -924,6 +966,8 @@
       "method": "GET",
       "route": "/api/permission",
       "auth": true,
+      "permission": null,
+      "permissionNote": "Bootstrap route — deliberately excluded from [RequirePermission] (see the other /api/permission/* routes) so no role can get permanently locked out of managing permissions.",
       "responseData": "PermissionGetDto[] (plain array, NOT a PagedList — no pagination). The full catalog of route:method permission keys, ordered by module then id.",
       "itemShape": {
         "id": "string (the permission key, format \"{route}:{HTTP method}\" — no leading \"api/\" and no \"{id}\"/route-parameter segments, e.g. \"center:PUT\", \"centerproduct/allocation-group:PATCH\")",
@@ -935,6 +979,8 @@
       "method": "GET",
       "route": "/api/permission/role/{idRole}",
       "auth": true,
+      "permission": null,
+      "permissionNote": "Bootstrap route — no [RequirePermission], same reason as GET /api/permission.",
       "responseData": "PermissionGetDto[] (plain array, NOT a PagedList — no pagination). The permissions currently assigned to this role. 404 if the role doesn't exist.",
       "itemShape": {
         "id": "string",
@@ -946,6 +992,8 @@
       "method": "GET",
       "route": "/api/permission/discover",
       "auth": true,
+      "permission": null,
+      "permissionNote": "Bootstrap route — no [RequirePermission], same reason as GET /api/permission.",
       "responseData": "string[] (plain array of permission keys). Lists the exact key each currently [RequirePermission]-marked action will check at runtime — a copy-paste reference for adding new Permission rows via HasData in a migration, not a runtime-registration endpoint. Empty until at least one action carries [RequirePermission]."
     }
   ]

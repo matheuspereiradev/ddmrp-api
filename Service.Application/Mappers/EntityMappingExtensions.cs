@@ -2,6 +2,7 @@ using Service.Application.DTOs.AllocationGroup;
 using Service.Application.DTOs.BufferProfile;
 using Service.Application.DTOs.Center;
 using Service.Application.DTOs.CenterProduct;
+using Service.Application.DTOs.Holiday;
 using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
 using Service.Application.DTOs.Reason;
@@ -63,6 +64,13 @@ namespace Service.Application.Mappers
             Id = partner.Id,
             Code = partner.Code,
             Description = partner.Description
+        };
+
+        public static HolidayGetDto ToGetDto(this Holiday holiday) => new()
+        {
+            Id = holiday.Id,
+            Name = holiday.Name,
+            Date = holiday.Date
         };
 
         public static TagGetDto ToGetDto(this Tag tag) => new()

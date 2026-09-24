@@ -35,6 +35,11 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 new Permission { Id = "partner:PUT", Description = "Update partner", Module = "Partner" },
                 new Permission { Id = "partner:DELETE", Description = "Delete partner", Module = "Partner" },
 
+                new Permission { Id = "holiday:POST", Description = "Create holiday", Module = "Holiday" },
+                new Permission { Id = "holiday:GET", Description = "List holidays", Module = "Holiday" },
+                new Permission { Id = "holiday:PUT", Description = "Update holiday", Module = "Holiday" },
+                new Permission { Id = "holiday:DELETE", Description = "Delete holiday", Module = "Holiday" },
+
                 new Permission { Id = "tag:POST", Description = "Create tag", Module = "Tag" },
                 new Permission { Id = "tag:GET", Description = "List tags", Module = "Tag" },
                 new Permission { Id = "tag:PUT", Description = "Update tag", Module = "Tag" },

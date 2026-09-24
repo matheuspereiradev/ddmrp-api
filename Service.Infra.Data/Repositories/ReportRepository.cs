@@ -785,7 +785,15 @@ namespace Service.Infra.Data.Repositories
 
             var forecasts = _context.Forecast.Where(f =>
                 f.deletedAt == null && f.IdProduct == idProduct && f.IdCenter == idCenter);
-            var workingDays = _context.Calendar.Where(c => c.IsWorkingDay);
+
+            // Same Holiday-overrides-Calendar business-day rule as ForecastRepository.GetFilteredAsync
+            // (see CLAUDE.md's Holiday bullet) — LEFT JOIN + null-check, not a per-day EXISTS/subselect.
+            var workingDays =
+                from c in _context.Calendar
+                join h in _context.Holiday on c.Date equals h.Date into holidayGroup
+                from h in holidayGroup.DefaultIfEmpty()
+                where c.IsWorkingDay && h == null
+                select c;
 
             var withBusinessDayCount = forecasts.Select(f => new
             {
@@ -798,11 +806,13 @@ namespace Service.Infra.Data.Repositories
             var forecastByDate = await (
                     from f in withBusinessDayCount
                     from d in _context.Calendar
+                    join h in _context.Holiday on d.Date equals h.Date into dayHolidayGroup
+                    from h in dayHolidayGroup.DefaultIfEmpty()
                     where d.Date >= f.StartDate && d.Date <= f.EndDate && d.Date >= dateStart && d.Date <= dateEnd
                     select new
                     {
                         d.Date,
-                        Value = d.IsWorkingDay && f.BusinessDayCount > 0 ? f.Value / f.BusinessDayCount : 0
+                        Value = d.IsWorkingDay && h == null && f.BusinessDayCount > 0 ? f.Value / f.BusinessDayCount : 0
                     })
                 .GroupBy(x => x.Date)
                 .Select(g => new { Date = g.Key, Value = g.Sum(x => x.Value) })

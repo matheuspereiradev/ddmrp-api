@@ -65,6 +65,20 @@ public class ForecastRepositoryTests
     }
 
     [Fact]
+    public async Task GetFilteredAsync_TreatsHolidayDateAsNonBusinessDay_EvenWhenCalendarMarksItWorkingDay()
+    {
+        var repository = CreateSut(out var context);
+        context.Forecast.Add(new Forecast { Id = 1, IdProduct = 1, IdCenter = 1, Value = 220m, StartDate = new DateTime(2026, 1, 1), EndDate = new DateTime(2026, 1, 31) });
+        context.Holiday.Add(new Holiday { Id = 1, Name = "New Year (observed)", Date = new DateTime(2026, 1, 5) });
+        context.SaveChanges();
+
+        var result = await repository.GetFilteredAsync(null, null, null, null, 1, 100);
+
+        Assert.Equal(JanuaryBusinessDays - 1, result.Count(r => r.Value != 0));
+        Assert.Equal(0m, Assert.Single(result, r => r.Date == new DateTime(2026, 1, 5)).Value);
+    }
+
+    [Fact]
     public async Task GetFilteredAsync_FiltersExplodedRowsByDateRange()
     {
         var repository = CreateSut(out var context);
