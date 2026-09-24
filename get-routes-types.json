@@ -919,6 +919,34 @@
         "minimumOscillationRange": "number (sum of netflowRedZone per item)",
         "maximumOscillationRange": "number (sum of netflowRedZone + netflowGreenZone per item — note: yellow is NOT included)"
       }
+    },
+    {
+      "method": "GET",
+      "route": "/api/permission",
+      "auth": true,
+      "responseData": "PermissionGetDto[] (plain array, NOT a PagedList — no pagination). The full catalog of route:method permission keys, ordered by module then id.",
+      "itemShape": {
+        "id": "string (the permission key, format \"{route}:{HTTP method}\" — no leading \"api/\" and no \"{id}\"/route-parameter segments, e.g. \"center:PUT\", \"centerproduct/allocation-group:PATCH\")",
+        "description": "string | null",
+        "module": "string | null"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/permission/role/{idRole}",
+      "auth": true,
+      "responseData": "PermissionGetDto[] (plain array, NOT a PagedList — no pagination). The permissions currently assigned to this role. 404 if the role doesn't exist.",
+      "itemShape": {
+        "id": "string",
+        "description": "string | null",
+        "module": "string | null"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/permission/discover",
+      "auth": true,
+      "responseData": "string[] (plain array of permission keys). Lists the exact key each currently [RequirePermission]-marked action will check at runtime — a copy-paste reference for adding new Permission rows via HasData in a migration, not a runtime-registration endpoint. Empty until at least one action carries [RequirePermission]."
     }
   ]
 }

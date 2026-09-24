@@ -77,6 +77,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IReportRepository, ReportRepository>();
             services.AddScoped<IWorkspaceRepository, WorkspaceRepository>();
             services.AddScoped<ISettingRepository, SettingRepository>();
+            services.AddScoped<IPermissionRepository, PermissionRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -97,6 +98,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<INoteService, NoteService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IWorkspaceService, WorkspaceService>();
+            services.AddScoped<IPermissionService, PermissionService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();

@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Center;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateCenter(CenterPostDto centerPostDto, CancellationToken cancellationToken)
         {
             var center = await _centerService.AddAsync(centerPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllCenters([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var centers = await _centerService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateCenter(int id, CenterPutDto centerPutDto, CancellationToken cancellationToken)
         {
             var center = await _centerService.UpdateAsync(id, centerPutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteCenter(int id, CancellationToken cancellationToken)
         {
             var center = await _centerService.DeleteAsync(id, cancellationToken);

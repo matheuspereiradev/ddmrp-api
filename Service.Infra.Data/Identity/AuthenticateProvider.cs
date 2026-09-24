@@ -17,12 +17,13 @@ namespace Service.Infra.Data.Identity
             _configuration = configuration;
         }
 
-        public string GenerateToken(int id, string email)
+        public string GenerateToken(int id, string email, int idRole)
         {
             var claims = new[]
             {
                 new Claim("id", id.ToString()),
                 new Claim("email", email.ToLower()),
+                new Claim("role", idRole.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 

@@ -18,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiResponseWrapperFilter>();
+    options.Filters.Add<RequirePermissionActionFilter>();
 })
 .AddOData(options => options.EnableQueryFeatures(maxTopValue: 500))
 .AddJsonOptions(options =>

@@ -65,7 +65,7 @@ namespace Service.Application.Services
 
         private async Task<AuthResponseDto> IssueTokensAsync(User user, CancellationToken cancellationToken)
         {
-            var accessToken = _authenticate.GenerateToken(user.Id, user.Email);
+            var accessToken = _authenticate.GenerateToken(user.Id, user.Email, user.IdRole);
             var accessTokenExpiresAt = _authenticate.GetTokenExpiration();
             var refreshTokenValue = _authenticate.GenerateRefreshToken();
             var refreshTokenExpiresAt = _authenticate.GetRefreshTokenExpiration();

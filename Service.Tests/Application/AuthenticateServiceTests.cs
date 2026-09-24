@@ -16,7 +16,7 @@ public class AuthenticateServiceTests
 
     public AuthenticateServiceTests()
     {
-        _authenticate.GenerateToken(Arg.Any<int>(), Arg.Any<string>()).Returns("fake-access-token");
+        _authenticate.GenerateToken(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>()).Returns("fake-access-token");
         _authenticate.GetTokenExpiration().Returns(DateTime.UtcNow.AddHours(1));
         _authenticate.GenerateRefreshToken().Returns("fake-refresh-token");
         _authenticate.GetRefreshTokenExpiration().Returns(DateTime.UtcNow.AddDays(7));

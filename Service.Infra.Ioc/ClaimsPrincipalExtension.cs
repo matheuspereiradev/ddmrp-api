@@ -16,5 +16,15 @@ namespace Service.Infra.Ioc
             }
             throw new Exception("User ID claim not found or invalid.");
         }
+
+        public static int GetRoleId(this ClaimsPrincipal user)
+        {
+            var roleIdClaim = user.FindFirst("role");
+            if (roleIdClaim != null && int.TryParse(roleIdClaim.Value, out int roleId))
+            {
+                return roleId;
+            }
+            throw new Exception("Role ID claim not found or invalid.");
+        }
     }
 }
