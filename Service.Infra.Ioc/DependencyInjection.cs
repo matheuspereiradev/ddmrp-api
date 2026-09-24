@@ -80,6 +80,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<ISettingRepository, SettingRepository>();
             services.AddScoped<IPermissionRepository, PermissionRepository>();
             services.AddScoped<IHolidayRepository, HolidayRepository>();
+            services.AddScoped<ICalendarRepository, CalendarRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -102,6 +103,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IWorkspaceService, WorkspaceService>();
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IHolidayService, HolidayService>();
+            services.AddScoped<ISettingService, SettingService>();
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();

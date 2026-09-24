@@ -232,6 +232,26 @@
     },
     {
       "method": "GET",
+      "route": "/api/setting",
+      "auth": true,
+      "permission": null,
+      "permissionNote": "GET has no [RequirePermission] — any authenticated user can read the current settings. Only PUT /api/setting requires setting:PUT.",
+      "queryParams": {},
+      "responseData": "ApiResponseDto<SettingGetDto> (single object, not a list/PagedList — Setting is a singleton row, Id always 1)",
+      "itemShape": {
+        "id": "number",
+        "mondayIsWorkingDay": "boolean",
+        "tuesdayIsWorkingDay": "boolean",
+        "wednesdayIsWorkingDay": "boolean",
+        "thursdayIsWorkingDay": "boolean",
+        "fridayIsWorkingDay": "boolean",
+        "saturdayIsWorkingDay": "boolean",
+        "sundayIsWorkingDay": "boolean"
+      },
+      "notes": "PUT /api/setting (not documented above, this file only tracks GET routes) takes the same 7 boolean fields (full replace, no partial update) and, for every weekday whose value actually changed, bulk-updates Calendar.IsWorkingDay for every Calendar row with that DayOfWeekNumber and Date > today (past/today dates are never touched)."
+    },
+    {
+      "method": "GET",
       "route": "/api/holiday",
       "auth": true,
       "permission": "holiday:GET",

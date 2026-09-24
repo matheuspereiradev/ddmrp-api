@@ -35,6 +35,8 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 new Permission { Id = "partner:PUT", Description = "Update partner", Module = "Partner" },
                 new Permission { Id = "partner:DELETE", Description = "Delete partner", Module = "Partner" },
 
+                new Permission { Id = "setting:PUT", Description = "Update working days settings", Module = "Setting" },
+
                 new Permission { Id = "holiday:POST", Description = "Create holiday", Module = "Holiday" },
                 new Permission { Id = "holiday:GET", Description = "List holidays", Module = "Holiday" },
                 new Permission { Id = "holiday:PUT", Description = "Update holiday", Module = "Holiday" },
