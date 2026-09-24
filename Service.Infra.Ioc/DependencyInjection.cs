@@ -38,6 +38,7 @@ namespace Service.Infra.Ioc
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             }).AddJwtBearer(opt =>
             {
+                opt.MapInboundClaims = false;
                 opt.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
                 {
                     ValidateIssuer = true,
