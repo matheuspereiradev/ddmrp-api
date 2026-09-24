@@ -1211,6 +1211,143 @@ namespace Service.Infra.Data.Repositories
             return rows;
         }
 
+        // Report counterpart of CalculateQualifiedDemandStep's SQL (Service.Infra.Data/Calculation/Steps/
+        // CalculateQualifiedDemandStep.cs) — same bucketing rules, but per-day/per-order instead of a single
+        // summed UPDATE, so the frontend can chart qualified demand by day and drill into the orders behind
+        // each bar. "Today" merges overdue + due-today non-fictional orders with due-today-only fictional
+        // orders (an overdue fictional order is never rolled into today, same as the calculation step);
+        // future days (DeliveryDate > today) don't distinguish fictional/real. Bucketing needs a live
+        // DeliveryDate-to-bucket-date decision per order (not a plain GroupBy key), so it runs in memory
+        // after one bounded fetch, same "materialize then decorate" reasoning as GetOpenOrdersAsync/
+        // GetProjectedStockAlertAsync above. Days with no orders at all are omitted entirely (only days with
+        // orders are returned, whether or not they qualified).
+        public async Task<QualifiedDemandReport?> GetQualifiedDemandReportAsync(int idProduct, int idCenter,
+            CancellationToken cancellationToken = default)
+        {
+            var centerProduct = await _context.CenterProduct
+                .Where(cp => cp.deletedAt == null && cp.IdProduct == idProduct && cp.IdCenter == idCenter)
+                .Select(cp => new
+                {
+                    cp.Id,
+                    cp.LeadTime,
+                    cp.Adu,
+                    cp.RedZoneBase,
+                    cp.RedZoneSafe,
+                    cp.SpikeHorizonType,
+                    cp.SpikeHorizonValue,
+                    cp.SpikeHorizonLTDays,
+                    cp.SpikeThresholdType,
+                    cp.SpikeThresholdAdu,
+                    cp.SpikeThresholdPercentageRedZone
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (centerProduct == null)
+                return null;
+
+            var today = DateTime.Today;
+            var horizonDays = centerProduct.SpikeHorizonType == SpikeHorizonType.Dlt
+                ? centerProduct.LeadTime * centerProduct.SpikeHorizonLTDays
+                : centerProduct.SpikeHorizonValue;
+            var horizonEndDate = today.AddDays(horizonDays);
+
+            var orders = await _context.Order
+                .Where(o => o.deletedAt == null && o.IsOutbound && o.IdProduct == idProduct &&
+                            o.IdOriginCenter == idCenter && o.DeliveryDate.HasValue)
+                .Select(o => new { o.OrderNumber, o.Quantity, o.DeliveredQuantity, o.DeliveryDate, o.IsFictional })
+                .ToListAsync(cancellationToken);
+
+            var dayRows = new SortedDictionary<DateTime, QualifiedDemandDayRow>();
+
+            foreach (var order in orders)
+            {
+                var deliveryDate = order.DeliveryDate!.Value.Date;
+                DateTime bucketDate;
+
+                if (!order.IsFictional)
+                {
+                    // overdue (deliveryDate < today) and due-today orders both roll into "today"
+                    bucketDate = deliveryDate <= today ? today : deliveryDate;
+                }
+                else
+                {
+                    // a fictional order only counts if it's due exactly today or in the future — never rolled
+                    // into today as "overdue", same exclusion CalculateQualifiedDemandStep applies
+                    if (deliveryDate < today)
+                        continue;
+                    bucketDate = deliveryDate;
+                }
+
+                if (bucketDate > horizonEndDate)
+                    continue;
+
+                if (!dayRows.TryGetValue(bucketDate, out var dayRow))
+                {
+                    dayRow = new QualifiedDemandDayRow { Date = bucketDate };
+                    dayRows[bucketDate] = dayRow;
+                }
+
+                var pendingQuantity = order.Quantity - order.DeliveredQuantity;
+                dayRow.TotalPendingQuantity += pendingQuantity;
+                dayRow.Orders.Add(new QualifiedDemandOrderRow
+                {
+                    OrderNumber = order.OrderNumber,
+                    PendingQuantity = pendingQuantity,
+                    IsOverdue = !order.IsFictional && deliveryDate < today,
+                    IsFictional = order.IsFictional
+                });
+            }
+
+            decimal configuredThreshold;
+            decimal? thresholdValue;
+
+            if (centerProduct.SpikeThresholdType == SpikeThresholdType.Adu)
+            {
+                configuredThreshold = centerProduct.SpikeThresholdAdu;
+                thresholdValue = centerProduct.Adu.HasValue ? centerProduct.Adu.Value * centerProduct.SpikeThresholdAdu : null;
+            }
+            else
+            {
+                configuredThreshold = centerProduct.SpikeThresholdPercentageRedZone;
+                thresholdValue = ((centerProduct.RedZoneBase ?? 0) + (centerProduct.RedZoneSafe ?? 0)) *
+                                  centerProduct.SpikeThresholdPercentageRedZone;
+            }
+
+            decimal totalQualifiedDemand = 0;
+
+            foreach (var dayRow in dayRows.Values)
+            {
+                dayRow.ConfiguredThreshold = configuredThreshold;
+                dayRow.ThresholdValue = thresholdValue;
+                dayRow.IsQualified = thresholdValue.HasValue && dayRow.TotalPendingQuantity >= thresholdValue.Value;
+                dayRow.QualifiedQuantity = dayRow.IsQualified ? dayRow.TotalPendingQuantity : 0;
+                totalQualifiedDemand += dayRow.QualifiedQuantity;
+            }
+
+            return new QualifiedDemandReport
+            {
+                IdCenterProduct = centerProduct.Id,
+                IdProduct = idProduct,
+                IdCenter = idCenter,
+                LeadTime = centerProduct.LeadTime,
+                Adu = centerProduct.Adu,
+                RedZoneBase = centerProduct.RedZoneBase,
+                RedZoneSafe = centerProduct.RedZoneSafe,
+                SpikeThresholdType = centerProduct.SpikeThresholdType,
+                SpikeThresholdAdu = centerProduct.SpikeThresholdAdu,
+                SpikeThresholdPercentageRedZone = centerProduct.SpikeThresholdPercentageRedZone,
+                SpikeHorizonType = centerProduct.SpikeHorizonType,
+                SpikeHorizonValue = centerProduct.SpikeHorizonValue,
+                SpikeHorizonLTDays = centerProduct.SpikeHorizonLTDays,
+                UsedSpikeThreshold = thresholdValue,
+                HorizonDays = horizonDays,
+                HorizonStartDate = today,
+                HorizonEndDate = horizonEndDate,
+                TotalQualifiedDemand = totalQualifiedDemand,
+                Days = dayRows.Values.ToList()
+            };
+        }
+
         private async Task ApplyExecutionBufferAsync(List<OpenOrderRow> rows, CancellationToken cancellationToken)
         {
             var idProducts = rows.Select(r => r.IdProduct).Distinct().ToList();

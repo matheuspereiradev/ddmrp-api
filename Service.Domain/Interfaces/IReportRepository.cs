@@ -42,5 +42,6 @@ namespace Service.Domain.Interfaces
             DateTime dateEnd,
             int[] idCenters,
             CancellationToken cancellationToken = default);
+        Task<QualifiedDemandReport?> GetQualifiedDemandReportAsync(int idProduct, int idCenter, CancellationToken cancellationToken = default);
     }
 }
