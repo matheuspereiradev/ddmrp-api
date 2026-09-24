@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.MasterBuffer;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateMasterBuffer(MasterBufferPostDto masterBufferPostDto, CancellationToken cancellationToken)
         {
             var masterBuffer = await _masterBufferService.AddAsync(masterBufferPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllMasterBuffers([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var masterBuffers = await _masterBufferService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateMasterBuffer(int id, MasterBufferPutDto masterBufferPutDto, CancellationToken cancellationToken)
         {
             var masterBuffer = await _masterBufferService.UpdateAsync(id, masterBufferPutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteMasterBuffer(int id, CancellationToken cancellationToken)
         {
             var masterBuffer = await _masterBufferService.DeleteAsync(id, cancellationToken);

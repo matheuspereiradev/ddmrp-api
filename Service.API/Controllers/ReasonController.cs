@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Reason;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateReason(ReasonPostDto reasonPostDto, CancellationToken cancellationToken)
         {
             var reason = await _reasonService.AddAsync(reasonPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllReasons([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var reasons = await _reasonService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateReason(int id, ReasonPutDto reasonPutDto, CancellationToken cancellationToken)
         {
             var reason = await _reasonService.UpdateAsync(id, reasonPutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteReason(int id, CancellationToken cancellationToken)
         {
             var reason = await _reasonService.DeleteAsync(id, cancellationToken);

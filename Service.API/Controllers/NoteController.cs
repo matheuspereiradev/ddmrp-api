@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Note;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateNote(NotePostDto notePostDto, CancellationToken cancellationToken)
         {
             var note = await _noteService.AddAsync(notePostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllNotes([FromQuery] int? idCenterProduct, [FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var notes = idCenterProduct.HasValue
@@ -42,6 +45,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateNote(int id, NotePutDto notePutDto, CancellationToken cancellationToken)
         {
             var note = await _noteService.UpdateAsync(id, notePutDto, cancellationToken);
@@ -50,6 +54,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteNote(int id, CancellationToken cancellationToken)
         {
             var note = await _noteService.DeleteAsync(id, cancellationToken);

@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Partner;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreatePartner(PartnerPostDto partnerPostDto, CancellationToken cancellationToken)
         {
             var partner = await _partnerService.AddAsync(partnerPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllPartners([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var partners = await _partnerService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdatePartner(int id, PartnerPutDto partnerPutDto, CancellationToken cancellationToken)
         {
             var partner = await _partnerService.UpdateAsync(id, partnerPutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeletePartner(int id, CancellationToken cancellationToken)
         {
             var partner = await _partnerService.DeleteAsync(id, cancellationToken);

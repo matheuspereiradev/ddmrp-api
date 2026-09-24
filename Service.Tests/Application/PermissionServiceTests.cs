@@ -78,4 +78,55 @@ public class PermissionServiceTests
             Arg.Is<List<string>>(ids => ids.Count == 2 && ids.Contains("api/role:GET") && ids.Contains("api/role:POST")),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task GrantToRoleAsync_ThrowsNotFoundException_WhenRoleDoesNotExist()
+    {
+        _roleRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.GrantToRoleAsync(1, "api/role:GET"));
+    }
+
+    [Fact]
+    public async Task GrantToRoleAsync_ThrowsBadRequestException_WhenPermissionIdIsUnknown()
+    {
+        _roleRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionRepository.GetExistingIdsAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<string>());
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GrantToRoleAsync(1, "api/role:GET"));
+
+        await _permissionRepository.DidNotReceive().AddRolePermissionAsync(
+            Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GrantToRoleAsync_AddsPermission_WhenRoleAndPermissionExist()
+    {
+        _roleRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(true);
+        _permissionRepository.GetExistingIdsAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new List<string> { "api/role:GET" });
+
+        await _sut.GrantToRoleAsync(1, "api/role:GET");
+
+        await _permissionRepository.Received(1).AddRolePermissionAsync(1, "api/role:GET", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RevokeFromRoleAsync_ThrowsNotFoundException_WhenRoleDoesNotExist()
+    {
+        _roleRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(false);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => _sut.RevokeFromRoleAsync(1, "api/role:GET"));
+    }
+
+    [Fact]
+    public async Task RevokeFromRoleAsync_RemovesPermission_WhenRoleExists()
+    {
+        _roleRepository.Exists(1, Arg.Any<CancellationToken>()).Returns(true);
+
+        await _sut.RevokeFromRoleAsync(1, "api/role:GET");
+
+        await _permissionRepository.Received(1).RemoveRolePermissionAsync(1, "api/role:GET", Arg.Any<CancellationToken>());
+    }
 }

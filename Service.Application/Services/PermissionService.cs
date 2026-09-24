@@ -51,6 +51,26 @@ namespace Service.Application.Services
             await _permissionRepository.ReplaceRolePermissionsAsync(idRole, requestedIds, cancellationToken);
         }
 
+        public async Task GrantToRoleAsync(int idRole, string idPermission, CancellationToken cancellationToken = default)
+        {
+            if (!await _roleRepository.Exists(idRole, cancellationToken))
+                throw new NotFoundException("Role not found.");
+
+            var existingIds = await _permissionRepository.GetExistingIdsAsync([idPermission], cancellationToken);
+            if (existingIds.Count == 0)
+                throw new BadRequestException($"Unknown permission id: {idPermission}");
+
+            await _permissionRepository.AddRolePermissionAsync(idRole, idPermission, cancellationToken);
+        }
+
+        public async Task RevokeFromRoleAsync(int idRole, string idPermission, CancellationToken cancellationToken = default)
+        {
+            if (!await _roleRepository.Exists(idRole, cancellationToken))
+                throw new NotFoundException("Role not found.");
+
+            await _permissionRepository.RemoveRolePermissionAsync(idRole, idPermission, cancellationToken);
+        }
+
         private static PermissionGetDto ToGetDto(Permission entity) => new()
         {
             Id = entity.Id,

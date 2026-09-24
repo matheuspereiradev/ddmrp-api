@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Common;
 using Service.Application.DTOs.ZoneAdjustmentFactor;
@@ -21,6 +22,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateZoneAdjustmentFactor(ZoneAdjustmentFactorPostDto zoneAdjustmentFactorPostDto, CancellationToken cancellationToken)
         {
             var zoneAdjustmentFactor = await _zoneAdjustmentFactorService.AddAsync(zoneAdjustmentFactorPostDto, cancellationToken);
@@ -29,6 +31,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllZoneAdjustmentFactors(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -45,6 +48,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateZoneAdjustmentFactor(int id, ZoneAdjustmentFactorPutDto zoneAdjustmentFactorPutDto, CancellationToken cancellationToken)
         {
             var zoneAdjustmentFactor = await _zoneAdjustmentFactorService.UpdateAsync(id, zoneAdjustmentFactorPutDto, cancellationToken);
@@ -53,6 +57,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteZoneAdjustmentFactor(int id, CancellationToken cancellationToken)
         {
             var zoneAdjustmentFactor = await _zoneAdjustmentFactorService.DeleteAsync(id, cancellationToken);
@@ -61,6 +66,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/active")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetActive(int id, SetActiveDto setActiveDto, CancellationToken cancellationToken)
         {
             var zoneAdjustmentFactor = await _zoneAdjustmentFactorService.SetActiveAsync(id, setActiveDto.IsActive, cancellationToken);

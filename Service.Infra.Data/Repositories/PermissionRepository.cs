@@ -68,5 +68,27 @@ namespace Service.Infra.Data.Repositories
             await _context.RolePermission.AddRangeAsync(toAdd, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task AddRolePermissionAsync(int idRole, string idPermission, CancellationToken cancellationToken = default)
+        {
+            var exists = await _context.RolePermission
+                .AnyAsync(rp => rp.IdRole == idRole && rp.IdPermission == idPermission, cancellationToken);
+            if (exists)
+                return;
+
+            await _context.RolePermission.AddAsync(new RolePermission { IdRole = idRole, IdPermission = idPermission }, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task RemoveRolePermissionAsync(int idRole, string idPermission, CancellationToken cancellationToken = default)
+        {
+            var existing = await _context.RolePermission
+                .FirstOrDefaultAsync(rp => rp.IdRole == idRole && rp.IdPermission == idPermission, cancellationToken);
+            if (existing == null)
+                return;
+
+            _context.RolePermission.Remove(existing);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

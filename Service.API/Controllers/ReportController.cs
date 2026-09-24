@@ -52,6 +52,7 @@ namespace Service.API.Controllers
         // [SkipApiResponseWrapper] replaces [EnableQuery] as the marker ApiResponseWrapperFilter checks for.
         [HttpGet("inventoryBufferManagement")]
         [Authorize]
+        [RequirePermission]
         [SkipApiResponseWrapper]
         public async Task<ActionResult<ODataResult<InventoryBufferManagementRow>>> InventoryBufferManagement(
             ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
@@ -90,6 +91,7 @@ namespace Service.API.Controllers
         // envelope instead of ODataResult<T>/[SkipApiResponseWrapper].
         [HttpGet("inventoryBufferManagement/colorSummary")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> InventoryBufferManagementColorSummary(
             ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
             [FromQuery] int[]? selectedCenters,
@@ -107,6 +109,7 @@ namespace Service.API.Controllers
 
         [HttpGet("openOrders/inbounds")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> OpenOrders([FromQuery] int? idCenter, [FromQuery] int? idProduct, CancellationToken cancellationToken)
         {
             var result = await _reportService.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
@@ -115,6 +118,7 @@ namespace Service.API.Controllers
 
         [HttpGet("inventoryHistory")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> InventoryHistory(
             [FromQuery] int idCenter,
             [FromQuery] int idProduct,
@@ -128,6 +132,7 @@ namespace Service.API.Controllers
 
         [HttpGet("projectedStockAlert")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> ProjectedStockAlert(
             [FromQuery] int idCenter,
             [FromQuery] int idProduct,
@@ -153,6 +158,7 @@ namespace Service.API.Controllers
 
         [HttpGet("bufferPenetration")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> BufferPenetration(
             [FromQuery] DateTime dateStart,
             [FromQuery] DateTime dateEnd,
@@ -167,6 +173,7 @@ namespace Service.API.Controllers
 
         [HttpGet("itemsByBufferColorHistory")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> ItemsByBufferColorHistory(
             [FromQuery] DateTime dateStart,
             [FromQuery] DateTime dateEnd,
@@ -180,6 +187,7 @@ namespace Service.API.Controllers
 
         [HttpGet("accumulatedBufferHistory")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> AccumulatedBufferHistory(
             [FromQuery] DateTime dateStart,
             [FromQuery] DateTime dateEnd,

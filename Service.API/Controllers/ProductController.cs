@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Product;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateProduct(ProductPostDto productPostDto, CancellationToken cancellationToken)
         {
             var product = await _productService.AddAsync(productPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllProducts([FromQuery] int? idCenter, [FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var products = idCenter.HasValue
@@ -42,6 +45,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateProduct(int id, ProductPutDto productPutDto, CancellationToken cancellationToken)
         {
             var product = await _productService.UpdateAsync(id, productPutDto, cancellationToken);
@@ -50,6 +54,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
         {
             var product = await _productService.DeleteAsync(id, cancellationToken);

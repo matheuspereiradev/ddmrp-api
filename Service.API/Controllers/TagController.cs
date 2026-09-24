@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Tag;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateTag(TagPostDto tagPostDto, CancellationToken cancellationToken)
         {
             var tag = await _tagService.AddAsync(tagPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllTags([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var tags = await _tagService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateTag(int id, TagPutDto tagPutDto, CancellationToken cancellationToken)
         {
             var tag = await _tagService.UpdateAsync(id, tagPutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteTag(int id, CancellationToken cancellationToken)
         {
             var tag = await _tagService.DeleteAsync(id, cancellationToken);

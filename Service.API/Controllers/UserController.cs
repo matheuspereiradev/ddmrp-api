@@ -1,4 +1,5 @@
 ﻿using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Auth;
 using Service.Application.DTOs.User;
@@ -24,6 +25,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateUser(UserPostDto userPostDto, CancellationToken cancellationToken)
         {
             var user = await _userService.AddAsync(userPostDto, cancellationToken);
@@ -32,6 +34,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllUsers([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var users = await _userService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -66,6 +69,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateUser(int id, UserPutDto userPutDto, CancellationToken cancellationToken)
         {
             var user = await _userService.UpdateAsync(id, userPutDto, cancellationToken);
@@ -74,6 +78,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteUser(int id, CancellationToken cancellationToken)
         {
             var user = await _userService.DeleteAsync(id, cancellationToken);

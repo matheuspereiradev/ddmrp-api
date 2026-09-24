@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Forecast;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateForecast(ForecastPostDto forecastPostDto, CancellationToken cancellationToken)
         {
             var forecast = await _forecastService.AddAsync(forecastPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllForecasts(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -46,6 +49,7 @@ namespace Service.API.Controllers
 
         [HttpGet("grouped")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetGroupedForecasts(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -64,6 +68,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateForecast(int id, ForecastPutDto forecastPutDto, CancellationToken cancellationToken)
         {
             var forecast = await _forecastService.UpdateAsync(id, forecastPutDto, cancellationToken);
@@ -72,6 +77,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteForecast(int id, CancellationToken cancellationToken)
         {
             var forecast = await _forecastService.DeleteAsync(id, cancellationToken);

@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Common;
 using Service.Application.DTOs.DemandAdjustmentFactor;
@@ -21,6 +22,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateDemandAdjustmentFactor(DemandAdjustmentFactorPostDto demandAdjustmentFactorPostDto, CancellationToken cancellationToken)
         {
             var demandAdjustmentFactor = await _demandAdjustmentFactorService.AddAsync(demandAdjustmentFactorPostDto, cancellationToken);
@@ -29,6 +31,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllDemandAdjustmentFactors(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -45,6 +48,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateDemandAdjustmentFactor(int id, DemandAdjustmentFactorPutDto demandAdjustmentFactorPutDto, CancellationToken cancellationToken)
         {
             var demandAdjustmentFactor = await _demandAdjustmentFactorService.UpdateAsync(id, demandAdjustmentFactorPutDto, cancellationToken);
@@ -53,6 +57,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteDemandAdjustmentFactor(int id, CancellationToken cancellationToken)
         {
             var demandAdjustmentFactor = await _demandAdjustmentFactorService.DeleteAsync(id, cancellationToken);
@@ -61,6 +66,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/active")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetActive(int id, SetActiveDto setActiveDto, CancellationToken cancellationToken)
         {
             var demandAdjustmentFactor = await _demandAdjustmentFactorService.SetActiveAsync(id, setActiveDto.IsActive, cancellationToken);

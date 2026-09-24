@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.BufferProfile;
 using Service.Application.DTOs.Common;
@@ -21,6 +22,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateBufferProfile(BufferProfilePostDto bufferProfilePostDto, CancellationToken cancellationToken)
         {
             var bufferProfile = await _bufferProfileService.AddAsync(bufferProfilePostDto, cancellationToken);
@@ -29,6 +31,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllBufferProfiles([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var bufferProfiles = await _bufferProfileService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -41,6 +44,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateBufferProfile(int id, BufferProfilePutDto bufferProfilePutDto, CancellationToken cancellationToken)
         {
             var bufferProfile = await _bufferProfileService.UpdateAsync(id, bufferProfilePutDto, cancellationToken);
@@ -49,6 +53,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteBufferProfile(int id, CancellationToken cancellationToken)
         {
             var bufferProfile = await _bufferProfileService.DeleteAsync(id, cancellationToken);
@@ -57,6 +62,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/active")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetActive(int id, SetActiveDto setActiveDto, CancellationToken cancellationToken)
         {
             var bufferProfile = await _bufferProfileService.SetActiveAsync(id, setActiveDto.IsActive, cancellationToken);

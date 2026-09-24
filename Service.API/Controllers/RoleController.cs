@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Role;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateRole(RolePostDto rolePostDto, CancellationToken cancellationToken)
         {
             var role = await _roleService.AddAsync(rolePostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllRoles([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var roles = await _roleService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateRole(int id, RolePutDto rolePutDto, CancellationToken cancellationToken)
         {
             var role = await _roleService.UpdateAsync(id, rolePutDto, cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteRole(int id, CancellationToken cancellationToken)
         {
             var role = await _roleService.DeleteAsync(id, cancellationToken);

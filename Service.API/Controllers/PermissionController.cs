@@ -47,6 +47,22 @@ namespace Service.API.Controllers
             return Ok();
         }
 
+        [HttpPost("role/{idRole}")]
+        [Authorize]
+        public async Task<ActionResult> GrantToRole(int idRole, PermissionIdDto dto, CancellationToken cancellationToken)
+        {
+            await _permissionService.GrantToRoleAsync(idRole, dto.PermissionId, cancellationToken);
+            return Ok();
+        }
+
+        [HttpDelete("role/{idRole}")]
+        [Authorize]
+        public async Task<ActionResult> RevokeFromRole(int idRole, PermissionIdDto dto, CancellationToken cancellationToken)
+        {
+            await _permissionService.RevokeFromRoleAsync(idRole, dto.PermissionId, cancellationToken);
+            return Ok();
+        }
+
         [HttpGet("discover")]
         [Authorize]
         public ActionResult Discover()

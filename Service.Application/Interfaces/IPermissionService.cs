@@ -8,5 +8,7 @@ namespace Service.Application.Interfaces
         Task<List<PermissionGetDto>> GetByRoleAsync(int idRole, CancellationToken cancellationToken = default);
         Task<HashSet<string>> GetPermissionKeysForRoleAsync(int idRole, CancellationToken cancellationToken = default);
         Task ReplaceRolePermissionsAsync(int idRole, ReplaceRolePermissionsDto dto, CancellationToken cancellationToken = default);
+        Task GrantToRoleAsync(int idRole, string idPermission, CancellationToken cancellationToken = default);
+        Task RevokeFromRoleAsync(int idRole, string idPermission, CancellationToken cancellationToken = default);
     }
 }

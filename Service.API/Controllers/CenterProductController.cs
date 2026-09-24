@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.CenterProduct;
 using Service.Application.DTOs.Common;
@@ -21,6 +22,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateCenterProduct(CenterProductPostDto centerProductPostDto, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.AddAsync(centerProductPostDto, cancellationToken);
@@ -29,6 +31,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllCenterProducts([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var centerProducts = await _centerProductService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -41,6 +44,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateCenterProduct(int id, CenterProductPutDto centerProductPutDto, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.UpdateAsync(id, centerProductPutDto, cancellationToken);
@@ -49,6 +53,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteCenterProduct(int id, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.DeleteAsync(id, cancellationToken);
@@ -57,6 +62,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/allocation-group")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetAllocationGroup(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.SetAllocationGroupAsync(id, setOptionalIdDto.Id, cancellationToken);
@@ -65,6 +71,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/tag")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetTag(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.SetTagAsync(id, setOptionalIdDto.Id, cancellationToken);
@@ -73,6 +80,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/reason")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetReason(int id, SetOptionalIdDto setOptionalIdDto, CancellationToken cancellationToken)
         {
             var centerProduct = await _centerProductService.SetReasonAsync(id, setOptionalIdDto.Id, cancellationToken);

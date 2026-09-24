@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.AllocationGroup;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateAllocationGroup(AllocationGroupPostDto allocationGroupPostDto, CancellationToken cancellationToken)
         {
             var allocationGroup = await _allocationGroupService.AddAsync(allocationGroupPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllAllocationGroups([FromQuery] PaginationParams paginationParams, CancellationToken cancellationToken)
         {
             var allocationGroups = await _allocationGroupService.GetAllAsync(paginationParams.PageNumber, paginationParams.PageSize, cancellationToken);
@@ -40,6 +43,7 @@ namespace Service.API.Controllers
 
         [HttpGet("priorizedAllocation")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetPriorizedAllocation(CancellationToken cancellationToken)
         {
             var result = await _allocationGroupService.GetPriorizedAllocationAsync(cancellationToken);
@@ -48,6 +52,7 @@ namespace Service.API.Controllers
 
         [HttpPost("priorizedAllocation/run")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> RunPriorizedAllocation(PriorizedAllocationRunDto priorizedAllocationRunDto, CancellationToken cancellationToken)
         {
             var result = await _allocationGroupService.RunPriorizedAllocationAsync(priorizedAllocationRunDto, cancellationToken);
@@ -56,6 +61,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateAllocationGroup(int id, AllocationGroupPutDto allocationGroupPutDto, CancellationToken cancellationToken)
         {
             var allocationGroup = await _allocationGroupService.UpdateAsync(id, allocationGroupPutDto, cancellationToken);
@@ -64,6 +70,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteAllocationGroup(int id, CancellationToken cancellationToken)
         {
             var allocationGroup = await _allocationGroupService.DeleteAsync(id, cancellationToken);

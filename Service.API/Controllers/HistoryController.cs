@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.History;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateHistory(HistoryPostDto historyPostDto, CancellationToken cancellationToken)
         {
             var history = await _historyService.AddAsync(historyPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllHistories(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -46,6 +49,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateHistory(int id, HistoryPutDto historyPutDto, CancellationToken cancellationToken)
         {
             var history = await _historyService.UpdateAsync(id, historyPutDto, cancellationToken);
@@ -54,6 +58,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteHistory(int id, CancellationToken cancellationToken)
         {
             var history = await _historyService.DeleteAsync(id, cancellationToken);
@@ -62,6 +67,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/discard-status")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetDiscardStatus(int id, SetDiscardStatusDto setDiscardStatusDto, CancellationToken cancellationToken)
         {
             var history = await _historyService.SetDiscardStatusAsync(id, setDiscardStatusDto.DiscardStatus, cancellationToken);

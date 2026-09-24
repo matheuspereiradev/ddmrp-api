@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.BufferAdjustmentFactor;
 using Service.Application.DTOs.Common;
@@ -21,6 +22,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateBufferAdjustmentFactor(BufferAdjustmentFactorPostDto bufferAdjustmentFactorPostDto, CancellationToken cancellationToken)
         {
             var bufferAdjustmentFactor = await _bufferAdjustmentFactorService.AddAsync(bufferAdjustmentFactorPostDto, cancellationToken);
@@ -29,6 +31,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllBufferAdjustmentFactors(
             [FromQuery] int? idProduct,
             [FromQuery] int? idCenter,
@@ -45,6 +48,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateBufferAdjustmentFactor(int id, BufferAdjustmentFactorPutDto bufferAdjustmentFactorPutDto, CancellationToken cancellationToken)
         {
             var bufferAdjustmentFactor = await _bufferAdjustmentFactorService.UpdateAsync(id, bufferAdjustmentFactorPutDto, cancellationToken);
@@ -53,6 +57,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteBufferAdjustmentFactor(int id, CancellationToken cancellationToken)
         {
             var bufferAdjustmentFactor = await _bufferAdjustmentFactorService.DeleteAsync(id, cancellationToken);
@@ -61,6 +66,7 @@ namespace Service.API.Controllers
 
         [HttpPatch("{id}/active")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> SetActive(int id, SetActiveDto setActiveDto, CancellationToken cancellationToken)
         {
             var bufferAdjustmentFactor = await _bufferAdjustmentFactorService.SetActiveAsync(id, setActiveDto.IsActive, cancellationToken);

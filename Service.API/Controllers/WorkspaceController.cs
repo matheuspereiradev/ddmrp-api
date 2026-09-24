@@ -1,3 +1,4 @@
+using Service.API.Filters;
 using Service.Application.DTOs.Workspace;
 using Service.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +19,7 @@ namespace Service.API.Controllers
 
         [HttpPut]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateWorkspace(WorkspaceUpdateDto workspaceUpdateDto, CancellationToken cancellationToken)
         {
             var workspace = await _workspaceService.UpdateWorkspaceAsync(workspaceUpdateDto, cancellationToken);
@@ -26,6 +28,7 @@ namespace Service.API.Controllers
 
         [HttpDelete]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> ClearWorkspace(CancellationToken cancellationToken)
         {
             await _workspaceService.ClearWorkspaceAsync(cancellationToken);

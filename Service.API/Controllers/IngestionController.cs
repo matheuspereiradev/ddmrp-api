@@ -1,3 +1,4 @@
+using Service.API.Filters;
 using Service.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +18,7 @@ namespace Service.API.Controllers
 
         [HttpPost("run")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> Run([FromQuery] string? view, CancellationToken cancellationToken)
         {
             var results = await _ingestionService.RunAsync(view, cancellationToken);

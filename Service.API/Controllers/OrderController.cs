@@ -1,4 +1,5 @@
 using Service.API.Extensions;
+using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Order;
 using Service.Application.Interfaces;
@@ -20,6 +21,7 @@ namespace Service.API.Controllers
 
         [HttpPost]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> CreateOrder(OrderPostDto orderPostDto, CancellationToken cancellationToken)
         {
             var order = await _orderService.AddAsync(orderPostDto, cancellationToken);
@@ -28,6 +30,7 @@ namespace Service.API.Controllers
 
         [HttpGet]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> GetAllOrders(
             [FromQuery] int? idDestinyCenter,
             [FromQuery] int? idOriginCenter,
@@ -48,6 +51,7 @@ namespace Service.API.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> UpdateOrder(int id, OrderPutDto orderPutDto, CancellationToken cancellationToken)
         {
             var order = await _orderService.UpdateAsync(id, orderPutDto, cancellationToken);
@@ -56,6 +60,7 @@ namespace Service.API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [RequirePermission]
         public async Task<ActionResult> DeleteOrder(int id, CancellationToken cancellationToken)
         {
             var order = await _orderService.DeleteAsync(id, cancellationToken);
