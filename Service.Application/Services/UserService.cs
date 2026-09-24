@@ -72,6 +72,19 @@ namespace Service.Application.Services
                 throw new NotFoundException("User not found");
             return ToGetDTO(user);
         }
+
+        public async Task ChangePasswordAsync(int userId, ChangePasswordDto changePasswordDto, CancellationToken cancellationToken = default)
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null)
+                throw new NotFoundException("User not found");
+
+            if (!BCrypt.Net.BCrypt.Verify(changePasswordDto.CurrentPassword, user.Password))
+                throw new BadRequestException("Current password is incorrect.");
+
+            user.Password = BCrypt.Net.BCrypt.HashPassword(changePasswordDto.NewPassword);
+            await _userRepository.UpdateAsync(user, cancellationToken);
+        }
     }
 
 }

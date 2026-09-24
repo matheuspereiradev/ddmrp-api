@@ -84,5 +84,13 @@ namespace Service.API.Controllers
             var user = await _userService.DeleteAsync(id, cancellationToken);
             return Ok(user);
         }
+
+        [HttpPut("password")]
+        [Authorize]
+        public async Task<ActionResult> ChangePassword(ChangePasswordDto changePasswordDto, CancellationToken cancellationToken)
+        {
+            await _userService.ChangePasswordAsync(User.GetUserId(), changePasswordDto, cancellationToken);
+            return Ok();
+        }
     }
 }

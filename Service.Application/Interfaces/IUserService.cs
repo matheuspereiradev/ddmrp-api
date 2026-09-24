@@ -10,6 +10,7 @@ namespace Service.Application.Interfaces
     public interface IUserService : IBaseService<User, UserGetDto, UserPostDto, UserPutDto>
     {
         Task<UserGetDto> GetUserByEmail(string email, CancellationToken cancellationToken = default);
+        Task ChangePasswordAsync(int userId, ChangePasswordDto changePasswordDto, CancellationToken cancellationToken = default);
     }
 
 }

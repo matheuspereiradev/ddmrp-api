@@ -116,9 +116,6 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 new Permission { Id = "user:PUT", Description = "Update user", Module = "User" },
                 new Permission { Id = "user:DELETE", Description = "Delete user", Module = "User" },
 
-                new Permission { Id = "workspace:PUT", Description = "Update workspace", Module = "Workspace" },
-                new Permission { Id = "workspace:DELETE", Description = "Clear workspace", Module = "Workspace" },
-
                 new Permission { Id = "ingestion/run:POST", Description = "Run ingestion pipeline", Module = "Ingestion" },
 
                 new Permission { Id = "calculation/run:POST", Description = "Run calculation pipeline", Module = "Calculation" },
