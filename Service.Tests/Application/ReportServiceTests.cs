@@ -31,6 +31,30 @@ public class ReportServiceTests
     }
 
     [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_ReturnsWhatTheRepositoryReturns()
+    {
+        var rows = new List<InventoryBufferManagementRow> { new() { CenterCode = "C1" } }.AsQueryable();
+        var columns = new[] { "stock" };
+        var repositoryResult = new Dictionary<string, ColumnSummaryResult> { ["stock"] = new() { Sum = 60m } };
+        _reportRepository.GetInventoryBufferManagementSummaryAsync(rows, columns, Arg.Any<CancellationToken>()).Returns(repositoryResult);
+
+        var result = await _sut.GetInventoryBufferManagementSummaryAsync(rows, columns);
+
+        Assert.Same(repositoryResult, result);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_TranslatesRepositoryArgumentException_ToBadRequest()
+    {
+        var rows = new List<InventoryBufferManagementRow>().AsQueryable();
+        var columns = new[] { "notAColumn" };
+        _reportRepository.GetInventoryBufferManagementSummaryAsync(rows, columns, Arg.Any<CancellationToken>())
+            .Returns<Task<Dictionary<string, ColumnSummaryResult>>>(_ => throw new ArgumentException("Unknown or non-aggregatable summary column(s): notAColumn"));
+
+        await Assert.ThrowsAsync<BadRequestException>(() => _sut.GetInventoryBufferManagementSummaryAsync(rows, columns));
+    }
+
+    [Fact]
     public async Task GetOpenOrdersAsync_ReturnsWhatTheRepositoryReturns()
     {
         var rows = new List<OpenOrderRow> { new() { OrderNumber = "OR1" } };

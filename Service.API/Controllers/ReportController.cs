@@ -57,6 +57,7 @@ namespace Service.API.Controllers
         public async Task<ActionResult<ODataResult<InventoryBufferManagementRow>>> InventoryBufferManagement(
             ODataQueryOptions<InventoryBufferManagementRow> queryOptions,
             [FromQuery] int[]? selectedCenters,
+            [FromQuery] string[]? summaryColumns,
             CancellationToken cancellationToken)
         {
             queryOptions.Validate(InventoryBufferManagementValidationSettings);
@@ -71,6 +72,12 @@ namespace Service.API.Controllers
             if (queryOptions.Count?.Value == true)
                 count = await query.LongCountAsync(cancellationToken);
 
+            // Summarizers (SUM/AVG/MAX/MIN) reflect the same filtered-but-unpaged set as @odata.count —
+            // computed in SQL, over every matching row, not just the $top/$skip page returned in "value".
+            Dictionary<string, ColumnSummaryResult>? summary = null;
+            if (summaryColumns != null && summaryColumns.Length > 0)
+                summary = await _reportService.GetInventoryBufferManagementSummaryAsync(query, summaryColumns, cancellationToken);
+
             if (queryOptions.OrderBy != null)
                 query = (IQueryable<InventoryBufferManagementRow>)queryOptions.OrderBy.ApplyTo(query, settings);
 
@@ -81,7 +88,7 @@ namespace Service.API.Controllers
                 query = (IQueryable<InventoryBufferManagementRow>)queryOptions.Top.ApplyTo(query, settings);
 
             var rows = await query.ToListAsync(cancellationToken);
-            return Ok(new ODataResult<InventoryBufferManagementRow> { Value = rows, Count = count });
+            return Ok(new ODataResult<InventoryBufferManagementRow> { Value = rows, Count = count, Summary = summary });
         }
 
         // Snapshot count of CenterProduct by NetflowBufferColor/ExecutionBufferColor right now (not historical),

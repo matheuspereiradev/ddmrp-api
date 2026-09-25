@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Service.Domain.Account;
 using Service.Domain.Enums;
@@ -553,6 +555,85 @@ namespace Service.Infra.Data.Repositories
 
             return new InventoryBufferManagementColorSummaryResult
                 { Netflow = netflow, Execution = execution, Analytical = analytical };
+        }
+
+        // Grid-footer summarizers (SUM/AVG/MAX/MIN) for the inventoryBufferManagement report, computed in SQL
+        // over the full $filter-ed (but not $top/$skip-ed) set — the table can hold up to ~1M rows, so the
+        // frontend can't compute these itself over just the current page. The requested column names come
+        // from the frontend at request time (grid columns are user-configurable), so the set of aggregatable
+        // properties is resolved by reflection over InventoryBufferManagementRow (see AggregatableColumns
+        // below) rather than a hand-written per-column switch — only decimal/decimal?/int/int? properties
+        // qualify, and FK id columns are excluded (summing/averaging an id is meaningless). Each requested
+        // column runs as its own SumAsync/AverageAsync/MaxAsync/MinAsync against the shared filtered
+        // IQueryable — four small SQL aggregate queries per column rather than one combined query, since
+        // combining arbitrary dynamic columns into a single GroupBy(x => 1).Select(...) would need hand-built
+        // Enumerable.Sum/Average/Max/Min MethodCallExpressions, which is fragile to get exactly right against
+        // EF Core's translator; this is simpler and still never materializes the row set into the app.
+        private static readonly Dictionary<string, PropertyInfo> AggregatableColumns = BuildAggregatableColumns();
+
+        private static Dictionary<string, PropertyInfo> BuildAggregatableColumns()
+        {
+            var excludedIdColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                nameof(InventoryBufferManagementRow.Id),
+                nameof(InventoryBufferManagementRow.IdProduct),
+                nameof(InventoryBufferManagementRow.IdCenter),
+                nameof(InventoryBufferManagementRow.IdOriginCenter),
+                nameof(InventoryBufferManagementRow.IdProvider),
+                nameof(InventoryBufferManagementRow.IdTag),
+                nameof(InventoryBufferManagementRow.IdReason),
+                nameof(InventoryBufferManagementRow.IdAllocationGroup),
+                nameof(InventoryBufferManagementRow.IdBufferProfile),
+            };
+
+            var aggregatableTypes = new HashSet<Type> { typeof(decimal), typeof(decimal?), typeof(int), typeof(int?) };
+
+            return typeof(InventoryBufferManagementRow)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => aggregatableTypes.Contains(p.PropertyType) && !excludedIdColumns.Contains(p.Name))
+                .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static Expression<Func<InventoryBufferManagementRow, decimal?>> BuildDecimalSelector(PropertyInfo property)
+        {
+            var parameter = Expression.Parameter(typeof(InventoryBufferManagementRow), "x");
+            Expression body = Expression.Property(parameter, property);
+
+            if (property.PropertyType == typeof(int))
+                body = Expression.Convert(body, typeof(decimal));
+
+            if (property.PropertyType != typeof(decimal?))
+                body = Expression.Convert(body, typeof(decimal?));
+
+            return Expression.Lambda<Func<InventoryBufferManagementRow, decimal?>>(body, parameter);
+        }
+
+        public async Task<Dictionary<string, ColumnSummaryResult>> GetInventoryBufferManagementSummaryAsync(
+            IQueryable<InventoryBufferManagementRow> query, IReadOnlyCollection<string> columns, CancellationToken cancellationToken = default)
+        {
+            var result = new Dictionary<string, ColumnSummaryResult>();
+            if (columns == null || columns.Count == 0)
+                return result;
+
+            var distinctColumns = columns.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var invalidColumns = distinctColumns.Where(c => !AggregatableColumns.ContainsKey(c)).ToList();
+            if (invalidColumns.Count > 0)
+                throw new ArgumentException($"Unknown or non-aggregatable summary column(s): {string.Join(", ", invalidColumns)}");
+
+            foreach (var columnName in distinctColumns)
+            {
+                var selector = BuildDecimalSelector(AggregatableColumns[columnName]);
+
+                result[columnName] = new ColumnSummaryResult
+                {
+                    Sum = await query.SumAsync(selector, cancellationToken),
+                    Avg = await query.AverageAsync(selector, cancellationToken),
+                    Max = await query.MaxAsync(selector, cancellationToken),
+                    Min = await query.MinAsync(selector, cancellationToken),
+                };
+            }
+
+            return result;
         }
 
         // Feeds AllocationGroupService's efficient-distribution ("DE") algorithm: only the current user's

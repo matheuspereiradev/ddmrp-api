@@ -23,6 +23,18 @@ namespace Service.Application.Services
         public Task<InventoryBufferManagementColorSummaryResult> SummarizeInventoryBufferManagementByColorAsync(IQueryable<InventoryBufferManagementRow> query, CancellationToken cancellationToken = default) =>
             _reportRepository.SummarizeInventoryBufferManagementByColorAsync(query, cancellationToken);
 
+        public async Task<Dictionary<string, ColumnSummaryResult>> GetInventoryBufferManagementSummaryAsync(IQueryable<InventoryBufferManagementRow> query, IReadOnlyCollection<string> columns, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _reportRepository.GetInventoryBufferManagementSummaryAsync(query, columns, cancellationToken);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new BadRequestException(ex.Message);
+            }
+        }
+
         public Task<List<OpenOrderRow>> GetOpenOrdersAsync(int? idCenter, int? idProduct, CancellationToken cancellationToken = default) =>
             _reportRepository.GetOpenOrdersAsync(idCenter, idProduct, cancellationToken);
 

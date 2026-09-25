@@ -610,6 +610,115 @@ public class ReportRepositoryTests
         Assert.Contains(result.Analytical, r => r.Color == AnalyticalBufferColor.Black && r.Count == 1);
     }
 
+    // Grid-footer summarizers must reflect the whole filtered set, not just one page — the repository is
+    // fed a query with no Skip/Take applied (same as the controller does, before $top/$skip run), and the
+    // seeded set here has more rows than any single "page" would hold to make that distinction meaningful.
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_ComputesSumAvgMaxMin_OverEveryMatchingRow()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var products = Enumerable.Range(1, 3)
+            .Select(i => new Product { Id = i, Reference = $"REF{i}", Description = $"Product {i}", UnitOfMeasure = "UN" })
+            .ToList();
+
+        context.AddRange(center);
+        context.AddRange(products);
+        context.CenterProduct.AddRange(
+            new CenterProduct { Id = 1, IdProduct = 1, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 10m, Adu = 2m },
+            new CenterProduct { Id = 2, IdProduct = 2, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 20m, Adu = null },
+            new CenterProduct { Id = 3, IdProduct = 3, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 30m, Adu = 4m });
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var summary = await repository.GetInventoryBufferManagementSummaryAsync(
+            repository.GetInventoryBufferManagementQueryable(), ["stock", "Adu"]);
+
+        Assert.Equal(60m, summary["stock"].Sum);
+        Assert.Equal(20m, summary["stock"].Avg);
+        Assert.Equal(30m, summary["stock"].Max);
+        Assert.Equal(10m, summary["stock"].Min);
+
+        // Adu has one null row — Sum/Avg/Max/Min must ignore it (standard LINQ nullable-aggregate semantics),
+        // not treat it as 0.
+        Assert.Equal(6m, summary["Adu"].Sum);
+        Assert.Equal(3m, summary["Adu"].Avg);
+        Assert.Equal(4m, summary["Adu"].Max);
+        Assert.Equal(2m, summary["Adu"].Min);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_RespectsFilterAppliedBeforeIt_NotJustAPage()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var products = Enumerable.Range(1, 3)
+            .Select(i => new Product { Id = i, Reference = $"REF{i}", Description = $"Product {i}", UnitOfMeasure = "UN" })
+            .ToList();
+
+        context.AddRange(center);
+        context.AddRange(products);
+        context.CenterProduct.AddRange(
+            new CenterProduct { Id = 1, IdProduct = 1, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 10m },
+            new CenterProduct { Id = 2, IdProduct = 2, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 20m },
+            new CenterProduct { Id = 3, IdProduct = 3, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m, Stock = 30m });
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        // Simulates $filter=stock gt 15 (2 of the 3 rows) applied ahead of the summary call — same spot the
+        // controller applies OData's Filter.ApplyTo before calling the summary method.
+        var filtered = repository.GetInventoryBufferManagementQueryable().Where(r => r.Stock > 15m);
+
+        var summary = await repository.GetInventoryBufferManagementSummaryAsync(filtered, ["stock"]);
+
+        Assert.Equal(50m, summary["stock"].Sum);
+        Assert.Equal(25m, summary["stock"].Avg);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_EmptyMatchingSet_ReturnsNullMinMaxAvg_AndZeroSum()
+    {
+        await using var context = CreateContext();
+        var repository = CreateRepository(context);
+
+        var summary = await repository.GetInventoryBufferManagementSummaryAsync(
+            repository.GetInventoryBufferManagementQueryable(), ["stock"]);
+
+        Assert.Equal(0m, summary["stock"].Sum);
+        Assert.Null(summary["stock"].Avg);
+        Assert.Null(summary["stock"].Max);
+        Assert.Null(summary["stock"].Min);
+    }
+
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_NoColumnsRequested_ReturnsEmptyDictionary()
+    {
+        await using var context = CreateContext();
+        var repository = CreateRepository(context);
+
+        var summary = await repository.GetInventoryBufferManagementSummaryAsync(
+            repository.GetInventoryBufferManagementQueryable(), []);
+
+        Assert.Empty(summary);
+    }
+
+    [Theory]
+    [InlineData("idProduct")]
+    [InlineData("centerCode")]
+    [InlineData("notAColumnAtAll")]
+    public async Task GetInventoryBufferManagementSummaryAsync_UnknownOrNonNumericColumn_Throws(string column)
+    {
+        await using var context = CreateContext();
+        var repository = CreateRepository(context);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            repository.GetInventoryBufferManagementSummaryAsync(repository.GetInventoryBufferManagementQueryable(), [column]));
+    }
+
     [Fact]
     public async Task GetInventoryBufferManagementQueryable_DerivedMetrics_MatchUtilsDdmrp_WhenBufferNotYetComputed()
     {

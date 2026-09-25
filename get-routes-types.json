@@ -22,11 +22,13 @@
     "description": "Exception to the ApiResponseDto<T> envelope above: GET /api/report/inventoryBufferManagement is OData ([EnableQuery]), not wrapped. Built for TanStack Table + odata-query — $filter/$orderby/$top/$skip/$count run in SQL, not in-memory, since the underlying table can hold up to ~1M rows.",
     "shape": {
       "value": "T[]",
-      "@odata.count": "number (present only when $count=true was sent)"
+      "@odata.count": "number (present only when $count=true was sent)",
+      "summary": "{ [column: string]: { sum: number, avg: number|null, max: number|null, min: number|null } } | null — present only when summaryColumns was sent. Computed in SQL over every row matching $filter (before $top/$skip), NOT just the page returned in 'value' — use this for grid footer summarizers instead of reducing over 'value' client-side, since 'value' is only one page. sum is 0 (not null) when no rows match; avg/max/min are null when no rows match or every matching row has a null value for that column."
     },
     "supportedQueryOptions": ["$filter", "$orderby", "$top", "$skip", "$count"],
     "notSupported": "$apply (groupby/aggregate), $select, $expand — not enabled on this route",
-    "maxTop": 500
+    "maxTop": 500,
+    "summaryColumns": "string[] query param (comma-separated or repeated, e.g. summaryColumns=stock,adu,netflow) — requests SUM/AVG/MAX/MIN for these columns. Only numeric (decimal/int) columns are aggregatable — id/FK columns (id, idProduct, idCenter, idOriginCenter, idProvider, idTag, idReason, idAllocationGroup, idBufferProfile) and any non-numeric column (strings, bools, enums) are rejected with 400. Column names are case-insensitive and match the same camelCase names used in itemShape below."
   },
   "enums": {
     "TargetZone": ["RedZone", "YellowZone", "GreenZone"],
@@ -642,9 +644,10 @@
         "$top": "number (optional, max 500)",
         "$skip": "number (optional)",
         "$count": "boolean (optional, adds @odata.count to the response)",
-        "selectedCenters": "number[] (optional, e.g. selectedCenters=1&selectedCenters=2) — master center filter, applied before $filter and not overridable by it: rows outside this list never appear, even if $filter asks for idCenter eq 3 on a center not in the list. Omit or send empty to not restrict."
+        "selectedCenters": "number[] (optional, e.g. selectedCenters=1&selectedCenters=2) — master center filter, applied before $filter and not overridable by it: rows outside this list never appear, even if $filter asks for idCenter eq 3 on a center not in the list. Omit or send empty to not restrict.",
+        "summaryColumns": "string[] (optional, e.g. summaryColumns=stock,adu — see odataEnvelope.summaryColumns above) — requests grid-footer SUM/AVG/MAX/MIN, computed over the full $filter-ed set (respects selectedCenters/$filter, ignores $top/$skip). Omit to skip the extra aggregate queries."
       },
-      "responseData": "See 'odataEnvelope' above — NOT ApiResponseDto<T>, NOT a PagedList. { value: InventoryBufferManagementRow[], '@odata.count'?: number }",
+      "responseData": "See 'odataEnvelope' above — NOT ApiResponseDto<T>, NOT a PagedList. { value: InventoryBufferManagementRow[], '@odata.count'?: number, summary?: Record<string, ColumnSummaryResult> }",
       "itemShape": {
         "id": "number",
         "idProduct": "number",
