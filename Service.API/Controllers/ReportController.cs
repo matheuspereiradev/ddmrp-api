@@ -204,5 +204,16 @@ namespace Service.API.Controllers
             var result = await _reportService.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("qualifiedDemand")]
+        [Authorize]
+        public async Task<ActionResult> QualifiedDemand(
+            [FromQuery] int idProduct,
+            [FromQuery] int idCenter,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reportService.GetQualifiedDemandReportAsync(idProduct, idCenter, cancellationToken);
+            return Ok(result);
+        }
     }
 }

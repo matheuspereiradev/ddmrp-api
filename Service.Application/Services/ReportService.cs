@@ -111,5 +111,15 @@ namespace Service.Application.Services
 
             return _reportRepository.GetAccumulatedBufferHistoryAsync(dateStart, dateEnd, idCenters, cancellationToken);
         }
+
+        public async Task<QualifiedDemandReport> GetQualifiedDemandReportAsync(int idProduct, int idCenter, CancellationToken cancellationToken = default)
+        {
+            var centerProduct = await _centerProductRepository.GetByProductAndCenterAsync(idProduct, idCenter, cancellationToken);
+            if (centerProduct == null)
+                throw new NotFoundException("CenterProduct not found.");
+
+            var report = await _reportRepository.GetQualifiedDemandReportAsync(idProduct, idCenter, cancellationToken);
+            return report!;
+        }
     }
 }
