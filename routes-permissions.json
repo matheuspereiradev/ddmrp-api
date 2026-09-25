@@ -1,0 +1,144 @@
+{
+  "description": "Every HTTP route in the API, its permission key (as registered in the Permission catalog / checked by [RequirePermission]), and its auth requirement. Unlike get-routes-types.json (GET-only, response shapes), this file covers every method and exists purely to answer 'what permission does this route need'. Keep in sync whenever a route or its [RequirePermission]/permission catalog entry changes.",
+  "routes": [
+    { "method": "POST", "route": "/api/center", "permission": "center:POST" },
+    { "method": "GET", "route": "/api/center", "permission": "center:GET" },
+    { "method": "PUT", "route": "/api/center/{id}", "permission": "center:PUT" },
+    { "method": "DELETE", "route": "/api/center/{id}", "permission": "center:DELETE" },
+
+    { "method": "POST", "route": "/api/role", "permission": "role:POST" },
+    { "method": "GET", "route": "/api/role", "permission": "role:GET" },
+    { "method": "PUT", "route": "/api/role/{id}", "permission": "role:PUT" },
+    { "method": "DELETE", "route": "/api/role/{id}", "permission": "role:DELETE" },
+
+    { "method": "POST", "route": "/api/product", "permission": "product:POST" },
+    { "method": "GET", "route": "/api/product", "permission": "product:GET" },
+    { "method": "PUT", "route": "/api/product/{id}", "permission": "product:PUT" },
+    { "method": "DELETE", "route": "/api/product/{id}", "permission": "product:DELETE" },
+
+    { "method": "POST", "route": "/api/partner", "permission": "partner:POST" },
+    { "method": "GET", "route": "/api/partner", "permission": "partner:GET" },
+    { "method": "PUT", "route": "/api/partner/{id}", "permission": "partner:PUT" },
+    { "method": "DELETE", "route": "/api/partner/{id}", "permission": "partner:DELETE" },
+
+    { "method": "POST", "route": "/api/holiday", "permission": "holiday:POST" },
+    { "method": "GET", "route": "/api/holiday", "permission": "holiday:GET" },
+    { "method": "PUT", "route": "/api/holiday/{id}", "permission": "holiday:PUT" },
+    { "method": "DELETE", "route": "/api/holiday/{id}", "permission": "holiday:DELETE" },
+
+    { "method": "POST", "route": "/api/tag", "permission": "tag:POST" },
+    { "method": "GET", "route": "/api/tag", "permission": "tag:GET" },
+    { "method": "PUT", "route": "/api/tag/{id}", "permission": "tag:PUT" },
+    { "method": "DELETE", "route": "/api/tag/{id}", "permission": "tag:DELETE" },
+
+    { "method": "POST", "route": "/api/reason", "permission": "reason:POST" },
+    { "method": "GET", "route": "/api/reason", "permission": "reason:GET" },
+    { "method": "PUT", "route": "/api/reason/{id}", "permission": "reason:PUT" },
+    { "method": "DELETE", "route": "/api/reason/{id}", "permission": "reason:DELETE" },
+
+    { "method": "POST", "route": "/api/masterBuffer", "permission": "masterbuffer:POST" },
+    { "method": "GET", "route": "/api/masterBuffer", "permission": "masterbuffer:GET" },
+    { "method": "PUT", "route": "/api/masterBuffer/{id}", "permission": "masterbuffer:PUT" },
+    { "method": "DELETE", "route": "/api/masterBuffer/{id}", "permission": "masterbuffer:DELETE" },
+
+    { "method": "POST", "route": "/api/bufferProfile", "permission": "bufferprofile:POST" },
+    { "method": "GET", "route": "/api/bufferProfile", "permission": "bufferprofile:GET" },
+    { "method": "PUT", "route": "/api/bufferProfile/{id}", "permission": "bufferprofile:PUT" },
+    { "method": "DELETE", "route": "/api/bufferProfile/{id}", "permission": "bufferprofile:DELETE" },
+    { "method": "PATCH", "route": "/api/bufferProfile/{id}/active", "permission": "bufferprofile/active:PATCH" },
+
+    { "method": "POST", "route": "/api/allocationGroup", "permission": "allocationgroup:POST" },
+    { "method": "GET", "route": "/api/allocationGroup", "permission": "allocationgroup:GET" },
+    { "method": "GET", "route": "/api/allocationGroup/priorizedAllocation", "permission": "allocationgroup/priorizedallocation:GET" },
+    { "method": "POST", "route": "/api/allocationGroup/priorizedAllocation/run", "permission": "allocationgroup/priorizedallocation/run:POST" },
+    { "method": "PUT", "route": "/api/allocationGroup/{id}", "permission": "allocationgroup:PUT" },
+    { "method": "DELETE", "route": "/api/allocationGroup/{id}", "permission": "allocationgroup:DELETE" },
+
+    { "method": "POST", "route": "/api/centerProduct", "permission": "centerproduct:POST" },
+    { "method": "GET", "route": "/api/centerProduct", "permission": "centerproduct:GET" },
+    { "method": "PUT", "route": "/api/centerProduct/{id}", "permission": "centerproduct:PUT" },
+    { "method": "DELETE", "route": "/api/centerProduct/{id}", "permission": "centerproduct:DELETE" },
+    { "method": "PATCH", "route": "/api/centerProduct/{id}/allocation-group", "permission": "centerproduct/allocation-group:PATCH" },
+    { "method": "PATCH", "route": "/api/centerProduct/{id}/tag", "permission": "centerproduct/tag:PATCH" },
+    { "method": "PATCH", "route": "/api/centerProduct/{id}/reason", "permission": "centerproduct/reason:PATCH" },
+
+    { "method": "POST", "route": "/api/bufferAdjustmentFactor", "permission": "bufferadjustmentfactor:POST" },
+    { "method": "GET", "route": "/api/bufferAdjustmentFactor", "permission": "bufferadjustmentfactor:GET" },
+    { "method": "PUT", "route": "/api/bufferAdjustmentFactor/{id}", "permission": "bufferadjustmentfactor:PUT" },
+    { "method": "DELETE", "route": "/api/bufferAdjustmentFactor/{id}", "permission": "bufferadjustmentfactor:DELETE" },
+    { "method": "PATCH", "route": "/api/bufferAdjustmentFactor/{id}/active", "permission": "bufferadjustmentfactor/active:PATCH" },
+
+    { "method": "POST", "route": "/api/zoneAdjustmentFactor", "permission": "zoneadjustmentfactor:POST" },
+    { "method": "GET", "route": "/api/zoneAdjustmentFactor", "permission": "zoneadjustmentfactor:GET" },
+    { "method": "PUT", "route": "/api/zoneAdjustmentFactor/{id}", "permission": "zoneadjustmentfactor:PUT" },
+    { "method": "DELETE", "route": "/api/zoneAdjustmentFactor/{id}", "permission": "zoneadjustmentfactor:DELETE" },
+    { "method": "PATCH", "route": "/api/zoneAdjustmentFactor/{id}/active", "permission": "zoneadjustmentfactor/active:PATCH" },
+
+    { "method": "POST", "route": "/api/demandAdjustmentFactor", "permission": "demandadjustmentfactor:POST" },
+    { "method": "GET", "route": "/api/demandAdjustmentFactor", "permission": "demandadjustmentfactor:GET" },
+    { "method": "PUT", "route": "/api/demandAdjustmentFactor/{id}", "permission": "demandadjustmentfactor:PUT" },
+    { "method": "DELETE", "route": "/api/demandAdjustmentFactor/{id}", "permission": "demandadjustmentfactor:DELETE" },
+    { "method": "PATCH", "route": "/api/demandAdjustmentFactor/{id}/active", "permission": "demandadjustmentfactor/active:PATCH" },
+
+    { "method": "POST", "route": "/api/forecast", "permission": "forecast:POST" },
+    { "method": "GET", "route": "/api/forecast", "permission": "forecast:GET" },
+    { "method": "GET", "route": "/api/forecast/grouped", "permission": "forecast/grouped:GET" },
+    { "method": "PUT", "route": "/api/forecast/{id}", "permission": "forecast:PUT" },
+    { "method": "DELETE", "route": "/api/forecast/{id}", "permission": "forecast:DELETE" },
+
+    { "method": "POST", "route": "/api/history", "permission": "history:POST" },
+    { "method": "GET", "route": "/api/history", "permission": "history:GET" },
+    { "method": "PUT", "route": "/api/history/{id}", "permission": "history:PUT" },
+    { "method": "DELETE", "route": "/api/history/{id}", "permission": "history:DELETE" },
+    { "method": "PATCH", "route": "/api/history/{id}/discard-status", "permission": "history/discard-status:PATCH" },
+
+    { "method": "POST", "route": "/api/note", "permission": "note:POST" },
+    { "method": "GET", "route": "/api/note", "permission": "note:GET" },
+    { "method": "PUT", "route": "/api/note/{id}", "permission": "note:PUT" },
+    { "method": "DELETE", "route": "/api/note/{id}", "permission": "note:DELETE" },
+
+    { "method": "POST", "route": "/api/order", "permission": "order:POST" },
+    { "method": "GET", "route": "/api/order", "permission": "order:GET" },
+    { "method": "PUT", "route": "/api/order/{id}", "permission": "order:PUT" },
+    { "method": "DELETE", "route": "/api/order/{id}", "permission": "order:DELETE" },
+
+    { "method": "POST", "route": "/api/user", "permission": "user:POST" },
+    { "method": "GET", "route": "/api/user", "permission": "user:GET" },
+    { "method": "POST", "route": "/api/user/login", "permission": null, "note": "Public — no [Authorize] either." },
+    { "method": "POST", "route": "/api/user/refresh-token", "permission": null, "note": "Public — no [Authorize] by design, the access token is expected to already be expired." },
+    { "method": "POST", "route": "/api/user/revoke-token", "permission": null, "note": "[Authorize] only, no [RequirePermission] — logout is scoped to the caller's own token, checked in code." },
+    { "method": "PUT", "route": "/api/user/{id}", "permission": "user:PUT" },
+    { "method": "DELETE", "route": "/api/user/{id}", "permission": "user:DELETE" },
+    { "method": "PUT", "route": "/api/user/password", "permission": null, "note": "[Authorize] only, no [RequirePermission] — changes the caller's own password (current-password verified in code), not a managed resource." },
+
+    { "method": "GET", "route": "/api/setting", "permission": null, "note": "[Authorize] only, no [RequirePermission] — any authenticated user can read the current settings." },
+    { "method": "PUT", "route": "/api/setting", "permission": "setting:PUT" },
+
+    { "method": "GET", "route": "/api/permission", "permission": null, "note": "Bootstrap route — deliberately excluded from [RequirePermission] so no role can get permanently locked out of managing permissions." },
+    { "method": "GET", "route": "/api/permission/role/{idRole}", "permission": null, "note": "Bootstrap route, same reason as GET /api/permission." },
+    { "method": "GET", "route": "/api/permission/me", "permission": null, "note": "[Authorize] only — returns the caller's own permissions (reads idRole from the token), same self-service reasoning as PUT /api/user/password." },
+    { "method": "PUT", "route": "/api/permission/role/{idRole}", "permission": null, "note": "Bootstrap route, same reason as GET /api/permission." },
+    { "method": "POST", "route": "/api/permission/role/{idRole}", "permission": null, "note": "Bootstrap route, same reason as GET /api/permission." },
+    { "method": "DELETE", "route": "/api/permission/role/{idRole}", "permission": null, "note": "Bootstrap route, same reason as GET /api/permission." },
+    { "method": "GET", "route": "/api/permission/discover", "permission": null, "note": "Bootstrap route, same reason as GET /api/permission." },
+
+    { "method": "POST", "route": "/api/robot/run", "permission": "robot/run:POST" },
+    { "method": "POST", "route": "/api/ingestion/run", "permission": "ingestion/run:POST" },
+    { "method": "POST", "route": "/api/calculation/run", "permission": "calculation/run:POST" },
+
+    { "method": "GET", "route": "/api/report/inventoryBufferManagement", "permission": "report/inventorybuffermanagement:GET" },
+    { "method": "GET", "route": "/api/report/inventoryBufferManagement/colorSummary", "permission": "report/inventorybuffermanagement/colorsummary:GET" },
+    { "method": "GET", "route": "/api/report/openOrders/inbounds", "permission": "report/openorders/inbounds:GET" },
+    { "method": "GET", "route": "/api/report/inventoryHistory", "permission": "report/inventoryhistory:GET" },
+    { "method": "GET", "route": "/api/report/projectedStockAlert", "permission": "report/projectedstockalert:GET" },
+    { "method": "GET", "route": "/api/report/bufferPenetration", "permission": "report/bufferpenetration:GET" },
+    { "method": "GET", "route": "/api/report/itemsByBufferColorHistory", "permission": "report/itemsbybuffercolorhistory:GET" },
+    { "method": "GET", "route": "/api/report/accumulatedBufferHistory", "permission": "report/accumulatedbufferhistory:GET" },
+
+    { "method": "POST", "route": "/api/ai/ask", "permission": null, "note": "[Authorize] only — AI permissions were explicitly removed from the catalog and this controller." },
+    { "method": "GET", "route": "/api/ai/chat", "permission": null, "note": "[Authorize] only, same reason as POST /api/ai/ask." },
+
+    { "method": "PUT", "route": "/api/workspace", "permission": null, "note": "[Authorize] only — Workspace permissions were explicitly removed from the catalog and this controller." },
+    { "method": "DELETE", "route": "/api/workspace", "permission": null, "note": "[Authorize] only, same reason as PUT /api/workspace." }
+  ]
+}

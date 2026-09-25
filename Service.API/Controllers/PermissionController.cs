@@ -2,6 +2,7 @@ using Service.API.Filters;
 using Service.Application.DTOs.Permission;
 using Service.Application.Interfaces;
 using Service.Domain.Utils;
+using Service.Infra.Ioc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
@@ -37,6 +38,14 @@ namespace Service.API.Controllers
         {
             var permissions = await _permissionService.GetByRoleAsync(idRole, cancellationToken);
             return Ok(permissions);
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult> GetMyPermissions(CancellationToken cancellationToken)
+        {
+            var keys = await _permissionService.GetPermissionKeysForRoleAsync(User.GetRoleId(), cancellationToken);
+            return Ok(keys.OrderBy(k => k).ToList());
         }
 
         [HttpPut("role/{idRole}")]

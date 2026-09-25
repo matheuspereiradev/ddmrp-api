@@ -1010,6 +1010,14 @@
     },
     {
       "method": "GET",
+      "route": "/api/permission/me",
+      "auth": true,
+      "permission": null,
+      "permissionNote": "[Authorize] only — returns the caller's own permissions (idRole read from the token), same self-service reasoning as PUT /api/user/password.",
+      "responseData": "string[] (plain array of permission keys, sorted — NOT PermissionGetDto[], no description/module). The keys currently assigned to the caller's own role."
+    },
+    {
+      "method": "GET",
       "route": "/api/permission/discover",
       "auth": true,
       "permission": null,
