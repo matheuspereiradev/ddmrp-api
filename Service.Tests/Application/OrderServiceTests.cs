@@ -162,6 +162,11 @@ public class OrderServiceTests
     [Fact]
     public async Task UpdateAsync_UpdatesOnlyEditableFields_AndLeavesCreationFieldsUntouched()
     {
+        // DeliveryDate/CreationDate are relative to today (not hardcoded) so DaysLate/DaysToReceive — both
+        // computed against DateTime.Now — don't drift into failure as real time passes.
+        var deliveryDate = DateTime.Today.AddDays(1);
+        var creationDate = deliveryDate.AddDays(-6);
+
         var existing = new Order
         {
             Id = 1,
@@ -173,7 +178,7 @@ public class OrderServiceTests
             Quantity = 10m,
             DeliveredQuantity = 0m,
             MeasurementUnit = "UN",
-            CreationDate = new DateTime(2026, 9, 13),
+            CreationDate = creationDate.AddDays(-1),
             Type = OrderType.SaleOrder,
             IsInbound = false,
             IsOutbound = true,
@@ -186,8 +191,8 @@ public class OrderServiceTests
             DeliveredQuantity = 15m,
             MeasurementUnit = "KG",
             Position = 2,
-            CreationDate = new DateTime(2026, 9, 14),
-            DeliveryDate = new DateTime(2026, 9, 20),
+            CreationDate = creationDate,
+            DeliveryDate = deliveryDate,
             Notes = "Updated"
         };
         _orderRepository.GetByIdAsync(1, Arg.Any<CancellationToken>()).Returns(existing);
@@ -202,8 +207,8 @@ public class OrderServiceTests
         Assert.Equal(5m, result.PendingQuantity);
         Assert.Equal("KG", result.MeasurementUnit);
         Assert.Equal(2, result.Position);
-        Assert.Equal(new DateTime(2026, 9, 14), result.CreationDate);
-        Assert.Equal(new DateTime(2026, 9, 20), result.DeliveryDate);
+        Assert.Equal(creationDate, result.CreationDate);
+        Assert.Equal(deliveryDate, result.DeliveryDate);
         Assert.Equal(6, result.OrderLeadtime);
         Assert.Equal(0, result.DaysLate);
         Assert.Equal(UtilsDdmrp.CalculateDaysToReceive(result.DeliveryDate), result.DaysToReceive);

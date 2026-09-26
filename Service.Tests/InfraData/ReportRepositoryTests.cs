@@ -649,6 +649,37 @@ public class ReportRepositoryTests
         Assert.Equal(2m, summary["Adu"].Min);
     }
 
+    // Id/FK columns are legitimate aggregation targets too (e.g. "smallest idProduct still in the buffer") —
+    // confirmed 2026-09-25, not excluded like a first draft of this feature did.
+    [Fact]
+    public async Task GetInventoryBufferManagementSummaryAsync_AggregatesIdColumns_LikeAnyOtherNumericColumn()
+    {
+        await using var context = CreateContext();
+
+        var center = new Center { Id = 1, Code = "C1", Description = "Center 1" };
+        var products = Enumerable.Range(1, 3)
+            .Select(i => new Product { Id = i, Reference = $"REF{i}", Description = $"Product {i}", UnitOfMeasure = "UN" })
+            .ToList();
+
+        context.AddRange(center);
+        context.AddRange(products);
+        context.CenterProduct.AddRange(
+            new CenterProduct { Id = 1, IdProduct = 1, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m },
+            new CenterProduct { Id = 2, IdProduct = 2, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m },
+            new CenterProduct { Id = 3, IdProduct = 3, IdCenter = center.Id, PackQuantity = 10m, Moq = 5m });
+        await context.SaveChangesAsync();
+
+        var repository = CreateRepository(context);
+
+        var summary = await repository.GetInventoryBufferManagementSummaryAsync(
+            repository.GetInventoryBufferManagementQueryable(), ["idProduct"]);
+
+        Assert.Equal(6m, summary["idProduct"].Sum);
+        Assert.Equal(2m, summary["idProduct"].Avg);
+        Assert.Equal(3m, summary["idProduct"].Max);
+        Assert.Equal(1m, summary["idProduct"].Min);
+    }
+
     [Fact]
     public async Task GetInventoryBufferManagementSummaryAsync_RespectsFilterAppliedBeforeIt_NotJustAPage()
     {
@@ -707,7 +738,6 @@ public class ReportRepositoryTests
     }
 
     [Theory]
-    [InlineData("idProduct")]
     [InlineData("centerCode")]
     [InlineData("notAColumnAtAll")]
     public async Task GetInventoryBufferManagementSummaryAsync_UnknownOrNonNumericColumn_Throws(string column)

@@ -562,35 +562,23 @@ namespace Service.Infra.Data.Repositories
         // frontend can't compute these itself over just the current page. The requested column names come
         // from the frontend at request time (grid columns are user-configurable), so the set of aggregatable
         // properties is resolved by reflection over InventoryBufferManagementRow (see AggregatableColumns
-        // below) rather than a hand-written per-column switch — only decimal/decimal?/int/int? properties
-        // qualify, and FK id columns are excluded (summing/averaging an id is meaningless). Each requested
-        // column runs as its own SumAsync/AverageAsync/MaxAsync/MinAsync against the shared filtered
-        // IQueryable — four small SQL aggregate queries per column rather than one combined query, since
-        // combining arbitrary dynamic columns into a single GroupBy(x => 1).Select(...) would need hand-built
-        // Enumerable.Sum/Average/Max/Min MethodCallExpressions, which is fragile to get exactly right against
-        // EF Core's translator; this is simpler and still never materializes the row set into the app.
+        // below) rather than a hand-written per-column switch — every decimal/decimal?/int/int? property
+        // qualifies, including id/FK columns (confirmed 2026-09-25: "menor Id" is a legitimate ask, e.g. MIN
+        // over idProduct). Each requested column runs as its own SumAsync/AverageAsync/MaxAsync/MinAsync
+        // against the shared filtered IQueryable — four small SQL aggregate queries per column rather than one
+        // combined query, since combining arbitrary dynamic columns into a single GroupBy(x => 1).Select(...)
+        // would need hand-built Enumerable.Sum/Average/Max/Min MethodCallExpressions, which is fragile to get
+        // exactly right against EF Core's translator; this is simpler and still never materializes the row
+        // set into the app.
         private static readonly Dictionary<string, PropertyInfo> AggregatableColumns = BuildAggregatableColumns();
 
         private static Dictionary<string, PropertyInfo> BuildAggregatableColumns()
         {
-            var excludedIdColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                nameof(InventoryBufferManagementRow.Id),
-                nameof(InventoryBufferManagementRow.IdProduct),
-                nameof(InventoryBufferManagementRow.IdCenter),
-                nameof(InventoryBufferManagementRow.IdOriginCenter),
-                nameof(InventoryBufferManagementRow.IdProvider),
-                nameof(InventoryBufferManagementRow.IdTag),
-                nameof(InventoryBufferManagementRow.IdReason),
-                nameof(InventoryBufferManagementRow.IdAllocationGroup),
-                nameof(InventoryBufferManagementRow.IdBufferProfile),
-            };
-
             var aggregatableTypes = new HashSet<Type> { typeof(decimal), typeof(decimal?), typeof(int), typeof(int?) };
 
             return typeof(InventoryBufferManagementRow)
                 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => aggregatableTypes.Contains(p.PropertyType) && !excludedIdColumns.Contains(p.Name))
+                .Where(p => aggregatableTypes.Contains(p.PropertyType))
                 .ToDictionary(p => p.Name, p => p, StringComparer.OrdinalIgnoreCase);
         }
 
