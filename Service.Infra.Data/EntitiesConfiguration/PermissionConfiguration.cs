@@ -136,7 +136,10 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 new Permission { Id = "report/projectedstockalert:GET", Description = "View projected stock alert report", Module = "Report" },
                 new Permission { Id = "report/bufferpenetration:GET", Description = "View buffer penetration report", Module = "Report" },
                 new Permission { Id = "report/itemsbybuffercolorhistory:GET", Description = "View items by buffer color history report", Module = "Report" },
-                new Permission { Id = "report/accumulatedbufferhistory:GET", Description = "View accumulated buffer history report", Module = "Report" }
+                new Permission { Id = "report/accumulatedbufferhistory:GET", Description = "View accumulated buffer history report", Module = "Report" },
+
+                new Permission { Id = "importer", Description = "List, inspect and run importers", Module = "Importer" },
+                new Permission { Id = "exporter", Description = "List, inspect, run and download exporters", Module = "Exporter" }
             );
         }
     }

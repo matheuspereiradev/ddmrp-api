@@ -37,6 +37,8 @@ namespace Service.Infra.Data.Context
         public DbSet<Holiday> Holiday { get; set; }
         public DbSet<Permission> Permission { get; set; }
         public DbSet<RolePermission> RolePermission { get; set; }
+        public DbSet<Importer> Importer { get; set; }
+        public DbSet<Exporter> Exporter { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

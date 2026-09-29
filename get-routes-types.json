@@ -1026,6 +1026,64 @@
       "permission": null,
       "permissionNote": "Bootstrap route — no [RequirePermission], same reason as GET /api/permission.",
       "responseData": "string[] (plain array of permission keys). Lists the exact key each currently [RequirePermission]-marked action will check at runtime — a copy-paste reference for adding new Permission rows via HasData in a migration, not a runtime-registration endpoint. Empty until at least one action carries [RequirePermission]."
+    },
+    {
+      "method": "GET",
+      "route": "/api/importer",
+      "auth": true,
+      "permission": "importer",
+      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "responseData": "PagedList<ImporterGetDto>",
+      "itemShape": {
+        "id": "number",
+        "name": "string",
+        "description": "string | null",
+        "procedureName": "string (schema-qualified stored procedure name, e.g. \"dbo.ImportZaf\")"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/importer/{id}/params",
+      "auth": true,
+      "permission": "importer",
+      "responseData": "ProcedureParameterDto[] (plain array). Introspected live from the registered procedure's sys.parameters — never includes @IdUser (always implicit, injected from the caller's token). Exactly one entry has isTableType true; its columns are the exact CSV header POST /api/importer/{id}/run expects.",
+      "itemShape": {
+        "name": "string (parameter name, without '@')",
+        "sqlType": "string (SQL Server type name, e.g. \"int\", \"nvarchar\")",
+        "maxLength": "number | null",
+        "isNullable": "boolean",
+        "isTableType": "boolean",
+        "columns": "ProcedureParameterColumnDto[] | null (only present when isTableType is true) — { name, sqlType, maxLength, isNullable }[]"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/exporter",
+      "auth": true,
+      "permission": "exporter",
+      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "responseData": "PagedList<ExporterGetDto>",
+      "itemShape": {
+        "id": "number",
+        "name": "string",
+        "description": "string | null",
+        "procedureName": "string (schema-qualified stored procedure name, e.g. \"dbo.ExportInventory\")"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/exporter/{id}/params",
+      "auth": true,
+      "permission": "exporter",
+      "responseData": "ProcedureParameterDto[] (plain array). Same shape as the importer version, but no entry should have isTableType true — exporters take scalar filter parameters only. Parameter names here are exactly the keys POST /api/exporter/{id}/run expects under \"parameters\".",
+      "itemShape": {
+        "name": "string",
+        "sqlType": "string",
+        "maxLength": "number | null",
+        "isNullable": "boolean",
+        "isTableType": "boolean (always false for a well-formed exporter)",
+        "columns": "null"
+      }
     }
   ]
 }

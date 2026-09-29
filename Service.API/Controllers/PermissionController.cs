@@ -80,10 +80,17 @@ namespace Service.API.Controllers
 
             foreach (var descriptor in _actionDescriptorCollectionProvider.ActionDescriptors.Items.OfType<ControllerActionDescriptor>())
             {
-                if (descriptor.AttributeRouteInfo?.Template is not string template)
+                var requirePermissionAttribute = descriptor.EndpointMetadata.OfType<RequirePermissionAttribute>().FirstOrDefault();
+                if (requirePermissionAttribute == null)
                     continue;
 
-                if (!descriptor.EndpointMetadata.Any(m => m is RequirePermissionAttribute))
+                if (requirePermissionAttribute.Key != null)
+                {
+                    keys.Add(requirePermissionAttribute.Key);
+                    continue;
+                }
+
+                if (descriptor.AttributeRouteInfo?.Template is not string template)
                     continue;
 
                 var httpMethods = descriptor.ActionConstraints?.OfType<HttpMethodActionConstraint>()

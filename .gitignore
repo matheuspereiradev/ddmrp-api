@@ -61,6 +61,9 @@ Service.API/Imports/
 Service.API/calculation.config.json
 !Service.API/calculation.config.json.example
 
+# Generated exporter CSVs (local drop folder, cleaned up automatically)
+Service.API/Exports/
+
 # Test results
 [Tt]est[Rr]esult*/
 *.trx

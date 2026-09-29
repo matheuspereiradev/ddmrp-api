@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Service.Infra.Data.Context;
 
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929012426_AddImporterAndExporter")]
+    partial class AddImporterAndExporter
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1830,18 +1833,6 @@ namespace Service.Infra.Data.Migrations
                             Id = "report/accumulatedbufferhistory:GET",
                             Description = "View accumulated buffer history report",
                             Module = "Report"
-                        },
-                        new
-                        {
-                            Id = "importer",
-                            Description = "List, inspect and run importers",
-                            Module = "Importer"
-                        },
-                        new
-                        {
-                            Id = "exporter",
-                            Description = "List, inspect, run and download exporters",
-                            Module = "Exporter"
                         });
                 });
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Service.Infra.Data.Context;
 
@@ -11,9 +12,11 @@ using Service.Infra.Data.Context;
 namespace Service.Infra.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929013314_AddImporterAndExporterPermissions")]
+    partial class AddImporterAndExporterPermissions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1833,14 +1836,44 @@ namespace Service.Infra.Data.Migrations
                         },
                         new
                         {
-                            Id = "importer",
-                            Description = "List, inspect and run importers",
+                            Id = "importer:GET",
+                            Description = "List importers",
                             Module = "Importer"
                         },
                         new
                         {
-                            Id = "exporter",
-                            Description = "List, inspect, run and download exporters",
+                            Id = "importer/params:GET",
+                            Description = "View importer procedure parameters",
+                            Module = "Importer"
+                        },
+                        new
+                        {
+                            Id = "importer/run:POST",
+                            Description = "Run importer",
+                            Module = "Importer"
+                        },
+                        new
+                        {
+                            Id = "exporter:GET",
+                            Description = "List exporters",
+                            Module = "Exporter"
+                        },
+                        new
+                        {
+                            Id = "exporter/params:GET",
+                            Description = "View exporter procedure parameters",
+                            Module = "Exporter"
+                        },
+                        new
+                        {
+                            Id = "exporter/run:POST",
+                            Description = "Run exporter",
+                            Module = "Exporter"
+                        },
+                        new
+                        {
+                            Id = "exporter/download:GET",
+                            Description = "Download exporter result file",
                             Module = "Exporter"
                         });
                 });

@@ -18,20 +18,30 @@ namespace Service.API.Filters
 
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            var requiresPermission = context.ActionDescriptor.EndpointMetadata
-                .Any(m => m is RequirePermissionAttribute);
+            var requirePermissionAttribute = context.ActionDescriptor.EndpointMetadata
+                .OfType<RequirePermissionAttribute>()
+                .FirstOrDefault();
 
-            if (!requiresPermission)
+            if (requirePermissionAttribute == null)
             {
                 await next();
                 return;
             }
 
-            if (context.ActionDescriptor is not ControllerActionDescriptor controllerActionDescriptor
-                || controllerActionDescriptor.AttributeRouteInfo?.Template is not string routeTemplate)
-                throw new HttpException("Route has no attribute route template to derive a permission key from.", StatusCodes.Status500InternalServerError);
+            string permissionKey;
+            if (requirePermissionAttribute.Key != null)
+            {
+                permissionKey = requirePermissionAttribute.Key;
+            }
+            else
+            {
+                if (context.ActionDescriptor is not ControllerActionDescriptor controllerActionDescriptor
+                    || controllerActionDescriptor.AttributeRouteInfo?.Template is not string routeTemplate)
+                    throw new HttpException("Route has no attribute route template to derive a permission key from.", StatusCodes.Status500InternalServerError);
 
-            var permissionKey = PermissionKeyUtils.BuildKey(routeTemplate, context.HttpContext.Request.Method);
+                permissionKey = PermissionKeyUtils.BuildKey(routeTemplate, context.HttpContext.Request.Method);
+            }
+
             var idRole = context.HttpContext.User.GetRoleId();
             var permissionKeys = await _permissionService.GetPermissionKeysForRoleAsync(idRole, context.HttpContext.RequestAborted);
 

@@ -1,3 +1,4 @@
+using Service.API.BackgroundServices;
 using Service.API.Filters;
 using Service.API.HealthChecks;
 using Service.API.Json;
@@ -30,6 +31,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" });
+
+builder.Services.AddHostedService<ExportCleanupBackgroundService>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 

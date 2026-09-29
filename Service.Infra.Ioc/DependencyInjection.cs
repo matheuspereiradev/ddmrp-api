@@ -9,6 +9,7 @@ using Service.Infra.Data.Context;
 using Service.Infra.Data.Identity;
 using Service.Infra.Data.Ingestion;
 using Service.Infra.Data.Ingestion.Writers;
+using Service.Infra.Data.Procedures;
 using Service.Infra.Data.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -81,6 +82,8 @@ namespace Service.Infra.Ioc
             services.AddScoped<IPermissionRepository, PermissionRepository>();
             services.AddScoped<IHolidayRepository, HolidayRepository>();
             services.AddScoped<ICalendarRepository, CalendarRepository>();
+            services.AddScoped<IImporterRepository, ImporterRepository>();
+            services.AddScoped<IExporterRepository, ExporterRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -104,6 +107,18 @@ namespace Service.Infra.Ioc
             services.AddScoped<IPermissionService, PermissionService>();
             services.AddScoped<IHolidayService, HolidayService>();
             services.AddScoped<ISettingService, SettingService>();
+
+            services.AddScoped<IProcedureCatalogService, SqlProcedureCatalogService>();
+            services.AddScoped<IImportProcedureRunner, SqlImportProcedureRunner>();
+            services.AddScoped<IExportProcedureRunner, SqlExportProcedureRunner>();
+            services.AddScoped<IImporterService, ImporterService>();
+            services.AddScoped<IExporterService>(sp => new ExporterService(
+                sp.GetRequiredService<IExporterRepository>(),
+                sp.GetRequiredService<IProcedureCatalogService>(),
+                sp.GetRequiredService<IExportProcedureRunner>(),
+                sp.GetRequiredService<ICurrentUserService>(),
+                configuration["Exports:Directory"] ?? "Exports",
+                int.TryParse(configuration["Exports:RetentionHours"], out var exportsRetentionHours) ? exportsRetentionHours : 24));
 
             services.AddScoped<IAuthenticate, AuthenticateProvider>();
             services.AddScoped<IAuthenticateService, AuthenticateService>();
