@@ -289,6 +289,21 @@
         "id": "number",
         "name": "string",
         "description": "string | null",
+        "isFromSystem": "boolean",
+        "idReasonGroup": "number",
+        "reasonGroup": "ReasonGroupGetDto | null"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/reasonGroup",
+      "auth": true,
+      "permission": "reasongroup:GET",
+      "queryParams": { "pageNumber": "number", "pageSize": "number" },
+      "responseData": "PagedList<ReasonGroupGetDto>",
+      "itemShape": {
+        "id": "number",
+        "name": "string",
         "isFromSystem": "boolean"
       }
     },

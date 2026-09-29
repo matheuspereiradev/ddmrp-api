@@ -4,7 +4,7 @@ using Service.API.Models;
 
 namespace Service.API.Filters
 {
-    public class ApiResponseWrapperFilter : IAsyncResultFilter
+    public class ApiResponseWrapperFilter : IAsyncAlwaysRunResultFilter
     {
         public Task OnResultExecutionAsync(ResultExecutingContext context, ResultExecutionDelegate next)
         {

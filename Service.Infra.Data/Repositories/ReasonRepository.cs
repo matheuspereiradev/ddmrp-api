@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Service.Domain.Account;
 using Service.Domain.Entities;
 using Service.Domain.Interfaces;
@@ -10,5 +11,7 @@ namespace Service.Infra.Data.Repositories
         public ReasonRepository(ApplicationDbContext context, ICurrentUserService currentUser) : base(context, currentUser)
         {
         }
+
+        protected override IQueryable<Reason> ApplyIncludes(IQueryable<Reason> query) => query.Include(r => r.ReasonGroup);
     }
 }

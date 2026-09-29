@@ -7,12 +7,10 @@ namespace Service.API.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionMiddleware> _logger;
-        private readonly IHostEnvironment _env;
-        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IHostEnvironment env)
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
         {
             _next = next;
             _logger = logger;
-            _env = env;
         }
         public async Task InvokeAsync(HttpContext httpContext)
         {
@@ -40,7 +38,6 @@ namespace Service.API.Middleware
                 {
                     AppException appException => [appException.Message],
                     UnauthorizedAccessException => [ex.Message],
-                    _ when _env.IsDevelopment() => [ex.Message],
                     _ => ["Internal server error"]
                 };
 

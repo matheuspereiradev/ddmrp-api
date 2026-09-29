@@ -14,6 +14,12 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(r => r.Name).IsRequired().HasMaxLength(100);
             builder.Property(r => r.Description).HasMaxLength(300);
             builder.Property(r => r.IsFromSystem).IsRequired().HasDefaultValue(false);
+
+            builder.HasOne(r => r.ReasonGroup)
+                .WithMany()
+                .HasForeignKey(r => r.IdReasonGroup)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

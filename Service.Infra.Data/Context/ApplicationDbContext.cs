@@ -21,6 +21,7 @@ namespace Service.Infra.Data.Context
         public DbSet<Partner> Partner { get; set; }
         public DbSet<Tag> Tag { get; set; }
         public DbSet<Reason> Reason { get; set; }
+        public DbSet<ReasonGroup> ReasonGroup { get; set; }
         public DbSet<AllocationGroup> AllocationGroup { get; set; }
         public DbSet<CenterProduct> CenterProduct { get; set; }
         public DbSet<MasterBuffer> MasterBuffer { get; set; }

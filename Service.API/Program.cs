@@ -3,6 +3,8 @@ using Service.API.Filters;
 using Service.API.HealthChecks;
 using Service.API.Json;
 using Service.API.Middleware;
+using Service.API.Models;
+using Microsoft.AspNetCore.WebUtilities;
 using Service.API.Swagger;
 using Service.Infra.Ioc;
 using DotNetEnv;
@@ -78,6 +80,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseStatusCodePages(async statusCodeContext =>
+{
+    var response = statusCodeContext.HttpContext.Response;
+    response.ContentType = "application/json";
+    var message = ReasonPhrases.GetReasonPhrase(response.StatusCode);
+    await response.WriteAsJsonAsync(ApiResponseDto<object?>.Fail(string.IsNullOrEmpty(message) ? "Error" : message));
+});
 
 app.UseHttpsRedirection();
 

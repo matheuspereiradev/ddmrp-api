@@ -10,5 +10,8 @@ namespace Service.Application.DTOs.Reason
 
         [MaxLength(300, ErrorMessage = "The field {0} has the maxlength 300")]
         public string? Description { get; set; }
+
+        [Required(ErrorMessage = "Field {0} required.")]
+        public int IdReasonGroup { get; set; }
     }
 }

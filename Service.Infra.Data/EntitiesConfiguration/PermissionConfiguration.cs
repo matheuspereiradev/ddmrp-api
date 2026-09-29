@@ -52,6 +52,8 @@ namespace Service.Infra.Data.EntitiesConfiguration
                 new Permission { Id = "reason:PUT", Description = "Update reason", Module = "Reason" },
                 new Permission { Id = "reason:DELETE", Description = "Delete reason", Module = "Reason" },
 
+                new Permission { Id = "reasongroup:GET", Description = "List reason groups", Module = "ReasonGroup" },
+
                 new Permission { Id = "masterbuffer:POST", Description = "Create master buffer", Module = "MasterBuffer" },
                 new Permission { Id = "masterbuffer:GET", Description = "List master buffers", Module = "MasterBuffer" },
                 new Permission { Id = "masterbuffer:PUT", Description = "Update master buffer", Module = "MasterBuffer" },

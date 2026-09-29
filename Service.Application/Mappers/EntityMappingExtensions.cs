@@ -6,6 +6,7 @@ using Service.Application.DTOs.Holiday;
 using Service.Application.DTOs.Partner;
 using Service.Application.DTOs.Product;
 using Service.Application.DTOs.Reason;
+using Service.Application.DTOs.ReasonGroup;
 using Service.Application.DTOs.Role;
 using Service.Application.DTOs.Tag;
 using Service.Application.DTOs.User;
@@ -85,7 +86,16 @@ namespace Service.Application.Mappers
             Id = reason.Id,
             Name = reason.Name,
             Description = reason.Description,
-            IsFromSystem = reason.IsFromSystem
+            IsFromSystem = reason.IsFromSystem,
+            IdReasonGroup = reason.IdReasonGroup,
+            ReasonGroup = reason.ReasonGroup?.ToGetDto()
+        };
+
+        public static ReasonGroupGetDto ToGetDto(this ReasonGroup reasonGroup) => new()
+        {
+            Id = reasonGroup.Id,
+            Name = reasonGroup.Name,
+            IsFromSystem = reasonGroup.IsFromSystem
         };
 
         public static AllocationGroupGetDto ToGetDto(this AllocationGroup allocationGroup) => new()

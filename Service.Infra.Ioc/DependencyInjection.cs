@@ -66,6 +66,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IPartnerRepository, PartnerRepository>();
             services.AddScoped<ITagRepository, TagRepository>();
             services.AddScoped<IReasonRepository, ReasonRepository>();
+            services.AddScoped<IReasonGroupRepository, ReasonGroupRepository>();
             services.AddScoped<IAllocationGroupRepository, AllocationGroupRepository>();
             services.AddScoped<ICenterProductRepository, CenterProductRepository>();
             services.AddScoped<IMasterBufferRepository, MasterBufferRepository>();
@@ -94,6 +95,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IPartnerService, PartnerService>();
             services.AddScoped<ITagService, TagService>();
             services.AddScoped<IReasonService, ReasonService>();
+            services.AddScoped<IReasonGroupService, ReasonGroupService>();
             services.AddScoped<IAllocationGroupService, AllocationGroupService>();
             services.AddScoped<ICenterProductService, CenterProductService>();
             services.AddScoped<IMasterBufferService, MasterBufferService>();
