@@ -40,6 +40,7 @@ namespace Service.Infra.Data.Context
         public DbSet<RolePermission> RolePermission { get; set; }
         public DbSet<Importer> Importer { get; set; }
         public DbSet<Exporter> Exporter { get; set; }
+        public DbSet<TableLayout> TableLayout { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
