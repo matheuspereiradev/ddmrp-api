@@ -12,5 +12,6 @@ namespace Service.Domain.Entities
         public int IdRole { get; set; }
         public Role Role { get; set; }
         public string? ThreadId { get; set; }
+        public DateTime? LastClearWorkspace { get; set; }
     }
 }

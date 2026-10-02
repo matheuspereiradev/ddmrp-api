@@ -81,13 +81,17 @@ public class WorkspaceRepositoryTests
         Assert.NotNull(mine!.deletedAt);
         Assert.Equal(1, mine.deletedBy);
         Assert.Null(other!.deletedAt);
+        Assert.NotNull((await context.User.FindAsync(1))!.LastClearWorkspace);
+        Assert.Null((await context.User.FindAsync(2))!.LastClearWorkspace);
     }
 
     [Fact]
-    public async Task ClearByUserAsync_DoesNothing_WhenUserHasNoWorkspaces()
+    public async Task ClearByUserAsync_UpdatesLastClearWorkspace_WhenUserHasNoWorkspaces()
     {
-        var (_, repository) = CreateSut();
+        var (context, repository) = CreateSut();
 
         await repository.ClearByUserAsync(1);
+
+        Assert.NotNull((await context.User.FindAsync(1))!.LastClearWorkspace);
     }
 }

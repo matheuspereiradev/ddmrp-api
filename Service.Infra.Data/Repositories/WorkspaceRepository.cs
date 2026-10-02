@@ -24,10 +24,12 @@ namespace Service.Infra.Data.Repositories
         public async Task ClearByUserAsync(int idUser, CancellationToken cancellationToken = default)
         {
             var workspaces = await _dbSet.Where(w => w.IdUser == idUser && w.deletedAt == null).ToListAsync(cancellationToken);
-            if (workspaces.Count == 0)
-                return;
+            var user = await _context.User.FirstOrDefaultAsync(u => u.Id == idUser, cancellationToken);
 
             var now = DateTime.UtcNow;
+            if (user != null)
+                user.LastClearWorkspace = now;
+
             var deletedBy = _currentUser.UserId;
             foreach (var workspace in workspaces)
             {

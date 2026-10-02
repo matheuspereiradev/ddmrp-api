@@ -87,7 +87,8 @@ namespace Service.Application.Services
                 AccessToken = accessToken,
                 AccessTokenExpiresAt = accessTokenExpiresAt,
                 RefreshToken = refreshTokenValue,
-                RefreshTokenExpiresAt = refreshTokenExpiresAt
+                RefreshTokenExpiresAt = refreshTokenExpiresAt,
+                LastClearWorkspace = user.LastClearWorkspace
             };
         }
     }
