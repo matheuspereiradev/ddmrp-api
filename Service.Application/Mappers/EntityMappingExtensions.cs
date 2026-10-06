@@ -28,6 +28,7 @@ namespace Service.Application.Mappers
             Name = user.Name,
             Email = user.Email,
             IdRole = user.IdRole,
+            HasAllCentersAccess = user.HasAllCentersAccess,
             Role = user.Role?.ToGetDto()
         };
 

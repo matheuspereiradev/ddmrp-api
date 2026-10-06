@@ -86,6 +86,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IImporterRepository, ImporterRepository>();
             services.AddScoped<IExporterRepository, ExporterRepository>();
             services.AddScoped<ITableLayoutRepository, TableLayoutRepository>();
+            services.AddScoped<IUserCenterRepository, UserCenterRepository>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRoleService, RoleService>();
@@ -111,6 +112,7 @@ namespace Service.Infra.Ioc
             services.AddScoped<IHolidayService, HolidayService>();
             services.AddScoped<ISettingService, SettingService>();
             services.AddScoped<ITableLayoutService, TableLayoutService>();
+            services.AddScoped<IUserCenterService, UserCenterService>();
 
             services.AddScoped<IProcedureCatalogService, SqlProcedureCatalogService>();
             services.AddScoped<IImportProcedureRunner, SqlImportProcedureRunner>();

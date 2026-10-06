@@ -20,6 +20,7 @@ namespace Service.Infra.Data.EntitiesConfiguration
             builder.Property(u => u.ThreadId).HasMaxLength(100);
 
             builder.Property(u => u.IdRole).IsRequired();
+            builder.Property(u => u.HasAllCentersAccess).IsRequired().HasDefaultValue(false);
 
             builder.HasOne(u => u.Role)
                 .WithMany(r => r.Users)

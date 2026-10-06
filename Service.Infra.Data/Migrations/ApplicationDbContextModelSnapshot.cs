@@ -2308,6 +2308,11 @@ namespace Service.Infra.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("HasAllCentersAccess")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<int>("IdRole")
                         .HasColumnType("int");
 
@@ -2353,6 +2358,30 @@ namespace Service.Infra.Data.Migrations
                     b.HasIndex("IdRole");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Service.Domain.Entities.UserCenter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("IdCenter")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdUser")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdCenter");
+
+                    b.HasIndex("IdUser", "IdCenter")
+                        .IsUnique();
+
+                    b.ToTable("UserCenters", (string)null);
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.Workspace", b =>
@@ -2805,6 +2834,25 @@ namespace Service.Infra.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("Service.Domain.Entities.UserCenter", b =>
+                {
+                    b.HasOne("Service.Domain.Entities.Center", "Center")
+                        .WithMany()
+                        .HasForeignKey("IdCenter")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Service.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("IdUser")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Center");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.Workspace", b =>

@@ -23,15 +23,19 @@ namespace Service.Infra.Data.Repositories
 
         protected virtual IQueryable<T> ApplyIncludes(IQueryable<T> query) => query;
 
+        protected virtual Task<IQueryable<T>> ApplyCenterFilterAsync(IQueryable<T> query, CancellationToken cancellationToken)
+            => Task.FromResult(query);
+
         public async Task<T> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            return await ApplyIncludes(_dbSet.AsQueryable())
-                .FirstOrDefaultAsync(e => e.Id == id && e.deletedAt == null, cancellationToken);
+            var query = await ApplyCenterFilterAsync(ApplyIncludes(_dbSet.AsQueryable()), cancellationToken);
+            return await query.FirstOrDefaultAsync(e => e.Id == id && e.deletedAt == null, cancellationToken);
         }
 
         public async Task<PagedList<T>> GetAllAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
         {
-            var query = ApplyIncludes(_dbSet.AsQueryable()).Where(e => e.deletedAt == null);
+            var query = (await ApplyCenterFilterAsync(ApplyIncludes(_dbSet.AsQueryable()), cancellationToken))
+                .Where(e => e.deletedAt == null);
             return await PaginationHelper.CreateAsync(query, pageNumber, pageSize, cancellationToken);
         }
 

@@ -8,6 +8,7 @@ namespace Service.Application.DTOs.User
         public string Name { get; set; }
         public string Email { get; set; }
         public int IdRole { get; set; }
+        public bool HasAllCentersAccess { get; set; }
         public RoleGetDto? Role { get; set; }
     }
 }

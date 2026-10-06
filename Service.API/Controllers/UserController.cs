@@ -3,6 +3,7 @@ using Service.API.Filters;
 using Service.API.Models;
 using Service.Application.DTOs.Auth;
 using Service.Application.DTOs.User;
+using Service.Application.DTOs.UserCenter;
 using Service.Application.Interfaces;
 using Service.Infra.Ioc;
 using Microsoft.AspNetCore.Authorization;
@@ -16,11 +17,13 @@ namespace Service.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly IAuthenticateService _authenticate;
+        private readonly IUserCenterService _userCenterService;
 
-        public UserController(IUserService userService, IAuthenticateService authenticate)
+        public UserController(IUserService userService, IAuthenticateService authenticate, IUserCenterService userCenterService)
         {
             _userService = userService;
             _authenticate = authenticate;
+            _userCenterService = userCenterService;
         }
 
         [HttpPost]
@@ -83,6 +86,41 @@ namespace Service.API.Controllers
         {
             var user = await _userService.DeleteAsync(id, cancellationToken);
             return Ok(user);
+        }
+
+        [HttpGet("me/centers")]
+        [Authorize]
+        public async Task<ActionResult> GetMyCenters(CancellationToken cancellationToken)
+        {
+            var centers = await _userCenterService.GetAccessibleAsync(User.GetUserId(), cancellationToken);
+            return Ok(centers);
+        }
+
+        [HttpGet("{id:int}/centers")]
+        [Authorize]
+        [RequirePermission("user:GET")]
+        public async Task<ActionResult> GetUserCenters(int id, CancellationToken cancellationToken)
+        {
+            var centers = await _userCenterService.GetAssignedAsync(id, cancellationToken);
+            return Ok(centers);
+        }
+
+        [HttpPut("{id:int}/centers")]
+        [Authorize]
+        [RequirePermission("user:PUT")]
+        public async Task<ActionResult> SetUserCenters(int id, UserCentersPutDto userCentersPutDto, CancellationToken cancellationToken)
+        {
+            var centers = await _userCenterService.SetCentersAsync(id, userCentersPutDto, cancellationToken);
+            return Ok(centers);
+        }
+
+        [HttpPatch("{id:int}/all-centers-access")]
+        [Authorize]
+        [RequirePermission("user:PUT")]
+        public async Task<ActionResult> SetAllCentersAccess(int id, SetAllCentersAccessDto setAllCentersAccessDto, CancellationToken cancellationToken)
+        {
+            var centers = await _userCenterService.SetAllCentersAccessAsync(id, setAllCentersAccessDto.HasAllCentersAccess!.Value, cancellationToken);
+            return Ok(centers);
         }
 
         [HttpPut("password")]

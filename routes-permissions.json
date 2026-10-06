@@ -109,6 +109,10 @@
     { "method": "POST", "route": "/api/user/revoke-token", "permission": null, "note": "[Authorize] only, no [RequirePermission] — logout is scoped to the caller's own token, checked in code." },
     { "method": "PUT", "route": "/api/user/{id}", "permission": "user:PUT" },
     { "method": "DELETE", "route": "/api/user/{id}", "permission": "user:DELETE" },
+    { "method": "GET", "route": "/api/user/me/centers", "permission": null, "note": "[Authorize] only — the caller's own effective centers (all centers when hasAllCentersAccess), same self-service reasoning as GET /api/permission/me." },
+    { "method": "GET", "route": "/api/user/{id}/centers", "permission": "user:GET", "note": "Explicit key [RequirePermission(\"user:GET\")] — shares the permission of listing users, no dedicated key." },
+    { "method": "PUT", "route": "/api/user/{id}/centers", "permission": "user:PUT", "note": "Explicit key [RequirePermission(\"user:PUT\")] — whoever can edit users can change their centers." },
+    { "method": "PATCH", "route": "/api/user/{id}/all-centers-access", "permission": "user:PUT", "note": "Explicit key [RequirePermission(\"user:PUT\")] — same permission as editing a user." },
     { "method": "PUT", "route": "/api/user/password", "permission": null, "note": "[Authorize] only, no [RequirePermission] — changes the caller's own password (current-password verified in code), not a managed resource." },
 
     { "method": "GET", "route": "/api/setting", "permission": null, "note": "[Authorize] only, no [RequirePermission] — any authenticated user can read the current settings." },

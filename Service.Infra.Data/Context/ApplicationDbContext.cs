@@ -41,6 +41,7 @@ namespace Service.Infra.Data.Context
         public DbSet<Importer> Importer { get; set; }
         public DbSet<Exporter> Exporter { get; set; }
         public DbSet<TableLayout> TableLayout { get; set; }
+        public DbSet<UserCenter> UserCenter { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

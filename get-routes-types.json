@@ -60,7 +60,33 @@
         "name": "string",
         "email": "string",
         "idRole": "number",
+        "hasAllCentersAccess": "boolean",
         "role": "RoleGetDto | null"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/user/me/centers",
+      "auth": true,
+      "permission": null,
+      "permissionNote": "[Authorize] only — the caller's own effective centers, same self-service reasoning as GET /api/permission/me.",
+      "responseData": "MyCentersGetDto (single object, NOT a PagedList). centers is a plain array of center ids (NOT CenterGetDto objects): every non-deleted center id when hasAllCentersAccess is true, otherwise only the ids assigned to the caller (empty when none). Sorted ascending.",
+      "itemShape": {
+        "idUser": "number",
+        "hasAllCentersAccess": "boolean",
+        "centers": "number[]"
+      }
+    },
+    {
+      "method": "GET",
+      "route": "/api/user/{id}/centers",
+      "auth": true,
+      "permission": "user:GET",
+      "responseData": "UserCentersGetDto (single object, NOT a PagedList). centers is only the centers explicitly assigned to that user (UserCenter rows, non-deleted centers) — it does NOT expand to every center when hasAllCentersAccess is true; use that flag to render an 'all centers' state. 404 if the user doesn't exist.",
+      "itemShape": {
+        "idUser": "number",
+        "hasAllCentersAccess": "boolean",
+        "centers": "CenterGetDto[] (sorted by code)"
       }
     },
     {

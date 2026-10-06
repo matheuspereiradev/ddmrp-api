@@ -19,5 +19,15 @@ namespace Service.Infra.Data.Repositories
                 .Where(c => c.deletedAt == null && codeList.Contains(c.Code))
                 .ToDictionaryAsync(c => c.Code, c => c.Id, cancellationToken);
         }
+
+        public async Task<HashSet<int>> GetExistingIdsAsync(IEnumerable<int> ids, CancellationToken cancellationToken = default)
+        {
+            var idList = ids.Distinct().ToList();
+            var existing = await _dbSet
+                .Where(c => c.deletedAt == null && idList.Contains(c.Id))
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken);
+            return existing.ToHashSet();
+        }
     }
 }

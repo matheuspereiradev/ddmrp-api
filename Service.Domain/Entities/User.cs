@@ -13,5 +13,6 @@ namespace Service.Domain.Entities
         public Role Role { get; set; }
         public string? ThreadId { get; set; }
         public DateTime? LastClearWorkspace { get; set; }
+        public bool HasAllCentersAccess { get; set; }
     }
 }

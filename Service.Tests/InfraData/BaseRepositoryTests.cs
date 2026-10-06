@@ -122,6 +122,43 @@ public class BaseRepositoryTests
         Assert.False(exists);
     }
 
+    private sealed class CenterFilteredUserRepository : BaseRepository<User>
+    {
+        private readonly IReadOnlyCollection<int>? _allowedRoleIds;
+
+        public CenterFilteredUserRepository(ApplicationDbContext context, ICurrentUserService currentUser, IReadOnlyCollection<int>? allowedRoleIds)
+            : base(context, currentUser)
+        {
+            _allowedRoleIds = allowedRoleIds;
+        }
+
+        protected override Task<IQueryable<User>> ApplyCenterFilterAsync(IQueryable<User> query, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_allowedRoleIds == null ? query : query.Where(u => _allowedRoleIds.Contains(u.IdRole)));
+        }
+    }
+
+    [Fact]
+    public async Task GetAllAsync_AndGetByIdAsync_ApplyTheCenterFilterHook()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var context = new ApplicationDbContext(options);
+        var allowed = new User { Name = "Allowed", Email = "allowed@test.com", Password = "hash", IdRole = 1 };
+        var blocked = new User { Name = "Blocked", Email = "blocked@test.com", Password = "hash", IdRole = 2 };
+        context.User.AddRange(allowed, blocked);
+        await context.SaveChangesAsync();
+
+        var repository = new CenterFilteredUserRepository(context, Substitute.For<ICurrentUserService>(), new[] { 1 });
+
+        var page = await repository.GetAllAsync(pageNumber: 1, pageSize: 10);
+
+        Assert.Equal(new[] { "Allowed" }, page.Select(u => u.Name));
+        Assert.NotNull(await repository.GetByIdAsync(allowed.Id));
+        Assert.Null(await repository.GetByIdAsync(blocked.Id));
+    }
+
     [Fact]
     public async Task Exists_ReturnsTrue_ForActiveEntity()
     {
