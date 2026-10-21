@@ -8,5 +8,6 @@ namespace Service.Domain.Interfaces
     {
         Task<PagedList<ForecastDailyRow>> GetFilteredAsync(int? idProduct, int? idCenter, DateTime? dateStart, DateTime? dateEnd, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
         Task<PagedList<Forecast>> GetGroupedAsync(int? idProduct, int? idCenter, DateTime? dateStart, DateTime? dateEnd, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+        Task<Forecast> GetByProductCenterAndPeriodAsync(int idProduct, int idCenter, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
     }
 }

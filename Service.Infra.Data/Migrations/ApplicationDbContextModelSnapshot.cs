@@ -738,6 +738,68 @@ namespace Service.Infra.Data.Migrations
                     b.ToTable("Forecasts", (string)null);
                 });
 
+            modelBuilder.Entity("Service.Domain.Entities.ForecastAI", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Assertiveness")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("IdCenter")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IdProduct")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("MonthYear")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PreviewState")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("PreviewType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("QuantityPreviewed")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("createdAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<int?>("createdBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("deletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("deletedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("updatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("updatedBy")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdCenter");
+
+                    b.HasIndex("IdProduct");
+
+                    b.ToTable("ForecastAIs", (string)null);
+                });
+
             modelBuilder.Entity("Service.Domain.Entities.History", b =>
                 {
                     b.Property<int>("Id")
@@ -2578,6 +2640,25 @@ namespace Service.Infra.Data.Migrations
                 });
 
             modelBuilder.Entity("Service.Domain.Entities.Forecast", b =>
+                {
+                    b.HasOne("Service.Domain.Entities.Center", "Center")
+                        .WithMany()
+                        .HasForeignKey("IdCenter")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Service.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("IdProduct")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Center");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("Service.Domain.Entities.ForecastAI", b =>
                 {
                     b.HasOne("Service.Domain.Entities.Center", "Center")
                         .WithMany()
